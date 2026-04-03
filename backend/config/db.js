@@ -1,9 +1,5 @@
 const { Pool } = require('pg');
-const dns = require('dns');
 require('dotenv').config();
-
-// Force IPv4 — Render/Railway free tiers cannot reach IPv6 hosts
-dns.setDefaultResultOrder('ipv4first');
 
 const isProduction = process.env.NODE_ENV === 'production';
 

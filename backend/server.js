@@ -1,3 +1,6 @@
+// Force IPv4 before anything else — Render cannot reach IPv6 hosts
+require('dns').setDefaultResultOrder('ipv4first');
+
 const express = require('express');
 const cors = require('cors');
 const http = require('http');
