@@ -36,7 +36,9 @@ const PORT = process.env.PORT || 5000;
 const allowedOrigins = [
   'http://localhost:3000',
   'https://mlaelc.vercel.app',
-];
+  'https://mla-election-management-ai-powered-xpanda.vercel.app',
+  'https://mla-election-management-ai-powered-git-main-xpanda.vercel.app',
+].filter(Boolean);
 
 function verifyOrigin(origin, callback) {
   if (!origin || allowedOrigins.includes(origin)) {
