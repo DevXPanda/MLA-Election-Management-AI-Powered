@@ -32,10 +32,24 @@ const app = express();
 const server = http.createServer(app);
 const PORT = process.env.PORT || 5000;
 
+// ── Allowed Origins ──────────────────────────────────────────────────
+const allowedOrigins = [
+  'http://localhost:3000',
+  'https://mlaelc.vercel.app',
+];
+
+function verifyOrigin(origin, callback) {
+  if (!origin || allowedOrigins.includes(origin)) {
+    callback(null, true);
+  } else {
+    callback(new Error(`Origin ${origin} not allowed by CORS`));
+  }
+}
+
 // ── Socket.io server ────────────────────────────────────────────────
 const io = new Server(server, {
   cors: {
-    origin: process.env.FRONTEND_URL || '*',
+    origin: allowedOrigins,
     methods: ['GET', 'POST'],
     credentials: true,
   },
@@ -45,7 +59,6 @@ const io = new Server(server, {
 io.on('connection', (socket) => {
   console.log(`🔌 Client connected: ${socket.id}`);
 
-  // Join organization room for tenant-scoped events
   socket.on('join:org', (orgId) => {
     socket.join(`org_${orgId}`);
     console.log(`📡 Socket ${socket.id} joined org_${orgId}`);
@@ -58,8 +71,10 @@ io.on('connection', (socket) => {
 
 // ── Middleware ───────────────────────────────────────────────────────
 app.use(cors({
-  origin: process.env.FRONTEND_URL || '*',
-  credentials: true
+  origin: verifyOrigin,
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
