@@ -125,6 +125,7 @@ const startServer = async () => {
       console.log(`📡 API:       http://localhost:${PORT}/api`);
       console.log(`🔌 Socket.io: http://localhost:${PORT} (WebSocket)`);
       console.log(`🏛️  MLA Election Management System`);
+      console.log(`🌐 CORS origins: ${allowedOrigins.join(', ')}`);
       console.log(`✅ Features:  Multi-Tenant | RBAC Hierarchy | Real-Time | Analytics\n`);
     });
   } catch (error) {
