@@ -1,5 +1,11 @@
 const { Pool } = require('pg');
+const dns = require('dns');
 require('dotenv').config();
+
+// Force IPv4 — Render/Railway free tiers cannot reach IPv6 hosts
+dns.setDefaultResultOrder('ipv4first');
+
+const isProduction = process.env.NODE_ENV === 'production';
 
 const pool = new Pool({
   host: process.env.DB_HOST || 'localhost',
@@ -9,7 +15,8 @@ const pool = new Pool({
   database: process.env.DB_NAME || 'mla_election_db',
   max: 20,
   idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 10000, // Elevated for Cloud DB latency
+  connectionTimeoutMillis: 10000,
+  ssl: isProduction ? { rejectUnauthorized: false } : false,
 });
 
 pool.on('connect', () => {
