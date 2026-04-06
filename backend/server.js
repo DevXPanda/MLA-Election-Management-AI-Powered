@@ -38,6 +38,7 @@ const allowedOrigins = [
   'https://mlaelc.vercel.app',
   'https://mla-election-management-ai-powered-xpanda.vercel.app',
   'https://mla-election-management-ai-powered-git-main-xpanda.vercel.app',
+  'https://mlaelc.nktech.biz'
 ].filter(Boolean);
 
 function verifyOrigin(origin, callback) {
