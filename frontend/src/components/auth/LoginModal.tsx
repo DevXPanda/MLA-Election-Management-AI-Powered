@@ -102,10 +102,6 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
             )}
           </button>
         </form>
-
-        <p className="text-center text-dark-600 dark:text-dark-500 text-[10px] mt-8 uppercase tracking-[2px]">
-          Mission FTC v1.0 • NK Tech Solutions
-        </p>
       </div>
     </Modal>
   );
