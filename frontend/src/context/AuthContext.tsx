@@ -77,7 +77,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Disconnect socket on logout
     socketService.disconnect();
     
-    router.push('/login');
+    router.push('/');
   };
 
   return (

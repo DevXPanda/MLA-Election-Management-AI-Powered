@@ -64,7 +64,7 @@ export default function AdminDashboard({ stats, chartDefaults }: DashboardProps)
             <Activity className="w-5 h-5 text-saffron-500" /> Global Voter Sentiment
           </h3>
           <div className="h-[220px]">
-             <Doughnut data={supportData} options={{ ...chartDefaults, cutout: '75%' }} />
+            <Doughnut data={supportData} options={{ ...chartDefaults, cutout: '75%' }} />
           </div>
           <div className="flex flex-wrap gap-2 mt-6 justify-center">
             {stats.charts.support_stats?.map((s, i) => (
@@ -77,58 +77,58 @@ export default function AdminDashboard({ stats, chartDefaults }: DashboardProps)
         </div>
 
         <div className="glass-card p-6 lg:col-span-2 border border-dark-100/50 dark:border-white/5 shadow-xl">
-           <h3 className="text-base font-black text-dark-900 dark:text-white mb-8 flex items-center gap-2">
-              <ArrowUpRight className="w-5 h-5 text-emerald-500" /> Campaign Growth
-           </h3>
-           <div className="h-[280px]">
-              <Line data={surveyTrendData} options={chartDefaults} />
-           </div>
+          <h3 className="text-base font-black text-dark-900 dark:text-white mb-8 flex items-center gap-2">
+            <ArrowUpRight className="w-5 h-5 text-emerald-500" /> Campaign Growth
+          </h3>
+          <div className="h-[280px]">
+            <Line data={surveyTrendData} options={chartDefaults} />
+          </div>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="glass-card overflow-hidden">
-           <div className="p-6 border-b border-dark-100 dark:border-white/5 flex items-center justify-between">
-              <h3 className="text-base font-bold text-dark-900 dark:text-white">Regional Top Performers</h3>
-              <ArrowUpRight className="w-4 h-4 text-dark-500" />
-           </div>
-           <div className="p-4 space-y-2">
-              {stats.lists.top_performers?.map((worker, i) => (
-                <div key={worker.name} className="flex items-center justify-between p-3 rounded-xl hover:bg-dark-50 dark:hover:bg-white/5 transition-colors">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-dark-100 dark:bg-dark-800 flex items-center justify-center text-xs font-bold text-dark-500 dark:text-dark-400">{i+1}</div>
-                    <div className="text-sm font-bold text-dark-800 dark:text-dark-100">{worker.name}</div>
-                  </div>
-                  <div className="flex gap-4 text-[11px] font-black uppercase tracking-wider">
-                    <span className="bg-green-500/10 text-green-600 dark:text-green-400 px-2 py-0.5 rounded-lg border border-green-500/12">{worker.surveys_count} Surveys</span>
-                    <span className="bg-blue-500/10 text-blue-600 dark:text-blue-400 px-2 py-0.5 rounded-lg border border-blue-500/12">{worker.tasks_completed} Tasks</span>
-                  </div>
+          <div className="p-6 border-b border-dark-100 dark:border-white/5 flex items-center justify-between">
+            <h3 className="text-base font-bold text-dark-900 dark:text-white">Regional Top Performers</h3>
+            <ArrowUpRight className="w-4 h-4 text-dark-500" />
+          </div>
+          <div className="p-4 space-y-2">
+            {stats.lists.top_performers?.map((worker, i) => (
+              <div key={worker.name} className="flex items-center justify-between p-3 rounded-xl hover:bg-dark-50 dark:hover:bg-white/5 transition-colors">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-dark-100 dark:bg-dark-800 flex items-center justify-center text-xs font-bold text-dark-500 dark:text-dark-400">{i + 1}</div>
+                  <div className="text-sm font-bold text-dark-800 dark:text-dark-100">{worker.name}</div>
                 </div>
-              ))}
-           </div>
+                <div className="flex gap-4 text-[11px] font-black uppercase tracking-wider">
+                  <span className="bg-green-500/10 text-green-600 dark:text-green-400 px-2 py-0.5 rounded-lg border border-green-500/12">{worker.surveys_count} Surveys</span>
+                  <span className="bg-blue-500/10 text-blue-600 dark:text-blue-400 px-2 py-0.5 rounded-lg border border-blue-500/12">{worker.tasks_completed} Tasks</span>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
 
         <div className="glass-card overflow-hidden">
-           <div className="p-6 border-b border-dark-100 dark:border-white/5">
-              <h3 className="text-base font-bold text-dark-900 dark:text-white">Live Operation Logs</h3>
-           </div>
-           <div className="max-h-[320px] overflow-y-auto p-4 custom-scrollbar">
-              {stats.lists.recent_activity?.map((activity) => (
-                <div key={activity.id} className="flex gap-3 p-3 rounded-xl hover:bg-dark-50 dark:hover:bg-white/5 transition-all">
-                   <div className="w-8 h-8 rounded-full bg-dark-100 dark:bg-dark-800 flex items-center justify-center shrink-0">
-                      <Activity className="w-4 h-4 text-dark-500 dark:text-dark-600" />
-                   </div>
-                   <div className="flex-1 min-w-0">
-                      <p className="text-xs text-dark-600 dark:text-dark-300">
-                         <span className="font-bold text-dark-900 dark:text-dark-100">{activity.user_name}</span> {activity.action.toLowerCase().replace(/_/g, ' ')}
-                      </p>
-                      <div className="text-[10px] font-bold text-dark-400 dark:text-dark-500 uppercase mt-1">
-                         {formatDistanceToNow(new Date(activity.created_at), { addSuffix: true })} • {activity.module}
-                      </div>
-                   </div>
+          <div className="p-6 border-b border-dark-100 dark:border-white/5">
+            <h3 className="text-base font-bold text-dark-900 dark:text-white">Live Operation Logs</h3>
+          </div>
+          <div className="max-h-[320px] overflow-y-auto p-4 custom-scrollbar">
+            {stats.lists.recent_activity?.map((activity) => (
+              <div key={activity.id} className="flex gap-3 p-3 rounded-xl hover:bg-dark-50 dark:hover:bg-white/5 transition-all">
+                <div className="w-8 h-8 rounded-full bg-dark-100 dark:bg-dark-800 flex items-center justify-center shrink-0">
+                  <Activity className="w-4 h-4 text-dark-500 dark:text-dark-600" />
                 </div>
-              ))}
-           </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs text-dark-600 dark:text-dark-300">
+                    <span className="font-bold text-dark-900 dark:text-dark-100">{activity.user_name}</span> {activity.action.toLowerCase().replace(/_/g, ' ')}
+                  </p>
+                  <div className="text-[10px] font-bold text-dark-400 dark:text-dark-500 uppercase mt-1">
+                    {formatDistanceToNow(new Date(activity.created_at), { addSuffix: true })} • {activity.module}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </div>

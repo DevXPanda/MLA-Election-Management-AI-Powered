@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Image from 'next/image';
 import Header from '@/components/Header';
 import { mediaAPI } from '@/lib/api';
 import { Plus, X, Loader2, Image as ImageIcon, Film, FileText, Download, Trash2 } from 'lucide-react';
@@ -15,8 +16,6 @@ export default function MediaPage() {
 
   const [form, setForm] = useState({ title: '', file_url: '', file_type: 'image', category: '' });
 
-  useEffect(() => { loadMedia(); }, [typeFilter]);
-
   const loadMedia = async () => {
     setLoading(true);
     try {
@@ -27,6 +26,8 @@ export default function MediaPage() {
       setMeta(res.data.meta);
     } catch {} finally { setLoading(false); }
   };
+
+  useEffect(() => { loadMedia(); }, [typeFilter]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -88,12 +89,18 @@ export default function MediaPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-            {media.map(item => (
+            {media.map((item: any) => (
               <div key={item.id} className="glass-card-hover overflow-hidden group">
                 {/* Preview area */}
                 <div className="h-40 bg-dark-800/40 flex items-center justify-center relative">
                   {item.file_type === 'image' && item.file_url ? (
-                    <img src={item.file_url} alt={item.title} className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                    <Image 
+                      src={item.file_url} 
+                      alt={item.title} 
+                      fill 
+                      sizes="(max-width: 768px) 100vw, 33vw"
+                      className="object-cover" 
+                    />
                   ) : (
                     <div className={`w-16 h-16 rounded-lg flex items-center justify-center ${typeColor(item.file_type)}`}>
                       {typeIcon(item.file_type)}

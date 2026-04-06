@@ -30,8 +30,8 @@ export default function RootLayout({
               (function() {
                 try {
                   const savedTheme = localStorage.getItem('theme');
-                  const systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-                  const theme = savedTheme || (systemDark ? 'dark' : 'light');
+                  // Set default theme to light mode as requested
+                  const theme = savedTheme || 'light';
                   document.documentElement.classList.add(theme === 'dark' ? 'dark' : 'light');
                 } catch (e) {}
               })();

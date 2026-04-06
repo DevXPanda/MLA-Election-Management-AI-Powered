@@ -21,8 +21,6 @@ export default function VotersPage() {
     gender: '', caste: '', scheme_beneficiary: false, support_status: 'unknown', remarks: '',
   });
 
-  useEffect(() => { loadVoters(); }, [search, supportFilter]);
-
   const loadVoters = async (page = 1) => {
     setLoading(true);
     try {
@@ -35,6 +33,8 @@ export default function VotersPage() {
     } catch (err) { console.error(err); }
     finally { setLoading(false); }
   };
+
+  useEffect(() => { loadVoters(); }, [search, supportFilter, loadVoters]);
 
   const openCreate = () => {
     setEditingVoter(null);

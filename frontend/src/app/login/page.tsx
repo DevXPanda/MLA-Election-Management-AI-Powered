@@ -1,11 +1,26 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { Shield, Eye, EyeOff, Loader2 } from 'lucide-react';
 
 export default function LoginPage() {
-  const { login } = useAuth();
+  const { user, loading: authLoading, login } = useAuth();
+  const router = useRouter();
+  
+  useEffect(() => {
+    // If we're on the login page but want everything handled by the modal on /, 
+    // redirect to home. If already logged in, redirect to dashboard.
+    if (!authLoading) {
+      if (user) {
+        router.push('/dashboard');
+      } else {
+        router.push('/');
+      }
+    }
+  }, [user, authLoading, router]);
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -41,7 +56,7 @@ export default function LoginPage() {
           <div className="w-16 h-16 bg-gradient-to-br from-saffron-500 to-saffron-700 rounded-2xl flex items-center justify-center mx-auto mb-4 glow-saffron animate-pulse-glow">
             <Shield className="w-8 h-8 text-white" />
           </div>
-          <h1 className="text-2xl font-extrabold text-gradient">Mission FTC</h1>
+          <h1 className="text-2xl font-extrabold text-gradient">MLA Election Management</h1>
           <p className="text-dark-500 text-sm mt-1">Election Command & Control System</p>
         </div>
 
@@ -63,7 +78,7 @@ export default function LoginPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="form-input"
-              placeholder="admin@missionftc.com"
+              placeholder="Your Email ID"
               required
             />
           </div>
@@ -78,7 +93,7 @@ export default function LoginPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="form-input pr-12"
-                placeholder="••••••••"
+                placeholder="Your Password"
                 required
               />
               <button
@@ -106,10 +121,6 @@ export default function LoginPage() {
             )}
           </button>
         </form>
-
-        <p className="text-center text-dark-600 text-xs mt-6">
-          Mission FTC v1.0 • NK Tech Solutions
-        </p>
       </div>
     </div>
   );

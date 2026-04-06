@@ -49,13 +49,13 @@ export default function Header({ title, subtitle }: HeaderProps) {
   };
 
   return (
-    <header className="h-[72px] bg-white/70 dark:bg-dark-950/60 backdrop-blur-2xl border-b border-dark-200/40 dark:border-white/[0.06] flex items-center justify-between pl-16 pr-4 lg:px-8 sticky top-0 z-40 transition-all duration-300">
+    <header className="h-14 bg-white/70 dark:bg-dark-950/60 backdrop-blur-2xl border-b border-dark-200/40 dark:border-white/[0.06] flex items-center justify-between pl-16 pr-4 lg:px-8 sticky top-0 z-40 transition-all duration-300">
       
       {/* Left: Breadcrumb-style title */}
       <div className="flex items-center gap-2.5 min-w-0">
         {/* Accent icon */}
-        <div className="hidden sm:flex w-9 h-9 rounded-lg bg-gradient-to-br from-saffron-500/10 to-amber-500/10 dark:from-saffron-500/20 dark:to-amber-500/10 items-center justify-center flex-shrink-0 border border-saffron-500/10 dark:border-saffron-500/15 shadow-sm shadow-saffron-500/5">
-          <Sparkles className="w-4 h-4 text-saffron-500" />
+        <div className="hidden sm:flex w-8 h-8 rounded-lg bg-gradient-to-br from-saffron-500/10 to-amber-500/10 dark:from-saffron-500/20 dark:to-amber-500/10 items-center justify-center flex-shrink-0 border border-saffron-500/10 dark:border-saffron-500/15 shadow-sm shadow-saffron-500/5">
+          <Sparkles className="w-3.5 h-3.5 text-saffron-500" />
         </div>
         {/* Title + breadcrumb */}
         <div className="flex flex-col justify-center min-w-0">
@@ -99,7 +99,7 @@ export default function Header({ title, subtitle }: HeaderProps) {
         {/* Theme Toggle */}
         <button 
           onClick={toggleTheme}
-          className="w-9 h-9 rounded-lg bg-dark-50/80 dark:bg-dark-800/30 border border-dark-200/50 dark:border-white/[0.06] text-dark-500 dark:text-dark-400 flex items-center justify-center hover:bg-dark-100 dark:hover:bg-dark-700/50 hover:text-dark-800 dark:hover:text-dark-200 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-saffron-500/20 group"
+          className="w-8 h-8 rounded-lg bg-dark-50/80 dark:bg-dark-800/30 border border-dark-200/50 dark:border-white/[0.06] text-dark-500 dark:text-dark-400 flex items-center justify-center hover:bg-dark-100 dark:hover:bg-dark-700/50 hover:text-dark-800 dark:hover:text-dark-200 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-saffron-500/20 group"
           title={theme === 'light' ? 'Switch to Dark Mode' : 'Switch to Light Mode'}
         >
           {theme === 'light' 
