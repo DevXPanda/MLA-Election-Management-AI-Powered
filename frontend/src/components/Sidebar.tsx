@@ -171,7 +171,7 @@ export default function Sidebar() {
       {/* Mobile hamburger button */}
       <button
         onClick={() => setMobileOpen(true)}
-        className="fixed top-[18px] left-4 z-[45] lg:hidden w-10 h-10 rounded-lg bg-white dark:bg-dark-800 border border-dark-200 dark:border-white/10 flex items-center justify-center text-dark-600 dark:text-dark-300 shadow-lg hover:shadow-xl transition-all"
+        className="fixed top-2 left-4 z-[45] lg:hidden w-10 h-10 rounded-lg bg-white dark:bg-dark-800 border border-dark-200 dark:border-white/10 flex items-center justify-center text-dark-600 dark:text-dark-300 shadow-lg hover:shadow-xl transition-all"
         aria-label="Open menu"
       >
         <Menu size={20} />
@@ -192,17 +192,17 @@ export default function Sidebar() {
         <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-saffron-500/40 to-transparent" />
 
         {/* ─── LOGO HEADER ─── */}
-        <div className="h-[72px] px-5 border-b border-dark-100/80 dark:border-white/[0.04] flex items-center justify-between flex-shrink-0 relative">
-          <div className="flex items-center gap-3.5 min-w-0 overflow-hidden">
-            <div className="w-10 h-10 bg-gradient-to-br from-saffron-500 to-amber-600 rounded-lg flex items-center justify-center flex-shrink-0 shadow-lg shadow-saffron-500/25 relative group">
-              <Shield className="w-5 h-5 text-white transition-transform duration-300 group-hover:scale-110" />
+        <div className="h-14 px-5 border-b border-dark-100/80 dark:border-white/[0.04] flex items-center justify-between flex-shrink-0 relative">
+          <div className="flex items-center gap-3 min-w-0 overflow-hidden">
+            <div className="w-8 h-8 bg-gradient-to-br from-saffron-500 to-amber-600 rounded-lg flex items-center justify-center flex-shrink-0 shadow-lg shadow-saffron-500/25 relative group">
+              <Shield className="w-4 h-4 text-white transition-transform duration-300 group-hover:scale-110" />
               {/* Subtle ring animation */}
               <div className="absolute inset-0 rounded-lg border-2 border-saffron-400/0 group-hover:border-saffron-400/30 transition-all duration-500 scale-100 group-hover:scale-110" />
             </div>
             {!collapsed && (
               <div className="flex flex-col justify-center min-w-0 animate-fade-in">
-                <h2 className="text-[17px] font-extrabold text-dark-900 dark:text-white tracking-tight leading-none mb-0">MLA</h2>
-                <p className="text-[8px] text-dark-400 dark:text-dark-500 uppercase tracking-[2px] font-bold mt-0.5 whitespace-nowrap">Election Management</p>
+                <h2 className="text-[15px] font-extrabold text-dark-900 dark:text-white tracking-tight leading-none mb-0">MLA</h2>
+                <p className="text-[7px] text-dark-400 dark:text-dark-500 uppercase tracking-[1.5px] font-bold mt-0.5 whitespace-nowrap">Election Management</p>
               </div>
             )}
           </div>
