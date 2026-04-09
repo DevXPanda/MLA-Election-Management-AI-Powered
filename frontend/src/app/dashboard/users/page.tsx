@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { toast } from 'react-hot-toast';
+import { showToast } from '@/lib/toast';
 import Header from '@/components/Header';
 import { usersAPI } from '@/lib/api';
 import { User, Role } from '@/types';
@@ -78,18 +80,25 @@ export default function UsersPage() {
       setShowModal(false);
       loadUsers();
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Error saving user');
+      showToast.error(err.response?.data?.message || 'Error saving user');
     }
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm('Are you sure you want to delete this user?')) return;
-    try {
-      await usersAPI.delete(id);
-      loadUsers();
-    } catch (err: any) {
-      alert(err.response?.data?.message || 'Error deleting user');
-    }
+    showToast.confirm(
+      'Delete User',
+      'Are you sure you want to delete this user account? This access will be immediately revoked.',
+      async () => {
+        try {
+          await usersAPI.delete(id);
+          loadUsers();
+          toast.success('User deleted successfully');
+        } catch (err: any) {
+          showToast.error(err.response?.data?.message || 'Error deleting user');
+        }
+      },
+      'Delete'
+    );
   };
 
   const getStatusBadge = (status: string) => {

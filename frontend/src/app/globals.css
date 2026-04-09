@@ -17,6 +17,20 @@
     @apply bg-white dark:bg-dark-950 text-dark-900 dark:text-dark-100 font-inter tracking-[0.3px] leading-relaxed transition-colors duration-300;
   }
 
+  :root {
+    --toast-bg: #ffffff;
+    --toast-color: #0f172a;
+    --toast-border: rgba(0, 0, 0, 0.1);
+    --toast-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  }
+
+  .dark {
+    --toast-bg: #020617;
+    --toast-color: #f1f5f9;
+    --toast-border: rgba(255, 255, 255, 0.08);
+    --toast-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+  }
+
   /* Global Bold Font Removal System */
   .font-bold, 
   .font-extrabold, 
@@ -198,7 +212,16 @@
 
   /* Responsive Padding Container */
   .dashboard-container {
-    @apply p-4 sm:p-6 lg:p-8;
+    @apply p-4 md:p-6 lg:p-8;
+  }
+
+  @keyframes shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+
+  .animate-shimmer {
+    animation: shimmer 3s infinite linear;
   }
 
   /* Bottom nav auto-hider when modals are open */

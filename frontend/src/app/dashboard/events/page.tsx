@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { toast } from 'react-hot-toast';
+import { showToast } from '@/lib/toast';
 import Header from '@/components/Header';
 import { eventsAPI } from '@/lib/api';
 import { AppEvent } from '@/types';
@@ -59,12 +61,26 @@ export default function EventsPage() {
       else { await eventsAPI.create(data); }
       setShowModal(false);
       loadEvents();
-    } catch (err: any) { alert(err.response?.data?.message || 'Error'); }
+    } catch (err: any) { 
+      showToast.error(err.response?.data?.message || 'Error saving event'); 
+    }
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm('Delete this event?')) return;
-    try { await eventsAPI.delete(id); loadEvents(); } catch {}
+    showToast.confirm(
+      'Delete Event',
+      'Are you sure you want to cancel and delete this event? This will remove all associated data.',
+      async () => {
+        try { 
+          await eventsAPI.delete(id); 
+          loadEvents(); 
+          toast.success('Event deleted successfully');
+        } catch (err) {
+          showToast.error('Failed to delete event');
+        }
+      },
+      'Delete'
+    );
   };
 
   const statusBadge = (s: string) => {

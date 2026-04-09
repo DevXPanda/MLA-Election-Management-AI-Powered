@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { toast } from 'react-hot-toast';
+import { showToast } from '@/lib/toast';
 import { useAuth } from '@/context/AuthContext';
 import { aiAPI } from '@/lib/api';
 import Header from '@/components/Header';
@@ -158,10 +160,10 @@ function TypingIndicator() {
 // ── Welcome ─────────────────────────────────────────────────────
 function WelcomeScreen({ onSuggestion }: { onSuggestion: (text: string) => void }) {
   const suggestions = [
-    { icon: '💡', title: 'Explain a concept', prompt: 'Explain how blockchain technology works in simple terms' },
-    { icon: '🔧', title: 'Debug code', prompt: 'How do I fix a memory leak in a Node.js application?' },
-    { icon: '📊', title: 'Strategy help', prompt: 'What are effective strategies for voter engagement campaigns?' },
-    { icon: '✍️', title: 'Write content', prompt: 'Write a professional email template for community outreach' },
+    { icon: '🗳️', title: 'Voter Strategy', prompt: 'How can I increase voter turnout in the primary booths of our constituency?' },
+    { icon: '📊', title: 'Data Analysis', prompt: 'Compare voter demographics and suggest where we should focus our outreach efforts.' },
+    { icon: '📢', title: 'Speech Writing', prompt: 'Draft a short, impactful speech focusing on local development for a small community rally.' },
+    { icon: '🤝', title: 'Volunteer Help', prompt: 'Create a simple training guide for booth-level workers for the upcoming election day.' },
   ];
 
   return (
@@ -176,7 +178,7 @@ function WelcomeScreen({ onSuggestion }: { onSuggestion: (text: string) => void 
       </div>
       <h2 className="text-xl md:text-2xl font-medium text-dark-900 dark:text-white mb-2 tracking-tight">AI Assistant</h2>
       <p className="text-dark-400 dark:text-dark-500 text-sm mb-8 text-center max-w-md leading-relaxed">
-        Ask me anything — coding, strategy, research, general knowledge. I&apos;m here to help.
+        Ask me anything — campaign strategy, voter research, speech writing, or general management. I&apos;m here to help you win.
       </p>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-xl">
         {suggestions.map((s, i) => (
@@ -195,7 +197,7 @@ function WelcomeScreen({ onSuggestion }: { onSuggestion: (text: string) => void 
       </div>
       <div className="mt-8 flex items-center gap-2 text-[11px] text-dark-400 dark:text-dark-600">
         <Sparkles size={10} className="text-saffron-400" />
-        <span>Powered by Groq • LLaMA 3.3 70B</span>
+        <span>Powered by XPanda</span>
       </div>
     </div>
   );
@@ -275,17 +277,25 @@ export default function AIAssistantPage() {
   // ── Delete session ─────────────────────────────────────────
   const handleDeleteSession = async (e: React.MouseEvent, sessionId: number) => {
     e.stopPropagation();
-    if (!confirm('Delete this chat?')) return;
-    try {
-      await aiAPI.deleteSession(sessionId);
-      setSessions(prev => prev.filter(s => s.id !== sessionId));
-      if (activeSessionId === sessionId) {
-        setActiveSessionId(null);
-        setMessages([]);
-      }
-    } catch (err) {
-      console.error('Failed to delete session:', err);
-    }
+    showToast.confirm(
+      'Delete Chat',
+      'Are you sure you want to delete this conversation? This cannot be undone.',
+      async () => {
+        try {
+          await aiAPI.deleteSession(sessionId);
+          setSessions(prev => prev.filter(s => s.id !== sessionId));
+          if (activeSessionId === sessionId) {
+            setActiveSessionId(null);
+            setMessages([]);
+          }
+          toast.success('Chat deleted successfully');
+        } catch (err) {
+          console.error('Failed to delete session:', err);
+          showToast.error('Failed to delete chat session.');
+        }
+      },
+      'Delete'
+    );
   };
 
   // ── Auto-scroll ─────────────────────────────────────────────
@@ -605,7 +615,16 @@ export default function AIAssistantPage() {
             {/* ── INPUT ─────────────────────────────────────── */}
             <div className="flex-shrink-0 border-t border-dark-100 dark:border-white/[0.04] bg-white/60 dark:bg-dark-900/40 px-4 py-3">
               <div className="max-w-3xl mx-auto">
-                <div className="flex items-end gap-2.5 bg-white dark:bg-dark-800/60 rounded-2xl border border-dark-200 dark:border-white/[0.06] focus-within:border-saffron-500/30 focus-within:shadow-md focus-within:shadow-saffron-500/5 transition-all duration-300 p-1.5 pl-4">
+                <div className={`flex items-end gap-2.5 bg-white dark:bg-dark-800/60 rounded-2xl border transition-all duration-300 p-1.5 pl-4 ${isLoading
+                  ? 'border-saffron-500/40 shadow-md shadow-saffron-500/10'
+                  : 'border-dark-200 dark:border-white/[0.06] focus-within:border-saffron-500/30 focus-within:shadow-md focus-within:shadow-saffron-500/5'
+                  }`}>
+                  {isLoading && (
+                    <div className="absolute top-0 left-4 right-4 h-[1.5px] overflow-hidden rounded-full">
+                      <div className="h-full bg-gradient-to-r from-transparent via-saffron-500 to-transparent w-full animate-shimmer"
+                        style={{ backgroundSize: '200% 100%' }} />
+                    </div>
+                  )}
                   <textarea
                     ref={inputRef}
                     value={input}
@@ -614,13 +633,14 @@ export default function AIAssistantPage() {
                     placeholder="Type a message..."
                     rows={1}
                     className="flex-1 bg-transparent resize-none outline-none text-sm text-dark-900 dark:text-dark-100 placeholder-dark-400 dark:placeholder-dark-500 py-2 max-h-[160px] custom-scrollbar leading-relaxed"
-                    disabled={isLoading}
                     id="ai-chat-input"
                   />
                   <button onClick={() => sendMessage()} disabled={!input.trim() || isLoading}
                     className={`flex-shrink-0 w-9 h-9 rounded-xl flex items-center justify-center transition-all duration-300 ${input.trim() && !isLoading
                       ? 'bg-gradient-to-br from-saffron-500 to-amber-600 text-white shadow-md shadow-saffron-500/20 hover:shadow-saffron-500/35 hover:scale-105 active:scale-95'
-                      : 'bg-dark-100 dark:bg-dark-700/50 text-dark-400 dark:text-dark-500 cursor-not-allowed'
+                      : isLoading
+                        ? 'bg-saffron-500/10 text-saffron-500'
+                        : 'bg-dark-100 dark:bg-dark-700/50 text-dark-400 dark:text-dark-500 cursor-not-allowed'
                       }`}
                     id="ai-chat-send"
                   >

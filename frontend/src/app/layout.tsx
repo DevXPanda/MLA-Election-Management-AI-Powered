@@ -16,6 +16,8 @@ export const metadata: Metadata = {
   description: 'Centralized digital platform for campaign management, voter surveys, and constituency intelligence.',
 };
 
+import { Toaster } from 'react-hot-toast';
+
 export default function RootLayout({
   children,
 }: {
@@ -43,6 +45,37 @@ export default function RootLayout({
         <AuthProvider>
           <ThemeProvider>
             {children}
+            <Toaster 
+              position="top-right"
+              reverseOrder={false}
+              toastOptions={{
+                duration: 4000,
+                style: {
+                  background: 'var(--toast-bg)',
+                  color: 'var(--toast-color)',
+                  fontSize: '13px',
+                  fontWeight: '600',
+                  borderRadius: '16px',
+                  padding: '12px 20px',
+                  border: '1px solid var(--toast-border)',
+                  boxShadow: 'var(--toast-shadow)',
+                  fontFamily: 'var(--font-inter)',
+                  maxWidth: '400px',
+                },
+                success: {
+                  iconTheme: {
+                    primary: '#f97316',
+                    secondary: '#fff',
+                  },
+                },
+                error: {
+                  iconTheme: {
+                    primary: '#ef4444',
+                    secondary: '#fff',
+                  },
+                },
+              }}
+            />
           </ThemeProvider>
         </AuthProvider>
       </body>

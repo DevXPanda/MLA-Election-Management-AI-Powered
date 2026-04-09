@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { toast } from 'react-hot-toast';
+import { showToast } from '@/lib/toast';
 import Header from '@/components/Header';
 import { messagesAPI } from '@/lib/api';
 import { Message } from '@/types';
@@ -40,7 +42,9 @@ export default function MessagesPage() {
       setShowModal(false);
       loadMessages();
       setForm({ title: '', content: '', target_type: 'all', channel: 'push' });
-    } catch (err: any) { alert(err.response?.data?.message || 'Error'); }
+    } catch (err: any) { 
+      showToast.error(err.response?.data?.message || 'Error sending message'); 
+    }
   };
 
   const markRead = async (id: number) => {
@@ -48,8 +52,20 @@ export default function MessagesPage() {
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm('Delete this message?')) return;
-    try { await messagesAPI.delete(id); loadMessages(); } catch {}
+    showToast.confirm(
+      'Delete Message',
+      'Are you sure you want to delete this message? This record will be removed from your sent history.',
+      async () => {
+        try { 
+          await messagesAPI.delete(id); 
+          loadMessages(); 
+          toast.success('Message deleted');
+        } catch (err) {
+          showToast.error('Failed to delete message');
+        }
+      },
+      'Delete'
+    );
   };
 
   const currentList = view === 'sent' ? messages : inbox;

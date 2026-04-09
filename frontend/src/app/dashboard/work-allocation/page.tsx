@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { toast } from 'react-hot-toast';
+import { showToast } from '@/lib/toast';
 import Header from '@/components/Header';
 import { workAllocationAPI, eventsAPI, usersAPI } from '@/lib/api';
 import { WorkAllocation, AppEvent, User } from '@/types';
@@ -81,6 +83,7 @@ export default function WorkAllocationPage() {
       setMeta(res.data.meta);
     } catch (err) {
       console.error(err);
+      toast.error('Failed to load work allocations');
     } finally {
       setLoading(false);
     }
@@ -174,7 +177,7 @@ export default function WorkAllocationPage() {
       loadAllocations();
       loadStats();
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Error saving allocation');
+      showToast.error(err.response?.data?.message || 'Error saving allocation');
     }
   };
 
@@ -182,7 +185,7 @@ export default function WorkAllocationPage() {
     if (!executingAllocation) return;
 
     if (status === 'not_completed' && !execForm.not_completed_reason) {
-      alert('Please provide a reason for non-completion.');
+      showToast.info('Please provide a reason for non-completion.');
       return;
     }
 
@@ -195,7 +198,7 @@ export default function WorkAllocationPage() {
       loadAllocations();
       loadStats();
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Update failed');
+      showToast.error(err.response?.data?.message || 'Update failed');
     }
   };
 
@@ -211,8 +214,9 @@ export default function WorkAllocationPage() {
       });
       streamRef.current = stream;
       setIsCameraActive(true);
+      toast.success('Camera activated for scan');
     } catch (err) {
-      alert("Tactical Camera access denied. Ensure you are on a secure connection and have granted permissions.");
+      toast.error("Tactical Camera access denied. Ensure you are on a secure connection and have granted permissions.");
       setIsCameraActive(false);
       setActiveCameraType(null);
     }

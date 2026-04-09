@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { toast } from 'react-hot-toast';
+import { showToast } from '@/lib/toast';
 import Header from '@/components/Header';
 import { tasksAPI, usersAPI } from '@/lib/api';
 import { Task, User } from '@/types';
@@ -98,13 +100,25 @@ export default function TasksPage() {
       setShowModal(false);
       loadTasks();
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Error saving task');
+      showToast.error(err.response?.data?.message || 'Error saving task');
     }
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm('Delete this task?')) return;
-    try { await tasksAPI.delete(id); loadTasks(); } catch {}
+    showToast.confirm(
+      'Delete Task',
+      'Are you sure you want to delete this task? This action cannot be undone.',
+      async () => {
+        try { 
+          await tasksAPI.delete(id); 
+          loadTasks(); 
+          toast.success('Task deleted');
+        } catch (err) {
+          showToast.error('Failed to delete task');
+        }
+      },
+      'Delete'
+    );
   };
 
   const quickStatus = async (id: number, status: string) => {

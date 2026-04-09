@@ -56,12 +56,18 @@ class AIService {
     this.client = new Groq({ apiKey });
   }
 
-  async chat(message, history = []) {
+  async chat(message, history = [], memories = []) {
     if (!this.client) {
       throw new Error('AI service not configured. Please set GROQ_API_KEY in environment.');
     }
 
-    const messages = [{ role: 'system', content: SYSTEM_PROMPT }];
+    let dynamicPrompt = SYSTEM_PROMPT;
+    if (memories && memories.length > 0) {
+      const memoryString = memories.map(m => `${m.memory_key}: ${m.memory_value}`).join('\n');
+      dynamicPrompt += `\n\nUSER INFORMATION (Long-term memory):\n${memoryString}`;
+    }
+
+    const messages = [{ role: 'system', content: dynamicPrompt }];
 
     // Add conversation history (last 10 for context window)
     const recent = history.slice(-10);
@@ -92,9 +98,70 @@ class AIService {
       throw new Error('Failed to get AI response. Please try again.');
     }
   }
+
+  async extractMemories(message, lastResponse) {
+    if (!this.client || !message) return [];
+
+    const extractionPrompt = `You are a memory extraction unit. Extract key user facts (name, personal preferences, role, location, or repeating interests) from the conversation.
+    Output ONLY a valid JSON array of objects: [{"key": "name", "value": "Satyam Pandey"}, ...].
+    Rule: Key should be a simple identifier (lowercase_with_underscores).
+    If no new facts worth remembering, output [].
+    
+    Conversation snippet:
+    User: "${message.substring(0, 1000)}"
+    AI: "${lastResponse.substring(0, 1000)}"`;
+
+    try {
+      const completion = await this.client.chat.completions.create({
+        model: 'llama-3.1-8b-instant',
+        messages: [{ role: 'system', content: extractionPrompt }],
+        temperature: 0.1,
+        max_tokens: 300,
+      });
+
+      const content = completion.choices[0]?.message?.content || '[]';
+      // Attempt to find JSON array in response
+      const jsonMatch = content.match(/\[\s*\{.*\}\s*\]/s);
+      return jsonMatch ? JSON.parse(jsonMatch[0]) : [];
+    } catch (error) {
+      console.error('Memory Extraction Error:', error.message);
+      return [];
+    }
+  }
 }
 
 const aiService = new AIService();
+
+// ── Memory Management ────────────────────────────────────────────────
+async function getUserMemories(userId) {
+  try {
+    const res = await pool.query(
+      'SELECT memory_key, memory_value FROM user_memories WHERE user_id = $1',
+      [userId]
+    );
+    return res.rows;
+  } catch (err) {
+    console.error('Failed to fetch memories:', err);
+    return [];
+  }
+}
+
+async function saveMemories(userId, memories) {
+  if (!memories || memories.length === 0) return;
+  for (const m of memories) {
+    try {
+      await pool.query(
+        `INSERT INTO user_memories (user_id, memory_key, memory_value, updated_at) 
+         VALUES ($1, $2, $3, NOW())
+         ON CONFLICT (user_id, memory_key) 
+         DO UPDATE SET memory_value = EXCLUDED.memory_value, updated_at = NOW()`,
+        [userId, m.key, m.value]
+      );
+    } catch (err) {
+      console.error('Failed to save memory:', err);
+    }
+  }
+}
 
 // ── Auto-title from first message ────────────────────────────────────
 function generateTitle(msg) {
@@ -109,7 +176,7 @@ function generateTitle(msg) {
 
 /**
  * POST /api/ai/chat
- * Send message, get AI response, persist both in DB
+ * Send message, get AI response, handle persistent memory
  */
 const chat = async (req, res) => {
   try {
@@ -121,15 +188,15 @@ const chat = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Message is required.' });
     }
     if (message.length > 4000) {
-      return res.status(400).json({ success: false, message: 'Message too long. Maximum 4000 characters.' });
+      return res.status(400).json({ success: false, message: 'Message too long.' });
     }
     if (!checkRateLimit(userId)) {
-      return res.status(429).json({ success: false, message: 'Too many requests. Please wait a moment.' });
+      return res.status(429).json({ success: false, message: 'Too many requests.' });
     }
 
     let sessionId = session_id;
 
-    // Create new session if none provided
+    // Create session if needed
     if (!sessionId) {
       const title = generateTitle(message);
       const result = await pool.query(
@@ -139,13 +206,13 @@ const chat = async (req, res) => {
       sessionId = result.rows[0].id;
     }
 
-    // Verify session belongs to user
+    // Auth check for session
     const sessionCheck = await pool.query(
       'SELECT id FROM chat_sessions WHERE id = $1 AND user_id = $2',
       [sessionId, userId]
     );
     if (sessionCheck.rows.length === 0) {
-      return res.status(403).json({ success: false, message: 'Session not found.' });
+      return res.status(403).json({ success: false, message: 'Unauthorized session.' });
     }
 
     // Save user message
@@ -154,33 +221,42 @@ const chat = async (req, res) => {
       [sessionId, 'user', message]
     );
 
-    // Fetch recent history for context
+    // 1. Fetch long-term memory
+    const memories = await getUserMemories(userId);
+
+    // 2. Fetch short-term history
     const historyResult = await pool.query(
       'SELECT role, content FROM chat_messages WHERE session_id = $1 ORDER BY created_at DESC LIMIT 10',
       [sessionId]
     );
     const history = historyResult.rows.reverse();
 
-    // Get AI response
-    const reply = await aiService.chat(message, history);
+    // 3. Get AI response with memories injected
+    const reply = await aiService.chat(message, history, memories);
 
     // Save AI response
-    const aiMsgResult = await pool.query(
-      'INSERT INTO chat_messages (session_id, role, content) VALUES ($1, $2, $3) RETURNING id, created_at',
+    await pool.query(
+      'INSERT INTO chat_messages (session_id, role, content) VALUES ($1, $2, $3)',
       [sessionId, 'assistant', reply]
     );
 
-    // Update session timestamp
+    // 4. Update session timestamp
     await pool.query(
-      'UPDATE chat_sessions SET updated_at = CURRENT_TIMESTAMP WHERE id = $1',
+      'UPDATE chat_sessions SET updated_at = NOW() WHERE id = $1',
       [sessionId]
     );
 
+    // 5. Background: Trigger memory extraction (async)
+    aiService.extractMemories(message, reply).then(newMemories => {
+      if (newMemories && newMemories.length > 0) {
+        saveMemories(userId, newMemories);
+      }
+    }).catch(err => console.error('BG Memory Sync Error:', err));
+
     return res.json({
       success: true,
-      session_id: sessionId,
       reply,
-      timestamp: aiMsgResult.rows[0].created_at,
+      session_id: sessionId
     });
   } catch (error) {
     console.error('AI Chat Error:', error.message);

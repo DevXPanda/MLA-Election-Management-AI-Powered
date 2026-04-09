@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useEffect, useCallback, Suspense } from 'react';
+import { toast } from 'react-hot-toast';
+import { showToast } from '@/lib/toast';
 import Header from '@/components/Header';
 import { votersAPI } from '@/lib/api';
 import { Voter } from '@/types';
@@ -94,12 +96,26 @@ function VotersContent() {
       else { await votersAPI.create(data); }
       setShowModal(false);
       loadVoters(meta.page);
-    } catch (err: any) { alert(err.response?.data?.message || 'Error'); }
+    } catch (err: any) { 
+      showToast.error(err.response?.data?.message || 'Error saving voter'); 
+    }
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm('Delete this voter?')) return;
-    try { await votersAPI.delete(id); loadVoters(meta.page); } catch {}
+    showToast.confirm(
+      'Delete Voter',
+      'Are you sure you want to remove this voter record? This action cannot be reversed.',
+      async () => {
+        try { 
+          await votersAPI.delete(id); 
+          loadVoters(meta.page); 
+          toast.success('Voter record deleted');
+        } catch (err) {
+          showToast.error('Failed to delete voter');
+        }
+      },
+      'Delete'
+    );
   };
 
   const supportBadge = (status: string) => {

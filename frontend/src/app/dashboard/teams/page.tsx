@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { toast } from 'react-hot-toast';
+import { showToast } from '@/lib/toast';
 import Header from '@/components/Header';
 import { teamsAPI, usersAPI } from '@/lib/api';
 import { TeamMember, User } from '@/types';
@@ -44,12 +46,27 @@ export default function TeamsPage() {
       setShowModal(false);
       loadMembers();
       loadStats();
-    } catch (err: any) { alert(err.response?.data?.message || 'Error'); }
+    } catch (err: any) { 
+      showToast.error(err.response?.data?.message || 'Error adding team member'); 
+    }
   };
 
   const handleRemove = async (id: number) => {
-    if (!confirm('Remove this team member?')) return;
-    try { await teamsAPI.remove(id); loadMembers(); loadStats(); } catch {}
+    showToast.confirm(
+      'Remove Member',
+      'Are you sure you want to remove this member from the team? This will not delete their user account.',
+      async () => {
+        try { 
+          await teamsAPI.remove(id); 
+          loadMembers(); 
+          loadStats(); 
+          toast.success('Member removed from team');
+        } catch (err) {
+          showToast.error('Failed to remove team member');
+        }
+      },
+      'Remove'
+    );
   };
 
   return (

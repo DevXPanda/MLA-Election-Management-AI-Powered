@@ -438,6 +438,19 @@ const createTables = async () => {
     CREATE INDEX IF NOT EXISTS idx_work_alloc_status ON work_allocations(status);
     CREATE INDEX IF NOT EXISTS idx_activity_org ON activity_logs(organization_id);
     CREATE INDEX IF NOT EXISTS idx_media_org ON media(organization_id);
+
+    -- AI User Long-term Memory
+    CREATE TABLE IF NOT EXISTS user_memories (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+      memory_key VARCHAR(100) NOT NULL,
+      memory_value TEXT NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(user_id, memory_key)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_user_memories_user ON user_memories(user_id);
     CREATE INDEX IF NOT EXISTS idx_chat_sessions_user ON chat_sessions(user_id);
     CREATE INDEX IF NOT EXISTS idx_chat_messages_session ON chat_messages(session_id);
   `;

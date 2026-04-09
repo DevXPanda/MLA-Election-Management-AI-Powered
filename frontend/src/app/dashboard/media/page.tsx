@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
+import { toast } from 'react-hot-toast';
+import { showToast } from '@/lib/toast';
 import Header from '@/components/Header';
 import { mediaAPI } from '@/lib/api';
 import { Plus, X, Loader2, Image as ImageIcon, Film, FileText, Download, Trash2 } from 'lucide-react';
@@ -35,7 +37,9 @@ export default function MediaPage() {
       await mediaAPI.create(form);
       setShowModal(false);
       loadMedia();
-    } catch (err: any) { alert(err.response?.data?.message || 'Error'); }
+    } catch (err: any) { 
+      showToast.error(err.response?.data?.message || 'Error saving media'); 
+    }
   };
 
   const handleDownload = async (id: number) => {
@@ -43,8 +47,20 @@ export default function MediaPage() {
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm('Delete this media?')) return;
-    try { await mediaAPI.delete(id); loadMedia(); } catch {}
+    showToast.confirm(
+      'Delete Media',
+      'Are you sure you want to delete this media asset? This will remove it for all users.',
+      async () => {
+        try { 
+          await mediaAPI.delete(id); 
+          loadMedia(); 
+          toast.success('Media deleted successfully');
+        } catch (err) {
+          showToast.error('Failed to delete media');
+        }
+      },
+      'Delete'
+    );
   };
 
   const typeIcon = (type: string) => {

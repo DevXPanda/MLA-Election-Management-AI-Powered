@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { toast } from 'react-hot-toast';
+import { showToast } from '@/lib/toast';
 import Header from '@/components/Header';
 import { surveysAPI } from '@/lib/api';
 import { Survey } from '@/types';
@@ -67,7 +69,7 @@ export default function SurveysPage() {
       streamRef.current = stream;
       setIsCameraActive(true);
     } catch (err) {
-      alert("Capture access denied. Check permissions.");
+      showToast.error("Capture access denied. Check permissions.");
     }
   };
 
@@ -106,15 +108,28 @@ export default function SurveysPage() {
       loadSurveys();
       loadStats();
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Error saving survey');
+      showToast.error(err.response?.data?.message || 'Error saving survey');
     } finally {
       setLoading(false);
     }
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm('Delete this survey?')) return;
-    try { await surveysAPI.delete(id); loadSurveys(); loadStats(); } catch { }
+    showToast.confirm(
+      'Delete Survey',
+      'Are you sure you want to delete this survey entry? This data will be permanently removed from analytics.',
+      async () => {
+        try { 
+          await surveysAPI.delete(id); 
+          loadSurveys(); 
+          loadStats(); 
+          toast.success('Survey deleted');
+        } catch (err) {
+          showToast.error('Failed to delete survey');
+        }
+      },
+      'Delete'
+    );
   };
 
   const supportBadge = (s: string) => {

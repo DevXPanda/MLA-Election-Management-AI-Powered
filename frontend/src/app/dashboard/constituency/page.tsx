@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { toast } from 'react-hot-toast';
+import { showToast } from '@/lib/toast';
 import Header from '@/components/Header';
 import { constituencyAPI, usersAPI } from '@/lib/api';
 import { State, District, Constituency, Area, Ward, Booth, User } from '@/types';
@@ -162,26 +164,61 @@ export default function ConstituencyPage() {
         constituencyAPI.getBooths(selectedWard!).then(res => setBooths(res.data.data));
       }
       setShowModal(false);
-    } catch (err: any) { alert(err.response?.data?.message || 'Error'); }
+    } catch (err: any) { 
+      showToast.error(err.response?.data?.message || 'Error'); 
+    }
   };
 
   const handleDeleteState = async (id: number) => {
-    if (!confirm('Delete this state and all its districts/constituencies?')) return;
-    await constituencyAPI.deleteState(id);
-    constituencyAPI.getStates().then(res => setStates(res.data.data));
+    showToast.confirm(
+      'Delete State',
+      'Delete this state and all its districts/constituencies? This is a high-level destructive action.',
+      async () => {
+        try {
+          await constituencyAPI.deleteState(id);
+          constituencyAPI.getStates().then(res => setStates(res.data.data));
+          toast.success('State deleted');
+        } catch {
+          showToast.error('Failed to delete state');
+        }
+      },
+      'Delete'
+    );
   };
 
   const handleDeleteDistrict = async (id: number) => {
-    if (!confirm('Delete this district and all its constituencies?')) return;
-    await constituencyAPI.deleteDistrict(id);
-    if (selectedState) constituencyAPI.getDistricts(selectedState).then(res => setDistricts(res.data.data));
+    showToast.confirm(
+      'Delete District',
+      'Delete this district and all its constituencies? This action cannot be undone.',
+      async () => {
+        try {
+          await constituencyAPI.deleteDistrict(id);
+          if (selectedState) constituencyAPI.getDistricts(selectedState).then(res => setDistricts(res.data.data));
+          toast.success('District deleted');
+        } catch {
+          showToast.error('Failed to delete district');
+        }
+      },
+      'Delete'
+    );
   };
 
   const handleDeleteConstituency = async (id: number) => {
-    if (!confirm('Delete this constituency?')) return;
-    await constituencyAPI.deleteConstituency(id);
-    if (selectedDistrict) constituencyAPI.getConstituencies(selectedDistrict).then(res => setConstituencies(res.data.data));
-    else loadInitial();
+    showToast.confirm(
+      'Delete Constituency',
+      'Are you sure you want to delete this constituency? This will remove all local campaign data.',
+      async () => {
+        try {
+          await constituencyAPI.deleteConstituency(id);
+          if (selectedDistrict) constituencyAPI.getConstituencies(selectedDistrict).then(res => setConstituencies(res.data.data));
+          else loadInitial();
+          toast.success('Constituency deleted');
+        } catch {
+          showToast.error('Failed to delete constituency');
+        }
+      },
+      'Delete'
+    );
   };
 
   const handleStructureSubmit = async (e: React.FormEvent) => {
@@ -237,30 +274,63 @@ export default function ConstituencyPage() {
       setShowStructureModal(false);
       setCurrentStep(1);
       loadInitial();
-      alert('Structure created successfully!');
+      toast.success('Campaign structure created successfully!');
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to create structure');
+      showToast.error(err.response?.data?.message || 'Failed to create structure');
     } finally {
       setLoading(false);
     }
   };
 
   const handleDeleteArea = async (id: number) => {
-    if (!confirm('Delete this area and all its wards/booths?')) return;
-    await constituencyAPI.deleteArea(id);
-    constituencyAPI.getAreas(selectedConstituency!).then(res => setAreas(res.data.data));
+    showToast.confirm(
+      'Delete Area',
+      'Delete this area and all its wards/booths? This is permanent.',
+      async () => {
+        try {
+          await constituencyAPI.deleteArea(id);
+          constituencyAPI.getAreas(selectedConstituency!).then(res => setAreas(res.data.data));
+          toast.success('Area deleted');
+        } catch {
+          showToast.error('Failed to delete area');
+        }
+      },
+      'Delete'
+    );
   };
 
   const handleDeleteWard = async (id: number) => {
-    if (!confirm('Delete this ward?')) return;
-    await constituencyAPI.deleteWard(id);
-    constituencyAPI.getWards(undefined, selectedArea!).then(res => setWards(res.data.data));
+    showToast.confirm(
+      'Delete Ward',
+      'Are you sure you want to delete this ward?',
+      async () => {
+        try {
+          await constituencyAPI.deleteWard(id);
+          constituencyAPI.getWards(undefined, selectedArea!).then(res => setWards(res.data.data));
+          toast.success('Ward deleted');
+        } catch {
+          showToast.error('Failed to delete ward');
+        }
+      },
+      'Delete'
+    );
   };
 
   const handleDeleteBooth = async (id: number) => {
-    if (!confirm('Delete this booth?')) return;
-    await constituencyAPI.deleteBooth(id);
-    constituencyAPI.getBooths(selectedWard!).then(res => setBooths(res.data.data));
+    showToast.confirm(
+      'Delete Booth',
+      'Are you sure you want to delete this booth?',
+      async () => {
+        try {
+          await constituencyAPI.deleteBooth(id);
+          constituencyAPI.getBooths(selectedWard!).then(res => setBooths(res.data.data));
+          toast.success('Booth deleted');
+        } catch {
+          showToast.error('Failed to delete booth');
+        }
+      },
+      'Delete'
+    );
   };
 
   if (loading) return (
