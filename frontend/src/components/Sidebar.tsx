@@ -23,9 +23,9 @@ interface SidebarContextType {
 
 const SidebarContext = createContext<SidebarContextType>({
   collapsed: false,
-  setCollapsed: () => {},
+  setCollapsed: () => { },
   mobileOpen: false,
-  setMobileOpen: () => {},
+  setMobileOpen: () => { },
 });
 
 export const useSidebar = () => useContext(SidebarContext);
@@ -48,103 +48,103 @@ const NAV_CONFIG = [
   {
     title: 'Overview',
     items: [
-      { 
-        href: '/dashboard', 
-        label: 'Dashboard', 
-        icon: LayoutDashboard, 
-        roles: ['super_admin', 'mla', 'campaign_manager', 'ward_head', 'booth_worker'] 
+      {
+        href: '/dashboard',
+        label: 'Dashboard',
+        icon: LayoutDashboard,
+        roles: ['super_admin', 'mla', 'campaign_manager', 'ward_head', 'booth_worker']
       },
     ],
   },
   {
     title: 'System Control',
     items: [
-      { 
-        href: '/dashboard/users', 
-        label: 'Users', 
-        icon: Users, 
-        roles: ['super_admin'] 
+      {
+        href: '/dashboard/users',
+        label: 'Users',
+        icon: Users,
+        roles: ['super_admin']
       },
-      { 
-        href: '/dashboard/constituency', 
-        label: 'Constituency', 
-        icon: MapPin, 
-        roles: ['super_admin', 'mla'] 
+      {
+        href: '/dashboard/constituency',
+        label: 'Constituency',
+        icon: MapPin,
+        roles: ['super_admin', 'mla']
       },
     ],
   },
   {
     title: 'Field Operations',
     items: [
-      { 
-        href: '/dashboard/teams', 
-        label: 'Teams', 
-        icon: UsersRound, 
-        roles: ['super_admin', 'campaign_manager', 'ward_head'] 
+      {
+        href: '/dashboard/teams',
+        label: 'Teams',
+        icon: UsersRound,
+        roles: ['super_admin', 'campaign_manager', 'ward_head']
       },
-      { 
-        href: '/dashboard/voters', 
-        label: 'Voters', 
-        icon: Vote, 
-        roles: ['super_admin', 'mla', 'campaign_manager', 'ward_head', 'booth_worker'] 
+      {
+        href: '/dashboard/voters',
+        label: 'Voters',
+        icon: Vote,
+        roles: ['super_admin', 'mla', 'campaign_manager', 'ward_head', 'booth_worker']
       },
-      { 
-        href: '/dashboard/tasks', 
-        label: 'Tasks', 
-        icon: ListTodo, 
-        roles: ['super_admin', 'campaign_manager', 'ward_head', 'booth_worker'] 
+      {
+        href: '/dashboard/tasks',
+        label: 'Tasks',
+        icon: ListTodo,
+        roles: ['super_admin', 'campaign_manager', 'ward_head', 'booth_worker']
       },
-      { 
-        href: '/dashboard/surveys', 
-        label: 'Surveys', 
-        icon: ClipboardList, 
-        roles: ['super_admin', 'mla', 'campaign_manager', 'ward_head', 'booth_worker'] 
+      {
+        href: '/dashboard/surveys',
+        label: 'Surveys',
+        icon: ClipboardList,
+        roles: ['super_admin', 'mla', 'campaign_manager', 'ward_head', 'booth_worker']
       },
     ],
   },
   {
     title: 'Mission Intelligence',
     items: [
-      { 
-        href: '/dashboard/events', 
-        label: 'Event Management', 
-        icon: Calendar, 
-        roles: ['super_admin', 'mla', 'campaign_manager'] 
+      {
+        href: '/dashboard/events',
+        label: 'Event Management',
+        icon: Calendar,
+        roles: ['super_admin', 'mla', 'campaign_manager']
       },
-      { 
-        href: '/dashboard/work-allocation', 
-        label: 'Work Allocation', 
-        icon: ListTodo, 
-        roles: ['super_admin', 'mla', 'campaign_manager', 'ward_head', 'booth_worker'] 
+      {
+        href: '/dashboard/work-allocation',
+        label: 'Work Allocation',
+        icon: ListTodo,
+        roles: ['super_admin', 'mla', 'campaign_manager', 'ward_head', 'booth_worker']
       },
-      { 
-        href: '/dashboard/reports', 
-        label: 'Reports', 
-        icon: BarChart3, 
-        roles: ['super_admin', 'mla'] 
+      {
+        href: '/dashboard/reports',
+        label: 'Reports',
+        icon: BarChart3,
+        roles: ['super_admin', 'mla']
       },
-      { 
-        href: '/dashboard/messages', 
-        label: 'Messages', 
-        icon: MessageSquare, 
-        roles: ['super_admin', 'mla'] 
+      {
+        href: '/dashboard/messages',
+        label: 'Messages',
+        icon: MessageSquare,
+        roles: ['super_admin', 'mla']
       },
-      { 
-        href: '/dashboard/media', 
-        label: 'Media Library', 
-        icon: Image, 
-        roles: ['super_admin', 'mla'] 
+      {
+        href: '/dashboard/media',
+        label: 'Media Library',
+        icon: Image,
+        roles: ['super_admin', 'mla']
       },
     ],
   },
   {
     title: 'AI Tools',
     items: [
-      { 
-        href: '/dashboard/ai-assistant', 
-        label: 'AI Assistant', 
-        icon: Bot, 
-        roles: ['super_admin', 'mla'] 
+      {
+        href: '/dashboard/ai-assistant',
+        label: 'Chat With Us',
+        icon: Bot,
+        roles: ['super_admin', 'mla']
       },
     ],
   },
@@ -162,7 +162,7 @@ export default function Sidebar() {
 
   const filteredNav = useMemo(() => {
     if (!user) return [];
-    
+
     return NAV_CONFIG.map(section => ({
       ...section,
       items: section.items.filter(item => item.roles.includes(user.role_name))
@@ -179,14 +179,14 @@ export default function Sidebar() {
     <>
       {/* Mobile overlay */}
       {mobileOpen && (
-        <div 
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[55] lg:hidden transition-opacity" 
+        <div
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[55] lg:hidden transition-opacity"
           onClick={() => setMobileOpen(false)}
         />
       )}
 
       {/* Sidebar - fixed on desktop, sliding on mobile */}
-      <aside 
+      <aside
         className={`
           fixed left-0 top-0 h-screen 
           bg-white/80 dark:bg-dark-950/80 backdrop-blur-2xl
@@ -219,16 +219,16 @@ export default function Sidebar() {
 
           <div className="flex items-center gap-1 flex-shrink-0">
             {/* Close button for mobile */}
-            <button 
-              onClick={() => setMobileOpen(false)} 
+            <button
+              onClick={() => setMobileOpen(false)}
               className="p-1.5 rounded-lg hover:bg-dark-100 dark:hover:bg-white/5 text-dark-400 transition-colors lg:hidden"
               aria-label="Close menu"
             >
               <X size={18} />
             </button>
             {/* Collapse toggle for desktop */}
-            <button 
-              onClick={() => setCollapsed(!collapsed)} 
+            <button
+              onClick={() => setCollapsed(!collapsed)}
               className="hidden lg:flex w-7 h-7 rounded-lg hover:bg-dark-100 dark:hover:bg-white/[0.06] text-dark-400 dark:text-dark-500 transition-all items-center justify-center"
               title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
             >
@@ -263,8 +263,8 @@ export default function Sidebar() {
                       className={`
                         h-10 flex items-center gap-3 px-3 rounded-lg 
                         transition-all duration-200 group relative whitespace-nowrap
-                        ${isActive 
-                          ? 'bg-saffron-500/[0.08] dark:bg-saffron-500/[0.1] text-saffron-600 dark:text-saffron-400 font-semibold shadow-sm shadow-saffron-500/5' 
+                        ${isActive
+                          ? 'bg-saffron-500/[0.08] dark:bg-saffron-500/[0.1] text-saffron-600 dark:text-saffron-400 font-semibold shadow-sm shadow-saffron-500/5'
                           : 'text-dark-700 dark:text-dark-400 hover:bg-dark-50 dark:hover:bg-white/[0.03] hover:text-dark-900 dark:hover:text-dark-200'}
                         ${collapsed ? 'justify-center !px-0 mx-auto w-10' : ''}
                       `}
@@ -297,8 +297,8 @@ export default function Sidebar() {
         <div className="p-3 border-t border-dark-100/80 dark:border-white/[0.04] flex-shrink-0 relative">
           {/* Subtle glow */}
           <div className="absolute -top-12 left-1/2 -translate-x-1/2 w-32 h-12 bg-saffron-500/[0.03] dark:bg-saffron-500/[0.02] blur-2xl rounded-full pointer-events-none" />
-          
-          <div 
+
+          <div
             onClick={() => collapsed && setCollapsed(false)}
             className={`
               flex items-center gap-3 p-2.5 rounded-lg 
