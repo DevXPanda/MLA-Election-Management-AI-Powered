@@ -4,10 +4,14 @@ import { useState, useEffect } from 'react';
 import Header from '@/components/Header';
 import { tasksAPI, usersAPI } from '@/lib/api';
 import { Task, User } from '@/types';
-import { Plus, Search, Edit3, Trash2, X, Loader2, CheckCircle2, Clock, Circle, AlertTriangle } from 'lucide-react';
+import { Plus, Search, Edit3, Trash2, X, Loader2, CheckCircle2, Clock, Circle, AlertTriangle, ListTodo, Layout } from 'lucide-react';
 import Modal from '@/components/Modal';
+import { useAuth } from '@/context/AuthContext';
+import StatsSummary from '@/components/dashboard/StatsSummary';
+import { useCallback } from 'react';
 
 export default function TasksPage() {
+  const { user } = useAuth();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
@@ -16,16 +20,41 @@ export default function TasksPage() {
   const [statusFilter, setStatusFilter] = useState('');
   const [priorityFilter, setPriorityFilter] = useState('');
   const [meta, setMeta] = useState({ total: 0, page: 1, totalPages: 1 });
+  const [tasksStats, setTasksStats] = useState<any>(null);
+  const [statsLoading, setStatsLoading] = useState(true);
 
   const [form, setForm] = useState({
     title: '', description: '', type: 'door_to_door', assigned_to: '',
     priority: 'medium', status: 'pending', due_date: '',
   });
 
-  useEffect(() => { loadTasks(); loadUsers(); }, [statusFilter, priorityFilter]);
+  useEffect(() => { 
+    loadTasks(); 
+    
+    // Only fetch user list if current user has permission to assign tasks
+    const canAssign = user && ['super_admin', 'mla', 'campaign_manager', 'ward_head'].includes(user.role_name);
+    if (canAssign) {
+      loadUsers(); 
+    }
+    loadTasksStats();
+  }, [statusFilter, priorityFilter, user]);
+
+  const loadTasksStats = async () => {
+    setStatsLoading(true);
+    try {
+      const res = await tasksAPI.getStats();
+      setTasksStats(res.data.data);
+    } catch { }
+    finally { setStatsLoading(false); }
+  };
 
   const loadUsers = async () => {
-    try { const res = await usersAPI.getAll({ limit: 100 }); setUsers(res.data.data); } catch {}
+    try { 
+      const res = await usersAPI.getAll({ limit: 100 }); 
+      setUsers(res.data.data); 
+    } catch (err) {
+      console.warn('Could not load user list (insufficient permissions)');
+    }
   };
 
   const loadTasks = async (page = 1) => {
@@ -103,9 +132,20 @@ export default function TasksPage() {
   return (
     <>
       <Header title="Task Management" subtitle="Assign and track campaign tasks" />
-      <div className="p-8">
+      <div className="dashboard-container">
+        {/* Mission Summary Stats */}
+        <StatsSummary 
+          loading={statsLoading}
+          stats={[
+            { label: 'Total Missions', value: tasksStats?.total_tasks || 0, icon: ListTodo, color: 'text-blue-500', bgIcon: 'bg-blue-500/10' },
+            { label: 'Completed', value: tasksStats?.status_breakdown?.find((s: any) => s.status === 'completed')?.count || 0, icon: CheckCircle2, color: 'text-emerald-500', bgIcon: 'bg-emerald-500/10' },
+            { label: 'In Progress', value: tasksStats?.status_breakdown?.find((s: any) => s.status === 'in_progress')?.count || 0, icon: Clock, color: 'text-amber-500', bgIcon: 'bg-amber-500/10' },
+            { label: 'Pending', value: tasksStats?.status_breakdown?.find((s: any) => s.status === 'pending')?.count || 0, icon: Layout, color: 'text-purple-500', bgIcon: 'bg-purple-500/10' },
+          ]}
+        />
+
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
-          <h2 className="text-xl font-bold">All Tasks <span className="text-dark-500 font-normal text-base">({meta.total})</span></h2>
+          <h2 className="text-xl font-medium">Mission Briefings</h2>
           <button onClick={openCreate} className="btn-primary"><Plus className="w-4 h-4" /> Create Task</button>
         </div>
 

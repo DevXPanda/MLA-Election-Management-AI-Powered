@@ -62,13 +62,26 @@ const seedDatabase = async () => {
     );
     const constituencyId = constituencyResult.rows[0].id;
 
+    // Step 5.1: Seed Areas
+    const areas = ['Urban Center', 'Industrial Hub', 'Residential Colony', 'Rural Belt'];
+    const areaIds = [];
+    for (let i = 0; i < areas.length; i++) {
+        const aRes = await pool.query(
+            `INSERT INTO areas (name, constituency_id) VALUES ($1, $2)
+             ON CONFLICT (name, constituency_id) DO UPDATE SET name = EXCLUDED.name RETURNING id`,
+            [areas[i], constituencyId]
+        );
+        areaIds.push(aRes.rows[0].id);
+    }
+    console.log('✅ Areas seeded');
+
     const wards = ['Ward 1 - Aminabad', 'Ward 2 - Chowk', 'Ward 3 - Hazratganj', 'Ward 4 - Alambagh'];
     const wardIds = [];
     for (let i = 0; i < wards.length; i++) {
       const wRes = await pool.query(
-        `INSERT INTO wards (name, number, constituency_id) VALUES ($1, $2, $3) 
-         ON CONFLICT (name, number, constituency_id) DO UPDATE SET name = EXCLUDED.name RETURNING id`,
-        [wards[i], String(i + 1), constituencyId]
+        `INSERT INTO wards (name, number, constituency_id, area_id) VALUES ($1, $2, $3, $4) 
+         ON CONFLICT (name, number, constituency_id) DO UPDATE SET area_id = EXCLUDED.area_id RETURNING id`,
+        [wards[i], String(i + 1), constituencyId, areaIds[i % areaIds.length]]
       );
       wardIds.push(wRes.rows[0].id);
     }
@@ -84,37 +97,39 @@ const seedDatabase = async () => {
         boothIds.push(bRes.rows[0].id);
       }
     }
-    console.log('✅ Geography seeded (1 State, 1 District, 1 Constituency, 4 Wards, 12 Booths)');
+    console.log('✅ Geography seeded (1 State, 1 District, 1 Constituency, 4 Areas, 4 Wards, 12 Booths)');
 
     // Step 6: Insert users (with organization_id)
     const passwordHash = await bcrypt.hash('admin123', 10);
 
     const users = [
-      { name: 'Admin User', email: 'admin@missionftc.com', phone: '9876543210', role: 'super_admin', ward_idx: null, booth_idx: null },
-      { name: 'Rajesh Kumar', email: 'mla@missionftc.com', phone: '9876543211', role: 'mla', ward_idx: null, booth_idx: null },
-      { name: 'Amit Sharma', email: 'manager@missionftc.com', phone: '9876543212', role: 'campaign_manager', ward_idx: null, booth_idx: null },
-      { name: 'Priya Singh', email: 'ward1@missionftc.com', phone: '9876543213', role: 'ward_head', ward_idx: 0, booth_idx: null },
-      { name: 'Rahul Verma', email: 'ward2@missionftc.com', phone: '9876543214', role: 'ward_head', ward_idx: 1, booth_idx: null },
-      { name: 'Suresh Yadav', email: 'worker1@missionftc.com', phone: '9876543215', role: 'booth_worker', ward_idx: 0, booth_idx: 0 },
-      { name: 'Neha Gupta', email: 'worker2@missionftc.com', phone: '9876543216', role: 'booth_worker', ward_idx: 1, booth_idx: 3 },
-      { name: 'Vikram Tiwari', email: 'worker3@missionftc.com', phone: '9876543217', role: 'booth_worker', ward_idx: 2, booth_idx: 6 },
+      { name: 'Admin User', email: 'admin@missionftc.com', phone: '9876543210', role: 'super_admin', area_idx: null, ward_idx: null, booth_idx: null },
+      { name: 'Rajesh Kumar', email: 'mla@missionftc.com', phone: '9876543211', role: 'mla', area_idx: null, ward_idx: null, booth_idx: null },
+      { name: 'Amit Sharma', email: 'manager@missionftc.com', phone: '9876543212', role: 'campaign_manager', area_idx: 0, ward_idx: null, booth_idx: null },
+      { name: 'Priya Singh', email: 'ward1@missionftc.com', phone: '9876543213', role: 'ward_head', area_idx: 0, ward_idx: 0, booth_idx: null },
+      { name: 'Rahul Verma', email: 'ward2@missionftc.com', phone: '9876543214', role: 'ward_head', area_idx: 1, ward_idx: 1, booth_idx: null },
+      { name: 'Suresh Yadav', email: 'worker1@missionftc.com', phone: '9876543215', role: 'booth_worker', area_idx: 0, ward_idx: 0, booth_idx: 0 },
+      { name: 'Neha Gupta', email: 'worker2@missionftc.com', phone: '9876543216', role: 'booth_worker', area_idx: 1, ward_idx: 1, booth_idx: 3 },
+      { name: 'Vikram Tiwari', email: 'worker3@missionftc.com', phone: '9876543217', role: 'booth_worker', area_idx: 2, ward_idx: 2, booth_idx: 6 },
     ];
 
     const userIds = [];
     for (const u of users) {
       const res = await pool.query(
-        `INSERT INTO users (name, email, phone, password_hash, role_id, constituency_id, ward_id, booth_id, organization_id, status)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'active')
+        `INSERT INTO users (name, email, phone, password_hash, role_id, constituency_id, area_id, ward_id, booth_id, organization_id, status)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'active')
          ON CONFLICT (email) DO UPDATE SET 
           name = EXCLUDED.name, 
           phone = EXCLUDED.phone,
           role_id = EXCLUDED.role_id,
           constituency_id = EXCLUDED.constituency_id,
+          area_id = EXCLUDED.area_id,
           ward_id = EXCLUDED.ward_id,
           booth_id = EXCLUDED.booth_id,
           organization_id = EXCLUDED.organization_id
          RETURNING id`,
         [u.name, u.email, u.phone, passwordHash, roleMap[u.role], constituencyId,
+         u.area_idx !== null ? areaIds[u.area_idx] : null,
          u.ward_idx !== null ? wardIds[u.ward_idx] : null,
          u.booth_idx !== null ? boothIds[u.booth_idx] : null,
          orgId]
@@ -159,10 +174,10 @@ const seedDatabase = async () => {
     const voterIds = [];
     for (let i = 0; i < voterNames.length; i++) {
       const res = await pool.query(
-        `INSERT INTO voters (name, phone, age, gender, booth_id, ward_id, constituency_id, caste, support_status, scheme_beneficiary, created_by, organization_id)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING id`,
+        `INSERT INTO voters (name, phone, age, gender, booth_id, ward_id, area_id, constituency_id, caste, support_status, scheme_beneficiary, created_by, organization_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING id`,
         [voterNames[i], `98765${String(43220 + i)}`, 25 + (i * 3) % 40, genders[i],
-         boothIds[i % boothIds.length], wardIds[i % wardIds.length], constituencyId,
+         boothIds[i % boothIds.length], wardIds[i % wardIds.length], areaIds[i % areaIds.length], constituencyId,
          castes[i % castes.length], statuses[i % statuses.length], i % 3 === 0, userIds[0], orgId]
       );
       voterIds.push(res.rows[0].id);
@@ -172,9 +187,9 @@ const seedDatabase = async () => {
     // Step 9: Surveys (with organization_id)
     for (let i = 0; i < 10; i++) {
       const surveyRes = await pool.query(
-        `INSERT INTO surveys (voter_id, booth_id, ward_id, surveyor_id, support_status, satisfaction_level, remarks, organization_id)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`,
-        [voterIds[i], boothIds[i % boothIds.length], wardIds[i % wardIds.length],
+        `INSERT INTO surveys (voter_id, booth_id, ward_id, area_id, surveyor_id, support_status, satisfaction_level, remarks, organization_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`,
+        [voterIds[i], boothIds[i % boothIds.length], wardIds[i % wardIds.length], areaIds[i % areaIds.length],
          userIds[5 + (i % 3)], statuses[i % statuses.length], (i % 5) + 1,
          'Sample survey remarks for voter ' + voterNames[i], orgId]
       );
@@ -197,12 +212,12 @@ const seedDatabase = async () => {
       const dueDate = new Date();
       dueDate.setDate(dueDate.getDate() + (i * 2) - 5);
       await pool.query(
-        `INSERT INTO tasks (title, description, type, assigned_to, assigned_by, booth_id, ward_id, constituency_id, priority, status, due_date, organization_id)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+        `INSERT INTO tasks (title, description, type, assigned_to, assigned_by, booth_id, ward_id, area_id, constituency_id, priority, status, due_date, organization_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
         [`Task ${i + 1}: ${taskTypes[i % taskTypes.length].replace(/_/g, ' ')}`,
          `Complete ${taskTypes[i % taskTypes.length].replace(/_/g, ' ')} for assigned area`,
          taskTypes[i % taskTypes.length], userIds[4 + (i % 4)], userIds[2],
-         boothIds[i % boothIds.length], wardIds[i % wardIds.length], constituencyId,
+         boothIds[i % boothIds.length], wardIds[i % wardIds.length], areaIds[i % areaIds.length], constituencyId,
          priorities[i % priorities.length], taskStatuses[i % taskStatuses.length], dueDate, orgId]
       );
     }
@@ -214,11 +229,11 @@ const seedDatabase = async () => {
       const eventDate = new Date();
       eventDate.setDate(eventDate.getDate() + (i * 5) - 2);
       const eventRes = await pool.query(
-        `INSERT INTO events (title, type, description, event_date, location, constituency_id, expected_attendance, status, created_by, organization_id)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id`,
+        `INSERT INTO events (title, type, description, event_date, location, constituency_id, area_id, expected_attendance, status, created_by, organization_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id`,
         [`Campaign Event ${i + 1}`, eventTypes[i % eventTypes.length],
          `Campaign ${eventTypes[i % eventTypes.length].replace(/_/g, ' ')} event in ${wards[i % wards.length]}`,
-         eventDate, `${wards[i % wards.length]} Ground`, constituencyId,
+         eventDate, `${wards[i % wards.length]} Ground`, constituencyId, areaIds[i % areaIds.length],
          50 + (i * 30), i >= 3 ? 'upcoming' : i === 0 ? 'completed' : 'upcoming', userIds[1], orgId]
       );
       for (let p = 4; p < 8; p++) {
@@ -234,9 +249,9 @@ const seedDatabase = async () => {
     // Step 12: Team members (with organization_id)
     for (let i = 4; i < 8; i++) {
       await pool.query(
-        `INSERT INTO team_members (user_id, team_leader_id, constituency_id, ward_id, booth_id, designation, organization_id)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-        [userIds[i], userIds[2], constituencyId, wardIds[(i - 4) % wardIds.length],
+        `INSERT INTO team_members (user_id, team_leader_id, constituency_id, area_id, ward_id, booth_id, designation, organization_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+        [userIds[i], userIds[2], constituencyId, areaIds[(i - 4) % areaIds.length], wardIds[(i - 4) % wardIds.length],
          boothIds[(i - 4) * 2 % boothIds.length],
          i < 6 ? 'Ward Coordinator' : 'Booth Level Agent', orgId]
       );
@@ -247,11 +262,11 @@ const seedDatabase = async () => {
     const actions = ['USER_LOGIN', 'SURVEY_SUBMITTED', 'TASK_CREATED', 'VOTER_ADDED', 'EVENT_CREATED'];
     for (let i = 0; i < 15; i++) {
       await pool.query(
-        `INSERT INTO activity_logs (user_id, action, module, details, organization_id)
-         VALUES ($1, $2, $3, $4, $5)`,
+        `INSERT INTO activity_logs (user_id, action, module, details, organization_id, area_id)
+         VALUES ($1, $2, $3, $4, $5, $6)`,
         [userIds[i % userIds.length], actions[i % actions.length],
          ['auth', 'surveys', 'tasks', 'voters', 'events'][i % 5],
-         JSON.stringify({ note: `Sample activity ${i + 1}` }), orgId]
+         JSON.stringify({ note: `Sample activity ${i + 1}` }), orgId, areaIds[i % areaIds.length]]
       );
     }
     console.log('✅ Activity logs seeded');

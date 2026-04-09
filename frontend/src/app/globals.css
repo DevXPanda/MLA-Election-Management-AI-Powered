@@ -17,6 +17,18 @@
     @apply bg-white dark:bg-dark-950 text-dark-900 dark:text-dark-100 font-inter tracking-[0.3px] leading-relaxed transition-colors duration-300;
   }
 
+  /* Global Bold Font Removal System */
+  .font-bold, 
+  .font-extrabold, 
+  .font-black,
+  b, strong {
+    font-weight: 500 !important;
+  }
+
+  .font-semibold {
+    font-weight: 400 !important;
+  }
+
   /* Unified Tactical Typography (Inter Only) */
   h1,
   h2,
@@ -24,19 +36,19 @@
   h4,
   h5,
   h6 {
-    @apply font-inter font-semibold tracking-tight text-dark-900 dark:text-white mb-4;
+    @apply font-inter font-medium tracking-tight text-dark-900 dark:text-white mb-4;
   }
 
   h1 {
-    @apply text-4xl lg:text-5xl font-extrabold;
+    @apply text-4xl lg:text-5xl font-medium;
   }
 
   h2 {
-    @apply text-3xl lg:text-4xl font-bold;
+    @apply text-3xl lg:text-4xl font-medium;
   }
 
   h3 {
-    @apply text-2xl lg:text-3xl font-bold;
+    @apply text-2xl lg:text-3xl font-medium;
   }
 
   /* Body text defaults */
@@ -79,11 +91,11 @@
 
   /* Typography-Aware Components */
   .card-title {
-    @apply font-inter font-semibold text-lg text-dark-800 dark:text-white mb-4 flex items-center gap-2 tracking-[0.2px];
+    @apply font-inter font-medium text-lg text-dark-800 dark:text-white mb-4 flex items-center gap-2 tracking-[0.2px];
   }
 
   .section-title {
-    @apply font-inter font-bold text-xl text-dark-800 dark:text-white mb-6 uppercase tracking-[2px];
+    @apply font-inter font-medium text-xl text-dark-800 dark:text-white mb-6 uppercase tracking-[2px];
   }
 
   /* Sidebar Nav Item */
@@ -96,7 +108,7 @@
   }
 
   .nav-link.active {
-    @apply bg-saffron-500/[0.12] text-saffron-600 dark:text-saffron-400 font-semibold;
+    @apply bg-saffron-500/[0.12] text-saffron-600 dark:text-saffron-400 font-medium;
   }
 
   /* Form Control */
@@ -106,11 +118,11 @@
 
   /* Button System */
   .btn-primary {
-    @apply inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg bg-gradient-to-br from-saffron-500 to-amber-600 text-white font-inter font-bold text-sm shadow-md shadow-saffron-500/25 transition-all duration-300 uppercase tracking-[1.5px] hover:shadow-lg hover:shadow-saffron-500/40 hover:-translate-y-0.5 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none border border-white/10;
+    @apply inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg bg-gradient-to-br from-saffron-500 to-amber-600 text-white font-inter font-medium text-sm shadow-md shadow-saffron-500/25 transition-all duration-300 uppercase tracking-[1.5px] hover:shadow-lg hover:shadow-saffron-500/40 hover:-translate-y-0.5 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none border border-white/10;
   }
 
   .btn-secondary {
-    @apply inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg bg-dark-100 dark:bg-dark-800/60 text-dark-800 dark:text-dark-100 font-inter font-bold text-sm border border-dark-200 dark:border-white/10 transition-all duration-200 hover:bg-dark-200 dark:hover:bg-dark-700/80 hover:border-dark-300 dark:hover:border-white/20 uppercase tracking-widest;
+    @apply inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg bg-dark-100 dark:bg-dark-800/60 text-dark-800 dark:text-dark-100 font-inter font-medium text-sm border border-dark-200 dark:border-white/10 transition-all duration-200 hover:bg-dark-200 dark:hover:bg-dark-700/80 hover:border-dark-300 dark:hover:border-white/20 uppercase tracking-widest;
   }
 
   /* Data Table */
@@ -119,7 +131,7 @@
   }
 
   .data-table thead th {
-    @apply px-5 py-3.5 text-left text-[11px] font-black text-dark-900 dark:text-dark-500 uppercase tracking-[2px] bg-dark-50/50 dark:bg-dark-950/50 border-b border-dark-100 dark:border-white/5 whitespace-nowrap;
+    @apply px-5 py-3.5 text-left text-[11px] font-medium text-dark-900 dark:text-dark-500 uppercase tracking-[2px] bg-dark-50/50 dark:bg-dark-950/50 border-b border-dark-100 dark:border-white/5 whitespace-nowrap;
   }
 
   .data-table tbody td {
@@ -131,7 +143,7 @@
   }
 
   .modal-overlay {
-    @apply fixed inset-0 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm z-[1000] opacity-0 invisible transition-all duration-300;
+    @apply fixed inset-0 flex items-center justify-center p-4 sm:p-6 bg-black/60 backdrop-blur-sm z-[1000] opacity-0 invisible transition-all duration-300;
   }
 
   .modal-overlay.active {
@@ -139,7 +151,7 @@
   }
 
   .modal-panel {
-    @apply bg-white dark:bg-dark-900 w-full max-w-[600px] rounded-lg shadow-xl transform scale-95 opacity-0 transition-all duration-300 ease-out overflow-hidden border border-dark-100 dark:border-white/[0.05] relative;
+    @apply bg-white dark:bg-dark-900 w-full max-w-[600px] rounded-[2rem] shadow-2xl transform scale-95 opacity-0 transition-all duration-300 ease-out overflow-hidden border border-dark-100 dark:border-white/[0.05] relative flex flex-col max-h-[90vh] mx-auto;
   }
 
   .modal-overlay.active .modal-panel {
@@ -147,20 +159,20 @@
   }
 
   .modal-header {
-    @apply flex items-center justify-between px-6 py-5 border-b border-dark-50 dark:border-white/[0.05] bg-dark-50/20 dark:bg-white/[0.01];
+    @apply flex items-center justify-between px-5 py-4 border-b border-dark-50 dark:border-white/[0.05] bg-dark-50/20 dark:bg-white/[0.01];
   }
 
   .modal-body {
-    @apply p-6 overflow-y-auto max-h-[85vh] custom-scrollbar;
+    @apply p-4 sm:p-6 overflow-y-auto flex-1 custom-scrollbar;
   }
 
   .modal-footer {
-    @apply flex items-center justify-end gap-3 px-6 py-4 border-t border-dark-50 dark:border-white/[0.05] bg-dark-50/20 dark:bg-white/[0.01];
+    @apply flex items-center justify-end gap-3 px-5 py-4 border-t border-dark-50 dark:border-white/[0.05] bg-dark-50/20 dark:bg-white/[0.01];
   }
 
   /* Filter Tabs System */
   .filter-tab {
-    @apply px-4 py-2 rounded-lg text-[11px] font-black uppercase tracking-[1.5px] transition-all duration-200 border flex items-center gap-2 bg-dark-50 dark:bg-dark-800/40 text-dark-500 dark:text-dark-400 border-dark-100 dark:border-white/5 hover:bg-dark-100 dark:hover:bg-dark-700 hover:border-dark-200 dark:hover:border-white/10 cursor-pointer;
+    @apply px-4 py-2 rounded-lg text-[11px] font-medium uppercase tracking-[1.5px] transition-all duration-200 border flex items-center gap-2 bg-dark-50 dark:bg-dark-800/40 text-dark-500 dark:text-dark-400 border-dark-100 dark:border-white/5 hover:bg-dark-100 dark:hover:bg-dark-700 hover:border-dark-200 dark:hover:border-white/10 cursor-pointer;
   }
 
   .filter-tab.active {
@@ -173,7 +185,7 @@
   }
 
   .tabs-toggle-item {
-    @apply px-5 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all duration-200 flex items-center gap-2;
+    @apply px-5 py-2 rounded-lg text-xs font-medium uppercase tracking-wider transition-all duration-200 flex items-center gap-2;
   }
 
   .tabs-toggle-item-active {
@@ -182,6 +194,16 @@
 
   .tabs-toggle-item-inactive {
     @apply text-dark-500 dark:text-dark-400 hover:text-dark-700 dark:hover:text-dark-200;
+  }
+
+  /* Responsive Padding Container */
+  .dashboard-container {
+    @apply p-4 sm:p-6 lg:p-8;
+  }
+
+  /* Bottom nav auto-hider when modals are open */
+  .modal-open .mobile-nav-container {
+    @apply opacity-0 invisible translate-y-4 pointer-events-none;
   }
 }
 

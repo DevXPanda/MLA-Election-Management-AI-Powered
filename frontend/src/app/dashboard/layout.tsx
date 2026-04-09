@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import Sidebar, { SidebarProvider, useSidebar } from '@/components/Sidebar';
 
+import MobileBottomNav from '@/components/MobileBottomNav';
+
 function DashboardContent({ children }: { children: React.ReactNode }) {
   const { collapsed } = useSidebar();
   const [isDesktop, setIsDesktop] = useState(true);
@@ -19,7 +21,7 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
   const sidebarMargin = isDesktop ? (collapsed ? 76 : 272) : 0;
 
   return (
-    <div className="flex min-h-screen bg-white dark:bg-dark-950 transition-colors duration-300 overflow-hidden relative">
+    <div className="flex min-h-screen bg-white dark:bg-dark-950 transition-colors duration-300 overflow-x-hidden relative">
       {/* Decorative top border accent for premium feel */}
       <div className="fixed top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-saffron-500/20 to-transparent z-[100] pointer-events-none" />
       
@@ -27,7 +29,7 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
 
       {/* Main content - dynamically adjusts to sidebar width */}
       <main 
-        className="flex-1 min-w-0 relative transition-[margin] duration-300 ease-in-out"
+        className="flex-1 min-w-0 relative transition-[margin] duration-300 ease-in-out pb-24 lg:pb-0"
         style={{ marginLeft: sidebarMargin }}
       >
         {/* Subtle gradient background - enhanced for depth */}
@@ -39,6 +41,8 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
         <div className="relative z-10 min-h-screen">
           {children}
         </div>
+
+        <MobileBottomNav />
       </main>
     </div>
   );
@@ -53,8 +57,18 @@ export default function DashboardLayout({
   const router = useRouter();
 
   useEffect(() => {
-    if (!loading && !user) {
-      router.push('/login');
+    // Only redirect if we are sure initialization is done and no session exists
+    if (!loading) {
+      if (!user) {
+        // Double check localStorage in case of a race condition with context state
+        const hasStoredToken = typeof window !== 'undefined' && !!localStorage.getItem('token');
+        if (!hasStoredToken) {
+          console.log('[Auth] No session found, redirecting to login');
+          router.push('/login');
+        } else {
+          console.warn('[Auth] Stored token found but user object missing from state. Re-verification might be needed.');
+        }
+      }
     }
   }, [user, loading, router]);
 

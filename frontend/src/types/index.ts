@@ -8,6 +8,7 @@ export interface User {
   role_display_name: string;
   permissions: Record<string, unknown>;
   constituency_id: number | null;
+  area_id: number | null;
   ward_id: number | null;
   booth_id: number | null;
   organization_id: number;
@@ -17,6 +18,7 @@ export interface User {
   last_login: string | null;
   created_at: string;
   constituency_name?: string;
+  area_name?: string;
   ward_name?: string;
   booth_name?: string;
 }
@@ -70,13 +72,27 @@ export interface Constituency {
   state_name?: string;
 }
 
+export interface Area {
+  id: number;
+  name: string;
+  constituency_id: number;
+  manager_id: number | null;
+  total_voters: number;
+  constituency_name?: string;
+  manager_name?: string;
+}
+
 export interface Ward {
   id: number;
   name: string;
   number: string;
   constituency_id: number;
+  area_id: number | null;
+  ward_head_id: number | null;
   total_voters: number;
   constituency_name?: string;
+  area_name?: string;
+  ward_head_name?: string;
 }
 
 export interface Booth {
@@ -111,6 +127,7 @@ export interface Voter {
   remarks: string;
   booth_name?: string;
   ward_name?: string;
+  area_name?: string;
   constituency_name?: string;
   created_by_name?: string;
   created_at: string;
@@ -138,6 +155,7 @@ export interface Survey {
   surveyor_name?: string;
   booth_name?: string;
   ward_name?: string;
+  area_name?: string;
   issues?: Array<{ issue_id: number; issue_name: string; severity: number; notes: string }>;
   created_at: string;
 }
@@ -161,6 +179,7 @@ export interface Task {
   assigned_to_name?: string;
   assigned_by_name?: string;
   constituency_name?: string;
+  area_name?: string;
   ward_name?: string;
   booth_name?: string;
   created_at: string;
@@ -180,10 +199,33 @@ export interface AppEvent {
   actual_attendance: number;
   status: 'upcoming' | 'in_progress' | 'completed' | 'cancelled';
   constituency_name?: string;
+  area_name?: string;
   ward_name?: string;
   created_by_name?: string;
   participant_count?: number;
   attended_count?: number;
+  created_at: string;
+}
+
+export interface WorkAllocation {
+  id: number;
+  event_id: number;
+  work_type: string;
+  description: string;
+  status: 'pending' | 'processing' | 'completed' | 'cancelled' | 'not_completed';
+  not_completed_reason?: string;
+  due_date: string;
+  started_at?: string;
+  completed_at?: string;
+  before_image_url?: string;
+  after_image_url?: string;
+  geo_location_before?: { lat: number; lng: number };
+  geo_location_after?: { lat: number; lng: number };
+  event_title?: string;
+  event_date?: string;
+  event_location?: string;
+  created_by_name?: string;
+  assigned_users: Array<{ id: number; name: string }>;
   created_at: string;
 }
 
@@ -203,6 +245,7 @@ export interface TeamMember {
   role_name?: string;
   leader_name?: string;
   constituency_name?: string;
+  area_name?: string;
   ward_name?: string;
   booth_name?: string;
   joined_at: string;

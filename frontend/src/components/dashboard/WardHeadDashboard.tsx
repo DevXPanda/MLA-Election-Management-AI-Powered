@@ -22,13 +22,13 @@ export default function WardHeadDashboard({ stats }: DashboardProps) {
   ];
 
   return (
-    <div className="p-8 pb-12">
+    <div className="dashboard-container pb-12">
       {/* Header Section */}
       <div className="mb-8">
-        <h1 className="text-2xl font-black text-dark-900 dark:text-white flex items-center gap-3 mb-0">
+        <h1 className="text-2xl font-medium text-dark-900 dark:text-white flex items-center gap-3 mb-0">
           <LayoutDashboard className="w-6 h-6 text-saffron-500" /> Ward Command Center
         </h1>
-        <p className="text-sm text-dark-500 font-medium mt-1">Monitoring execution across {boothProgress.length} booths.</p>
+        <p className="text-sm text-dark-500 font-normal mt-1">Monitoring execution across {boothProgress.length} booths.</p>
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
@@ -37,8 +37,8 @@ export default function WardHeadDashboard({ stats }: DashboardProps) {
             <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${card.bgIcon} mb-5 group-hover:scale-110 transition-transform`}>
               <card.icon className={`w-6 h-6 ${card.color}`} />
             </div>
-            <div className="text-3xl font-black text-dark-900 dark:text-white tracking-tight">{card.value}</div>
-            <div className="text-[11px] text-dark-500 font-black uppercase tracking-[2px] mt-2">{card.label}</div>
+            <div className="text-3xl font-medium text-dark-900 dark:text-white tracking-tight">{card.value}</div>
+            <div className="text-[11px] text-dark-500 font-medium uppercase tracking-[2px] mt-2">{card.label}</div>
           </div>
         ))}
       </div>
@@ -46,31 +46,31 @@ export default function WardHeadDashboard({ stats }: DashboardProps) {
       <div className="grid grid-cols-1 lg:grid-cols-1 gap-6">
         <div className="glass-card overflow-hidden">
           <div className="p-6 border-b border-white/5 flex items-center justify-between">
-            <h3 className="text-base font-black text-dark-900 dark:text-white flex items-center gap-3">
+            <h3 className="text-base font-medium text-dark-900 dark:text-white flex items-center gap-3">
               <MapIcon className="w-5 h-5 text-saffron-500" /> Booth-Wise Execution Progress
             </h3>
-            <span className="text-[10px] font-black text-dark-500 uppercase tracking-widest bg-white/5 px-3 py-1 rounded-full border border-white/5">Sorted by Coverage</span>
+            <span className="text-[10px] font-medium text-dark-500 uppercase tracking-widest bg-white/5 px-3 py-1 rounded-full border border-white/5">Sorted by Coverage</span>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-white/[0.02]">
-                  <th className="px-6 py-4 text-[10px] font-black text-dark-600 uppercase tracking-widest">Booth Name</th>
-                  <th className="px-6 py-4 text-[10px] font-black text-dark-600 uppercase tracking-widest">Total Voters</th>
-                  <th className="px-6 py-4 text-[10px] font-black text-dark-600 uppercase tracking-widest">Surveys</th>
-                  <th className="px-6 py-4 text-[10px] font-black text-dark-600 uppercase tracking-widest">Coverage %</th>
-                  <th className="px-6 py-4 text-[10px] font-black text-dark-600 uppercase tracking-widest">Action</th>
+                  <th className="px-6 py-4 text-[10px] font-medium text-dark-600 uppercase tracking-widest">Booth Name</th>
+                  <th className="px-6 py-4 text-[10px] font-medium text-dark-600 uppercase tracking-widest">Total Voters</th>
+                  <th className="px-6 py-4 text-[10px] font-medium text-dark-600 uppercase tracking-widest">Surveys</th>
+                  <th className="px-6 py-4 text-[10px] font-medium text-dark-600 uppercase tracking-widest">Coverage %</th>
+                  <th className="px-6 py-4 text-[10px] font-medium text-dark-600 uppercase tracking-widest">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5">
                 {boothProgress.map((booth: any) => (
                   <tr key={booth.id} className="hover:bg-white/[0.02] transition-colors group">
                     <td className="px-6 py-5">
-                      <div className="text-sm font-bold text-dark-900 dark:text-white group-hover:text-saffron-500 transition-colors">{booth.name}</div>
-                      <div className="text-[10px] text-dark-500 font-bold uppercase mt-0.5 tracking-tight">ID: {booth.id}</div>
+                      <div className="text-sm font-medium text-dark-900 dark:text-white group-hover:text-saffron-500 transition-colors">{booth.name}</div>
+                      <div className="text-[10px] text-dark-500 font-medium uppercase mt-0.5 tracking-tight">ID: {booth.id}</div>
                     </td>
-                    <td className="px-6 py-5 text-sm font-black text-dark-100">{booth.voter_count}</td>
-                    <td className="px-6 py-5 text-sm font-black text-dark-100">{booth.survey_count}</td>
+                    <td className="px-6 py-5 text-sm font-medium text-dark-100">{booth.voter_count}</td>
+                    <td className="px-6 py-5 text-sm font-medium text-dark-100">{booth.survey_count}</td>
                     <td className="px-6 py-5">
                       <div className="flex items-center gap-3">
                          <div className="flex-1 h-2 bg-dark-800 rounded-full overflow-hidden max-w-[120px] relative">
@@ -79,7 +79,7 @@ export default function WardHeadDashboard({ stats }: DashboardProps) {
                               style={{ width: `${booth.coverage}%` }}
                             />
                          </div>
-                         <span className="text-[11px] font-black text-dark-100">{Math.round(booth.coverage)}%</span>
+                         <span className="text-[11px] font-medium text-dark-100">{Math.round(booth.coverage)}%</span>
                       </div>
                     </td>
                     <td className="px-6 py-5">

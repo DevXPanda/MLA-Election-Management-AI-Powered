@@ -62,22 +62,22 @@ export default function MlaDashboard({ stats, chartDefaults }: DashboardProps) {
   };
 
   return (
-    <div className="p-8 pb-12">
+    <div className="dashboard-container pb-12">
       <div className="grid grid-cols-2 md:grid-cols-5 gap-5 mb-8">
         {statCards.map((card) => (
           <div key={card.label} className="glass-card-hover p-5 relative overflow-hidden group">
             <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${card.bgIcon} mb-4`}>
               <card.icon className={`w-5 h-5 ${card.color}`} />
             </div>
-            <div className="text-2xl font-black text-dark-900 dark:text-dark-100">{card.value}</div>
-            <div className="text-[10px] text-dark-600 dark:text-dark-500 font-bold uppercase tracking-widest mt-1 tracking-[1.5px]">{card.label}</div>
+            <div className="text-2xl font-medium text-dark-900 dark:text-dark-100">{card.value}</div>
+            <div className="text-[10px] text-dark-600 dark:text-dark-500 font-medium uppercase tracking-widest mt-1 tracking-[1.5px]">{card.label}</div>
           </div>
         ))}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
         <div className="glass-card p-6">
-          <h3 className="text-base font-black text-dark-900 dark:text-white mb-6 flex items-center gap-2">
+          <h3 className="text-base font-medium text-dark-900 dark:text-white mb-6 flex items-center gap-2">
             <MapIcon className="w-5 h-5 text-saffron-500" /> Booth Strength
           </h3>
           <div className="h-[220px]">
@@ -85,23 +85,23 @@ export default function MlaDashboard({ stats, chartDefaults }: DashboardProps) {
           </div>
           <div className="mt-8 space-y-4">
             <div className="flex justify-between items-center bg-green-500/5 p-3 rounded-lg border border-green-500/10">
-              <span className="text-[10px] font-black text-green-600 dark:text-green-400 uppercase tracking-widest">Strong (&gt;60%)</span>
-              <span className="text-sm font-black text-dark-900 dark:text-white">{booth_strength?.strong_booths || 0}</span>
+              <span className="text-[10px] font-medium text-green-600 dark:text-green-400 uppercase tracking-widest">Strong (&gt;60%)</span>
+              <span className="text-sm font-medium text-dark-900 dark:text-white">{booth_strength?.strong_booths || 0}</span>
             </div>
             <div className="flex justify-between items-center bg-amber-500/5 p-3 rounded-lg border border-amber-500/10">
-              <span className="text-[10px] font-black text-amber-600 dark:text-amber-400 uppercase tracking-widest">Competitive (40-60)</span>
-              <span className="text-sm font-black text-dark-900 dark:text-white">{booth_strength?.competitive_booths || 0}</span>
+              <span className="text-[10px] font-medium text-amber-600 dark:text-amber-400 uppercase tracking-widest">Competitive (40-60)</span>
+              <span className="text-sm font-medium text-dark-900 dark:text-white">{booth_strength?.competitive_booths || 0}</span>
             </div>
             <div className="flex justify-between items-center bg-red-500/5 p-3 rounded-lg border border-red-500/10">
-              <span className="text-[10px] font-black text-red-600 dark:text-red-400 uppercase tracking-widest">Weak (&lt;40%)</span>
-              <span className="text-sm font-black text-dark-900 dark:text-white">{booth_strength?.weak_booths || 0}</span>
+              <span className="text-[10px] font-medium text-red-600 dark:text-red-400 uppercase tracking-widest">Weak (&lt;40%)</span>
+              <span className="text-sm font-medium text-dark-900 dark:text-white">{booth_strength?.weak_booths || 0}</span>
             </div>
           </div>
         </div>
 
         <div className="lg:col-span-2 space-y-6">
           <div className="glass-card p-6 h-1/2 min-h-[250px]">
-            <h3 className="text-base font-black text-dark-900 dark:text-white mb-6 flex items-center gap-2">
+            <h3 className="text-base font-medium text-dark-900 dark:text-white mb-6 flex items-center gap-2">
               <HelpCircle className="w-5 h-5 text-blue-500" /> Top Issues
             </h3>
             <div className="h-[180px]">
@@ -112,7 +112,7 @@ export default function MlaDashboard({ stats, chartDefaults }: DashboardProps) {
                   indexAxis: 'y',
                   scales: {
                     x: { display: false },
-                    y: { grid: { display: false }, ticks: { color: '#64748b', font: { size: 10, weight: 'bold' } } }
+                    y: { grid: { display: false }, ticks: { color: '#64748b', font: { size: 10, weight: '500' } } }
                   }
                 }}
               />
@@ -120,7 +120,7 @@ export default function MlaDashboard({ stats, chartDefaults }: DashboardProps) {
           </div>
 
           <div className="glass-card p-6 h-1/2 min-h-[250px]">
-            <h3 className="text-base font-black text-dark-900 dark:text-white mb-6 flex items-center gap-2">
+            <h3 className="text-base font-medium text-dark-900 dark:text-white mb-6 flex items-center gap-2">
               <TrendingUp className="w-5 h-5 text-emerald-500" /> Ground Momentum
             </h3>
             <div className="h-[180px]">

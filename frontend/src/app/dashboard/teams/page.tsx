@@ -4,8 +4,9 @@ import { useState, useEffect } from 'react';
 import Header from '@/components/Header';
 import { teamsAPI, usersAPI } from '@/lib/api';
 import { TeamMember, User } from '@/types';
-import { Plus, Trash2, X, Loader2, Users, UserPlus } from 'lucide-react';
+import { Plus, Trash2, X, Loader2, Users, UserPlus, ShieldAlert, Award, Grid } from 'lucide-react';
 import Modal from '@/components/Modal';
+import StatsSummary from '@/components/dashboard/StatsSummary';
 
 export default function TeamsPage() {
   const [members, setMembers] = useState<TeamMember[]>([]);
@@ -54,45 +55,20 @@ export default function TeamsPage() {
   return (
     <>
       <Header title="Team Management" subtitle="Manage field workers and team structure" />
-      <div className="p-8">
-        {/* Stats */}
-        {stats && (
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 mb-8">
-            <div className="glass-card p-6 text-center shadow-md dark:shadow-none border-dark-100 dark:border-white/5">
-              <div className="text-3xl font-extrabold text-gradient">{stats.total_active}</div>
-              <div className="text-[11px] font-black uppercase tracking-[2px] text-dark-600 dark:text-dark-400 mt-1">Active Members</div>
-            </div>
-            <div className="glass-card p-6 border-dark-100 dark:border-white/5 shadow-md dark:shadow-none">
-              <h4 className="text-[11px] font-black uppercase tracking-[2px] text-dark-800 dark:text-dark-300 mb-4 flex items-center gap-2">
-                <div className="w-1.5 h-4 bg-saffron-500 rounded-full" /> By Constituency
-              </h4>
-              <div className="space-y-3">
-                {stats.by_constituency.slice(0, 4).map((c: any) => (
-                  <div key={c.name} className="flex justify-between text-xs py-1 border-b border-dark-50 dark:border-white/5 last:border-0">
-                    <span className="font-bold text-dark-700 dark:text-dark-400">{c.name}</span>
-                    <span className="font-black text-dark-900 dark:text-dark-100">{c.count}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-            <div className="glass-card p-6 border-dark-100 dark:border-white/5 shadow-md dark:shadow-none">
-              <h4 className="text-[11px] font-black uppercase tracking-[2px] text-dark-800 dark:text-dark-300 mb-4 flex items-center gap-2">
-                <div className="w-1.5 h-4 bg-blue-500 rounded-full" /> By Designation
-              </h4>
-              <div className="space-y-3">
-                {stats.by_designation.slice(0, 4).map((d: any) => (
-                  <div key={d.designation} className="flex justify-between text-xs py-1 border-b border-dark-50 dark:border-white/5 last:border-0">
-                    <span className="font-bold text-dark-700 dark:text-dark-400 capitalize">{d.designation || 'None'}</span>
-                    <span className="font-black text-dark-900 dark:text-dark-100">{d.count}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
+      <div className="dashboard-container">
+        {/* Force Summary Stats */}
+        <StatsSummary 
+          loading={loading && !stats}
+          stats={[
+            { label: 'Total Active', value: stats?.total_active || 0, icon: Users, color: 'text-blue-500', bgIcon: 'bg-blue-500/10' },
+            { label: 'Ward Heads', value: stats?.by_designation?.find((d: any) => d.designation === 'Ward Head')?.count || 0, icon: ShieldAlert, color: 'text-saffron-500', bgIcon: 'bg-saffron-500/10' },
+            { label: 'Leaders', value: members.filter(m => m.designation?.toLowerCase().includes('leader')).length || 0, icon: Award, color: 'text-emerald-500', bgIcon: 'bg-emerald-500/10' },
+            { label: 'Areas Covered', value: stats?.by_constituency?.length || 0, icon: Grid, color: 'text-purple-500', bgIcon: 'bg-purple-500/10' },
+          ]}
+        />
 
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-bold">Team Members</h2>
+          <h2 className="text-xl font-medium">Field Operatives</h2>
           <button onClick={() => setShowModal(true)} className="btn-primary"><UserPlus className="w-4 h-4" /> Add Member</button>
         </div>
 
@@ -113,23 +89,23 @@ export default function TeamsPage() {
                     <tr key={m.id}>
                       <td>
                         <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-saffron-500/80 to-blue-600/80 flex items-center justify-center text-white text-[11px] font-bold">
+                          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-saffron-500/80 to-blue-600/80 flex items-center justify-center text-white text-[11px] font-medium">
                             {m.name?.split(' ').map(n => n[0]).join('').slice(0, 2)}
                           </div>
                           <div>
-                            <div className="font-bold text-dark-900 dark:text-dark-100">{m.name}</div>
-                            <div className="text-[10px] font-bold text-dark-600 dark:text-dark-500 uppercase tracking-widest mt-0.5">{m.phone}</div>
+                            <div className="font-medium text-dark-900 dark:text-dark-100">{m.name}</div>
+                            <div className="text-[10px] font-medium text-dark-600 dark:text-dark-500 uppercase tracking-widest mt-0.5">{m.phone}</div>
                           </div>
                         </div>
                       </td>
                       <td className="text-dark-700 dark:text-dark-400 font-medium">{m.role_name || '—'}</td>
-                      <td className="text-dark-800 dark:text-dark-300 font-bold">{m.designation || '—'}</td>
+                      <td className="text-dark-800 dark:text-dark-300 font-medium">{m.designation || '—'}</td>
                       <td className="text-dark-700 dark:text-dark-400">{m.leader_name || '—'}</td>
                       <td>
-                        <div className="text-sm font-bold text-dark-900 dark:text-dark-300">{m.ward_name || '—'}</div>
-                        <div className="text-[11px] font-medium text-dark-600 dark:text-dark-500">{m.booth_name || ''}</div>
+                        <div className="text-sm font-medium text-dark-900 dark:text-dark-300">{m.ward_name || '—'}</div>
+                        <div className="text-[11px] font-normal text-dark-600 dark:text-dark-500">{m.booth_name || ''}</div>
                       </td>
-                      <td><span className={`badge ${m.status === 'active' ? 'badge-success' : 'badge-neutral'}`}>{m.status}</span></td>
+                      <td><span className={`badge ${m.status === 'active' ? 'badge-success' : 'badge-neutral'} font-medium`}>{m.status}</span></td>
                       <td className="text-right">
                         <button onClick={() => handleRemove(m.id)} className="btn-icon bg-red-500/10 border border-red-500/20 text-red-400"><Trash2 className="w-3.5 h-3.5" /></button>
                       </td>

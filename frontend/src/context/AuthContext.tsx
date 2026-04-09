@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, ReactNode, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { authAPI } from '@/lib/api';
 import { User } from '@/types';
@@ -12,6 +12,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
   loading: boolean;
+  refreshProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -20,30 +21,77 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const initialized = useRef(false);
   const router = useRouter();
 
-  // Initialize Auth
-  useEffect(() => {
-    const savedToken = localStorage.getItem('token');
-    const savedUser = localStorage.getItem('user');
-    
-    if (savedToken && savedUser) {
-      const userData = JSON.parse(savedUser) as User;
-      setToken(savedToken);
-      setUser(userData);
+  const initializeAuth = async () => {
+    try {
+      const savedToken = localStorage.getItem('token');
+      const savedUser = localStorage.getItem('user');
       
-      // Connect socket and join organization room
-      const socket = socketService.connect();
-      if (userData.organization_id) {
-        socketService.joinOrganization(userData.organization_id);
-      }
-    }
-    setLoading(false);
+      if (savedToken) {
+        setToken(savedToken);
+        
+        // If we have a user object in storage, use it immediately for responsive UI
+        if (savedUser) {
+          try {
+            const userData = JSON.parse(savedUser) as User;
+            setUser(userData);
+            
+            // Connect socket immediately
+            socketService.connect();
+            if (userData.organization_id) {
+              socketService.joinOrganization(userData.organization_id);
+            }
+          } catch (e) {
+            console.error('[Auth] Failed to parse saved user', e);
+          }
+        }
 
+        // Always fetch fresh profile from server to ensure latest roles/permissions
+        try {
+          const res = await authAPI.getProfile();
+          if (res.data.success) {
+            const freshUser = res.data.data;
+            setUser(freshUser);
+            localStorage.setItem('user', JSON.stringify(freshUser));
+          }
+        } catch (err: any) {
+          console.error('[Auth] Profile verification failed:', err);
+          // If server explicitly says token is invalid (401), log out
+          if (err.response?.status === 401) {
+            logout();
+          }
+        }
+      }
+    } catch (error) {
+      console.error('[Auth] Initialization error:', error);
+    } finally {
+      setLoading(false);
+      initialized.current = true;
+    }
+  };
+
+  useEffect(() => {
+    if (!initialized.current) {
+      initializeAuth();
+    }
     return () => {
-      socketService.disconnect();
+      // Don't disconnect socket on every re-render, only on full unmount if necessary
     };
   }, []);
+
+  const refreshProfile = async () => {
+    try {
+      const res = await authAPI.getProfile();
+      if (res.data.success) {
+        setUser(res.data.data);
+        localStorage.setItem('user', JSON.stringify(res.data.data));
+      }
+    } catch (err) {
+      console.error('Failed to refresh profile:', err);
+    }
+  };
 
   const login = async (email: string, password: string) => {
     try {
@@ -56,7 +104,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         localStorage.setItem('token', newToken);
         localStorage.setItem('user', JSON.stringify(userData));
         
-        // Connect socket on login
         socketService.connect();
         socketService.joinOrganization(userData.organization_id);
         
@@ -73,15 +120,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
     localStorage.removeItem('token');
     localStorage.removeItem('user');
-    
-    // Disconnect socket on logout
     socketService.disconnect();
-    
-    router.push('/');
+    router.push('/login');
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, login, logout, loading }}>
+    <AuthContext.Provider value={{ user, token, login, logout, loading, refreshProfile }}>
       {children}
     </AuthContext.Provider>
   );

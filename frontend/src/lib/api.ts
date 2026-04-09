@@ -27,13 +27,17 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401 || error.response?.status === 403) {
+    // 401 Unauthorized — Token expired or invalid, must logout
+    if (error.response?.status === 401) {
       if (typeof window !== 'undefined') {
         localStorage.removeItem('token');
         localStorage.removeItem('user');
         window.location.href = '/login';
       }
     }
+    // 403 Forbidden — Logged in but no permission for this specific resource
+    // We let the component handle this (e.g. show an error toast) instead of logging out
+    
     return Promise.reject(error);
   }
 );
@@ -65,17 +69,31 @@ export const constituencyAPI = {
   getHierarchy: () => api.get('/constituency/hierarchy'),
   getStates: () => api.get('/constituency/states'),
   createState: (data: Record<string, unknown>) => api.post('/constituency/states', data),
+  updateState: (id: number, data: Record<string, unknown>) => api.put(`/constituency/states/${id}`, data),
+  deleteState: (id: number) => api.delete(`/constituency/states/${id}`),
   getDistricts: (stateId?: number) =>
     api.get('/constituency/districts', { params: stateId ? { state_id: stateId } : {} }),
   createDistrict: (data: Record<string, unknown>) => api.post('/constituency/districts', data),
+  updateDistrict: (id: number, data: Record<string, unknown>) => api.put(`/constituency/districts/${id}`, data),
+  deleteDistrict: (id: number) => api.delete(`/constituency/districts/${id}`),
   getConstituencies: (districtId?: number) =>
     api.get('/constituency/constituencies', { params: districtId ? { district_id: districtId } : {} }),
   createConstituency: (data: Record<string, unknown>) => api.post('/constituency/constituencies', data),
   updateConstituency: (id: number, data: Record<string, unknown>) =>
     api.put(`/constituency/constituencies/${id}`, data),
   deleteConstituency: (id: number) => api.delete(`/constituency/constituencies/${id}`),
-  getWards: (constituencyId?: number) =>
-    api.get('/constituency/wards', { params: constituencyId ? { constituency_id: constituencyId } : {} }),
+  getAreas: (constituencyId?: number) =>
+    api.get('/constituency/areas', { params: constituencyId ? { constituency_id: constituencyId } : {} }),
+  createArea: (data: Record<string, unknown>) => api.post('/constituency/areas', data),
+  updateArea: (id: number, data: Record<string, unknown>) => api.put(`/constituency/areas/${id}`, data),
+  deleteArea: (id: number) => api.delete(`/constituency/areas/${id}`),
+  getWards: (constituencyId?: number, areaId?: number) =>
+    api.get('/constituency/wards', { 
+      params: { 
+        ...(constituencyId ? { constituency_id: constituencyId } : {}),
+        ...(areaId ? { area_id: areaId } : {})
+      } 
+    }),
   createWard: (data: Record<string, unknown>) => api.post('/constituency/wards', data),
   updateWard: (id: number, data: Record<string, unknown>) => api.put(`/constituency/wards/${id}`, data),
   deleteWard: (id: number) => api.delete(`/constituency/wards/${id}`),
@@ -180,4 +198,32 @@ export const notificationsAPI = {
   getAll: () => api.get('/notifications'),
   markRead: (id: number) => api.put(`/notifications/mark-read/${id}`),
   markAllRead: () => api.put('/notifications/mark-read-all'),
+};
+
+// ─── Work Allocation API ───
+export const workAllocationAPI = {
+  getAll: (params?: Record<string, string | number>) =>
+    api.get('/work-allocation', { params }),
+  getMyTasks: () => api.get('/work-allocation/my-tasks'),
+  getTypes: () => api.get('/work-allocation/types'),
+  getStats: () => api.get('/work-allocation/stats'),
+  create: (data: Record<string, unknown>) => api.post('/work-allocation', data),
+  update: (id: number, data: Record<string, unknown>) => api.put(`/work-allocation/${id}`, data),
+  updateStatus: (id: number, data: Record<string, unknown>) => api.patch(`/work-allocation/${id}/status`, data),
+  uploadProof: (id: number, data: Record<string, unknown>) => api.post(`/work-allocation/${id}/upload-proof`, data),
+  delete: (id: number) => api.delete(`/work-allocation/${id}`),
+};
+
+// ─── AI Chat API ───
+export const aiAPI = {
+  chat: (message: string, history: Array<{ role: string; content: string }>, session_id?: number) =>
+    api.post('/ai/chat', { message, history, session_id }),
+  getSessions: () =>
+    api.get('/ai/sessions'),
+  getSessionMessages: (sessionId: number) =>
+    api.get(`/ai/sessions/${sessionId}/messages`),
+  updateSession: (sessionId: number, title: string) =>
+    api.put(`/ai/sessions/${sessionId}`, { title }),
+  deleteSession: (sessionId: number) =>
+    api.delete(`/ai/sessions/${sessionId}`),
 };

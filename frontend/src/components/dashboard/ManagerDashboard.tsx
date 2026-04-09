@@ -28,7 +28,7 @@ export default function ManagerDashboard({ stats, chartDefaults }: DashboardProp
   };
 
   return (
-    <div className="p-8 pb-12">
+    <div className="dashboard-container pb-12">
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-5 mb-8">
         {statCards.map((card) => (
           <div key={card.label} className="glass-card-hover p-5 relative overflow-hidden group">

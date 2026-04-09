@@ -1,11 +1,16 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Header from '@/components/Header';
 import { surveysAPI } from '@/lib/api';
 import { Survey } from '@/types';
-import { Plus, Search, Trash2, X, Loader2, ClipboardList, BarChart3 } from 'lucide-react';
+import {
+  Plus, Search, Trash2, X, Loader2, ClipboardList,
+  BarChart3, Camera, Circle, XCircle, RefreshCw,
+  Activity, HelpCircle, Heart, Users
+} from 'lucide-react';
 import Modal from '@/components/Modal';
+import StatsSummary from '@/components/dashboard/StatsSummary';
 import { Doughnut } from 'react-chartjs-2';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
 
@@ -22,7 +27,19 @@ export default function SurveysPage() {
 
   const [form, setForm] = useState({
     support_status: 'neutral', satisfaction_level: '3', remarks: '',
+    image_url: ''
   });
+
+  const [isCameraActive, setIsCameraActive] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+
+  useEffect(() => {
+    if (isCameraActive && videoRef.current && streamRef.current) {
+      videoRef.current.srcObject = streamRef.current;
+    }
+  }, [isCameraActive]);
 
   useEffect(() => { loadSurveys(); loadStats(); }, [supportFilter]);
 
@@ -39,34 +56,75 @@ export default function SurveysPage() {
   };
 
   const loadStats = async () => {
-    try { const res = await surveysAPI.getStats(); setStats(res.data.data); } catch {}
+    try { const res = await surveysAPI.getStats(); setStats(res.data.data); } catch { }
+  };
+
+  const startTacticalCamera = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }
+      });
+      streamRef.current = stream;
+      setIsCameraActive(true);
+    } catch (err) {
+      alert("Capture access denied. Check permissions.");
+    }
+  };
+
+  const stopTacticalCamera = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(t => t.stop());
+      streamRef.current = null;
+    }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+    setIsCameraActive(false);
+  };
+
+  const captureTacticalPhoto = () => {
+    if (!videoRef.current || !canvasRef.current) return;
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    canvas.getContext('2d')?.drawImage(video, 0, 0);
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+    setForm(prev => ({ ...prev, image_url: dataUrl }));
+    stopTacticalCamera();
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      setLoading(true);
       await surveysAPI.create({
         ...form, satisfaction_level: parseInt(form.satisfaction_level),
       });
       setShowModal(false);
+      setForm({ support_status: 'neutral', satisfaction_level: '3', remarks: '', image_url: '' });
       loadSurveys();
       loadStats();
-    } catch (err: any) { alert(err.response?.data?.message || 'Error'); }
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Error saving survey');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleDelete = async (id: number) => {
     if (!confirm('Delete this survey?')) return;
-    try { await surveysAPI.delete(id); loadSurveys(); loadStats(); } catch {}
+    try { await surveysAPI.delete(id); loadSurveys(); loadStats(); } catch { }
   };
 
   const supportBadge = (s: string) => {
-    switch(s) { case 'supporter': return 'badge-success'; case 'neutral': return 'badge-warning'; case 'opponent': return 'badge-danger'; default: return 'badge-neutral'; }
+    switch (s) { case 'supporter': return 'badge-success'; case 'neutral': return 'badge-warning'; case 'opponent': return 'badge-danger'; default: return 'badge-neutral'; }
   };
 
   return (
     <>
       <Header title="Survey Module" subtitle="Voter sentiment tracking and analysis" />
-      <div className="p-8">
+      <div className="dashboard-container">
         {/* View Toggle */}
         <div className="flex items-center justify-between mb-6">
           <div className="tabs-toggle">
@@ -79,6 +137,17 @@ export default function SurveysPage() {
           </div>
           <button onClick={() => setShowModal(true)} className="btn-primary"><Plus className="w-4 h-4" /> New Survey</button>
         </div>
+
+        {/* Global Summary Stats */}
+        <StatsSummary
+          loading={loading && !stats}
+          stats={[
+            { label: 'Total Surveys', value: stats?.total || 0, icon: Activity, color: 'text-purple-500', bgIcon: 'bg-purple-500/10' },
+            { label: 'Supportive', value: stats?.support_breakdown?.find((s: any) => s.support_status === 'supporter')?.count || 0, icon: Heart, color: 'text-emerald-500', bgIcon: 'bg-emerald-500/10' },
+            { label: 'Issues Found', value: stats?.top_issues?.length || 0, icon: HelpCircle, color: 'text-amber-500', bgIcon: 'bg-amber-500/10' },
+            { label: 'Avg Rating', value: stats?.satisfaction_stats?.average_rating || '0.0', icon: RefreshCw, color: 'text-blue-500', bgIcon: 'bg-blue-500/10' },
+          ]}
+        />
 
         {view === 'analytics' && stats ? (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -120,22 +189,7 @@ export default function SurveysPage() {
                 {stats.top_issues.length === 0 && <p className="text-dark-500 text-sm">No issues reported yet</p>}
               </div>
             </div>
-            {/* Stats Cards */}
-            <div className="glass-card p-6 lg:col-span-2">
-              <h3 className="text-base font-bold mb-4">Summary</h3>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="bg-dark-50 dark:bg-dark-800/40 rounded-lg p-4 text-center border border-dark-100 dark:border-white/5">
-                  <div className="text-2xl font-extrabold text-dark-900 dark:text-dark-100">{stats.total}</div>
-                  <div className="text-xs font-bold text-dark-500 mt-1 uppercase tracking-wider">Total Surveys</div>
-                </div>
-                {stats.support_breakdown.map((s: any) => (
-                  <div key={s.support_status} className="bg-dark-50 dark:bg-dark-800/40 rounded-lg p-4 text-center border border-dark-100 dark:border-white/5">
-                    <div className="text-2xl font-extrabold text-dark-900 dark:text-dark-100">{s.count}</div>
-                    <div className="text-xs font-bold text-dark-500 mt-1 capitalize uppercase tracking-wider">{s.support_status} ({s.percentage}%)</div>
-                  </div>
-                ))}
-              </div>
-            </div>
+            {/* Empty column or spacer if needed */}
           </div>
         ) : (
           <>
@@ -154,7 +208,7 @@ export default function SurveysPage() {
               <div className="overflow-x-auto">
                 <table className="data-table">
                   <thead>
-                    <tr><th>Voter</th><th>Surveyor</th><th>Support</th><th>Satisfaction</th><th>Booth</th><th>Issues</th><th>Date</th><th className="text-right">Actions</th></tr>
+                    <tr><th>Voter</th><th>Surveyor</th><th>Support</th><th>Satisfaction</th><th>Booth</th><th>Survey Name</th><th>Date</th><th className="text-right">Actions</th></tr>
                   </thead>
                   <tbody>
                     {loading ? (
@@ -169,14 +223,14 @@ export default function SurveysPage() {
                           <td><span className={`badge ${supportBadge(survey.support_status)} capitalize`}>{survey.support_status}</span></td>
                           <td>
                             <div className="flex gap-0.5">
-                              {[1,2,3,4,5].map(n => (
+                              {[1, 2, 3, 4, 5].map(n => (
                                 <span key={n} className={`text-sm ${n <= (survey.satisfaction_level || 0) ? 'text-yellow-400' : 'text-dark-700'}`}>★</span>
                               ))}
                             </div>
                           </td>
                           <td className="text-dark-800 dark:text-dark-400 font-bold">{survey.booth_name || '—'}</td>
                           <td className="text-dark-400 text-xs">
-                            {survey.issues && survey.issues.length > 0 
+                            {survey.issues && survey.issues.length > 0
                               ? survey.issues.map(i => i.issue_name).join(', ')
                               : '—'}
                           </td>
@@ -197,40 +251,85 @@ export default function SurveysPage() {
 
       <Modal
         isOpen={showModal}
-        onClose={() => setShowModal(false)}
+        onClose={() => { stopTacticalCamera(); setShowModal(false); }}
         title="Record New Survey"
         subtitle="Capture voter sentiment and tactical feedback from the field"
-        maxWidth="max-w-[600px]"
+        maxWidth="max-w-[900px]"
         footer={(
-          <>
-            <button type="button" onClick={() => setShowModal(false)} className="btn-secondary min-w-[120px]">Cancel</button>
-            <button type="submit" form="survey-form" className="btn-primary min-w-[180px]">
-              Submit Survey
-            </button>
-          </>
+          <div className="flex gap-3 w-full sm:w-auto ml-auto">
+            <button type="button" onClick={() => { stopTacticalCamera(); setShowModal(false); }} className="btn-secondary px-8">Cancel</button>
+            <button type="submit" form="survey-form" className="btn-primary px-12">Submit Survey</button>
+          </div>
         )}
       >
         <form id="survey-form" onSubmit={handleSubmit} className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-2">
-              <label className="block text-xs font-black text-dark-400 uppercase tracking-widest px-1">Support Status *</label>
-              <select value={form.support_status} onChange={e => setForm({...form, support_status: e.target.value})} className="form-input" required>
-                <option value="supporter">Supporter</option>
-                <option value="neutral">Neutral</option>
-                <option value="opponent">Opponent</option>
-              </select>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
+            {/* Left: Tactical Proof */}
+            <div className="space-y-4">
+              <label className="block text-xs font-black text-dark-400 uppercase tracking-[0.2em] px-1">Voter/ID Proof (Mandatory)</label>
+              <div className="relative aspect-video rounded-2xl border-2 border-dashed border-dark-200 dark:border-white/10 overflow-hidden bg-dark-50/50 flex flex-col items-center justify-center group">
+                {isCameraActive ? (
+                  <div className="absolute inset-0 z-20">
+                    <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover" />
+                    <div className="absolute inset-x-0 bottom-4 flex justify-center gap-4">
+                      <button type="button" onClick={captureTacticalPhoto} className="btn-primary size-12 rounded-full p-0 flex items-center justify-center animate-pulse shadow-lg shadow-saffron-500/20">
+                        <Circle className="w-7 h-7 fill-white" />
+                      </button>
+                      <button type="button" onClick={stopTacticalCamera} className="bg-red-500/80 backdrop-blur-md text-white p-3 rounded-full shadow-lg active:scale-95 transition-transform">
+                        <XCircle className="w-6 h-6" />
+                      </button>
+                    </div>
+                  </div>
+                ) : form.image_url ? (
+                  <>
+                    {loading && (
+                      <div className="absolute inset-0 bg-dark-900/60 backdrop-blur-sm flex flex-col items-center justify-center z-20">
+                        <Loader2 className="w-8 h-8 animate-spin text-saffron-500 mb-2" />
+                        <span className="text-[10px] font-black text-white uppercase tracking-tighter">Processing...</span>
+                      </div>
+                    )}
+                    <img src={form.image_url} className="w-full h-full object-cover" />
+                    <div className="absolute top-3 right-3 z-10">
+                      <button type="button" onClick={() => { setForm(p => ({ ...p, image_url: '' })); startTacticalCamera(); }} className="bg-saffron-500 text-white p-2 rounded-xl shadow-lg shadow-saffron-500/20 active:scale-95 transition-transform flex items-center gap-2 pr-3">
+                        <RefreshCw className="w-4 h-4" />
+                        <span className="text-[10px] font-black uppercase">Recapture</span>
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <button type="button" onClick={startTacticalCamera} className="flex flex-col items-center gap-2 text-dark-400 hover:text-saffron-500 transition-colors">
+                    <Camera className="w-10 h-10" />
+                    <span className="text-[10px] font-black uppercase tracking-widest">Open Tactical Camera</span>
+                  </button>
+                )}
+              </div>
+              <canvas ref={canvasRef} className="hidden" />
             </div>
-            <div className="space-y-2">
-              <label className="block text-xs font-black text-dark-400 uppercase tracking-widest px-1">Satisfaction Level (1-5)</label>
-              <select value={form.satisfaction_level} onChange={e => setForm({...form, satisfaction_level: e.target.value})} className="form-input">
-                {[1,2,3,4,5].map(n => <option key={n} value={n}>{n} Star{n > 1 ? 's' : ''}</option>)}
-              </select>
-            </div>
-          </div>
 
-          <div className="space-y-2">
-            <label className="block text-xs font-black text-dark-400 uppercase tracking-widest px-1">Detailed Remarks & Feedback</label>
-            <textarea value={form.remarks} onChange={e => setForm({...form, remarks: e.target.value})} className="form-input h-32 resize-none" placeholder="Provide detailed tactical observations or voter concerns..." />
+            {/* Right: Data Entry */}
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="block text-xs font-black text-dark-400 uppercase tracking-[0.2em] px-1">Support Status</label>
+                  <select value={form.support_status} onChange={e => setForm({ ...form, support_status: e.target.value })} className="form-input" required>
+                    <option value="supporter">Supporter</option>
+                    <option value="neutral">Neutral</option>
+                    <option value="opponent">Opponent</option>
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <label className="block text-xs font-black text-dark-400 uppercase tracking-[0.2em] px-1">Satisfaction</label>
+                  <select value={form.satisfaction_level} onChange={e => setForm({ ...form, satisfaction_level: e.target.value })} className="form-input">
+                    {[1, 2, 3, 4, 5].map(n => <option key={n} value={n}>{n} Star{n > 1 ? 's' : ''}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="block text-xs font-black text-dark-400 uppercase tracking-[0.2em] px-1">Tactical Observations</label>
+                <textarea value={form.remarks} onChange={e => setForm({ ...form, remarks: e.target.value })} className="form-input h-36 resize-none" placeholder="Provide detailed field observations, voter concerns, or strategic insights..." />
+              </div>
+            </div>
           </div>
         </form>
       </Modal>

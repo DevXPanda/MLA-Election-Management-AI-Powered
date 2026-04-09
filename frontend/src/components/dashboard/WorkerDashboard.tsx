@@ -21,7 +21,7 @@ export default function WorkerDashboard({ stats }: DashboardProps) {
    ];
 
    return (
-      <div className="p-8 pb-12">
+      <div className="dashboard-container pb-12">
          {/* Primary Field Action */}
          <div className="gradient-card p-7 mb-8 relative group overflow-hidden border border-saffron-500/20 rounded-lg shadow-2xl shadow-saffron-500/10 hover:shadow-saffron-500/20 transition-all">
             <div className="relative z-10">
@@ -49,8 +49,8 @@ export default function WorkerDashboard({ stats }: DashboardProps) {
                   <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${card.bgIcon} mb-5 group-hover:scale-110 transition-transform`}>
                      <card.icon className={`w-6 h-6 ${card.color}`} />
                   </div>
-                  <div className="text-3xl font-black text-dark-900 dark:text-white tracking-tight">{card.value}</div>
-                  <div className="text-[11px] text-dark-600 dark:text-dark-500 font-black uppercase tracking-[2px] mt-2 leading-none">{card.label}</div>
+                  <div className="text-3xl font-medium text-dark-900 dark:text-white tracking-tight">{card.value}</div>
+                  <div className="text-[11px] text-dark-600 dark:text-dark-500 font-medium uppercase tracking-[2px] mt-2 leading-none">{card.label}</div>
                </div>
             ))}
          </div>

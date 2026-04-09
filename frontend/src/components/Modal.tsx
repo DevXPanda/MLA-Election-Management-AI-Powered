@@ -30,10 +30,12 @@ export default function Modal({
     if (isOpen) {
       window.addEventListener('keydown', handleEsc);
       document.body.style.overflow = 'hidden';
+      document.body.classList.add('modal-open');
     }
     return () => {
       window.removeEventListener('keydown', handleEsc);
       document.body.style.overflow = 'unset';
+      document.body.classList.remove('modal-open');
     };
   }, [isOpen, onClose]);
 

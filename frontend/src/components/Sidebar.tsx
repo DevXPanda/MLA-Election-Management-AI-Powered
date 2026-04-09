@@ -7,7 +7,7 @@ import {
   LayoutDashboard, Users, MapPin, UsersRound, ListTodo,
   ClipboardList, Calendar, Vote, BarChart3, MessageSquare,
   Image, LogOut, Shield, ChevronLeft, ChevronRight, Menu, X,
-  Zap
+  Zap, Bot
 } from 'lucide-react';
 import { useState, useMemo, createContext, useContext, useEffect } from 'react';
 
@@ -107,9 +107,15 @@ const NAV_CONFIG = [
     items: [
       { 
         href: '/dashboard/events', 
-        label: 'Events', 
+        label: 'Event Management', 
         icon: Calendar, 
         roles: ['super_admin', 'mla', 'campaign_manager'] 
+      },
+      { 
+        href: '/dashboard/work-allocation', 
+        label: 'Work Allocation', 
+        icon: ListTodo, 
+        roles: ['super_admin', 'mla', 'campaign_manager', 'ward_head', 'booth_worker'] 
       },
       { 
         href: '/dashboard/reports', 
@@ -127,6 +133,17 @@ const NAV_CONFIG = [
         href: '/dashboard/media', 
         label: 'Media Library', 
         icon: Image, 
+        roles: ['super_admin', 'mla'] 
+      },
+    ],
+  },
+  {
+    title: 'AI Tools',
+    items: [
+      { 
+        href: '/dashboard/ai-assistant', 
+        label: 'AI Assistant', 
+        icon: Bot, 
         roles: ['super_admin', 'mla'] 
       },
     ],
@@ -168,15 +185,7 @@ export default function Sidebar() {
         />
       )}
 
-      {/* Mobile hamburger button */}
-      <button
-        onClick={() => setMobileOpen(true)}
-        className="fixed top-2 left-4 z-[45] lg:hidden w-10 h-10 rounded-lg bg-white dark:bg-dark-800 border border-dark-200 dark:border-white/10 flex items-center justify-center text-dark-600 dark:text-dark-300 shadow-lg hover:shadow-xl transition-all"
-        aria-label="Open menu"
-      >
-        <Menu size={20} />
-      </button>
-
+      {/* Sidebar - fixed on desktop, sliding on mobile */}
       <aside 
         className={`
           fixed left-0 top-0 h-screen 
@@ -185,8 +194,9 @@ export default function Sidebar() {
           z-[60] flex flex-col overflow-hidden
           transition-all duration-300 ease-in-out 
           ${mobileOpen ? 'max-lg:translate-x-0' : 'max-lg:-translate-x-full'}
+          w-[272px] lg:w-[var(--sidebar-width)]
         `}
-        style={{ width: desktopWidth }}
+        style={{ '--sidebar-width': `${desktopWidth}px` } as any}
       >
         {/* Subtle gradient accent at top */}
         <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-saffron-500/40 to-transparent" />
@@ -201,8 +211,8 @@ export default function Sidebar() {
             </div>
             {!collapsed && (
               <div className="flex flex-col justify-center min-w-0 animate-fade-in">
-                <h2 className="text-[15px] font-extrabold text-dark-900 dark:text-white tracking-tight leading-none mb-0">MLA</h2>
-                <p className="text-[7px] text-dark-400 dark:text-dark-500 uppercase tracking-[1.5px] font-bold mt-0.5 whitespace-nowrap">Election Management</p>
+                <h2 className="text-[15px] font-medium text-dark-900 dark:text-white tracking-tight leading-none mb-0">MLA</h2>
+                <p className="text-[7px] text-dark-400 dark:text-dark-500 uppercase tracking-[1.5px] font-normal mt-0.5 whitespace-nowrap">Election Management</p>
               </div>
             )}
           </div>
@@ -232,7 +242,7 @@ export default function Sidebar() {
           {filteredNav.map((section, sectionIndex) => (
             <div key={section.title} className={sectionIndex > 0 ? 'mt-6' : 'mt-1'}>
               {!collapsed && (
-                <div className="px-3 pb-2 text-[9px] font-extrabold text-dark-400 dark:text-dark-600 uppercase tracking-[2px] select-none whitespace-nowrap flex items-center gap-2">
+                <div className="px-3 pb-2 text-[9px] font-medium text-dark-400 dark:text-dark-600 uppercase tracking-[2px] select-none whitespace-nowrap flex items-center gap-2">
                   <div className="w-4 h-px bg-dark-200/60 dark:bg-white/[0.06]" />
                   {section.title}
                   <div className="flex-1 h-px bg-dark-200/40 dark:bg-white/[0.04]" />
@@ -308,8 +318,8 @@ export default function Sidebar() {
             {!collapsed && (
               <>
                 <div className="flex-1 min-w-0">
-                  <div className="text-[13px] font-bold text-dark-900 dark:text-white truncate leading-tight">{user?.name}</div>
-                  <div className="text-[9px] font-bold text-dark-600 dark:text-dark-500 uppercase tracking-[1px] mt-0.5 whitespace-nowrap flex items-center gap-1">
+                  <div className="text-[13px] font-medium text-dark-900 dark:text-white truncate leading-tight">{user?.name}</div>
+                  <div className="text-[9px] font-medium text-dark-600 dark:text-dark-500 uppercase tracking-[1px] mt-0.5 whitespace-nowrap flex items-center gap-1">
                     <Zap className="w-2.5 h-2.5 text-emerald-600" />
                     {user?.role_name?.replace(/_/g, ' ')}
                   </div>

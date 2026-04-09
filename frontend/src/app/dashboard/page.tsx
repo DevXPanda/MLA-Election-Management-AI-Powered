@@ -48,7 +48,7 @@ export default function DashboardPage() {
         grid: { display: false },
         ticks: { 
           color: theme === 'dark' ? '#64748b' : '#334155', 
-          font: { size: 10, weight: 'bold' } 
+          font: { size: 10, weight: '500' } 
         },
       },
       y: {
@@ -57,7 +57,7 @@ export default function DashboardPage() {
         },
         ticks: { 
           color: theme === 'dark' ? '#64748b' : '#334155', 
-          font: { size: 10, weight: 'bold' } 
+          font: { size: 10, weight: '500' } 
         },
         border: { display: false },
       },
@@ -109,7 +109,7 @@ export default function DashboardPage() {
     return (
       <div className="min-h-screen bg-white dark:bg-dark-950 flex flex-col transition-colors duration-300">
         <Header title="War Room Dashboard" subtitle="Loading secure mission data..." />
-        <div className="p-8 space-y-8 animate-pulse text-dark-400">
+        <div className="dashboard-container space-y-8 animate-pulse text-dark-400">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {[...Array(4)].map((_, i) => (
               <div key={i} className="glass-card h-32" />
