@@ -8,6 +8,7 @@ import Header from '@/components/Header';
 import { mediaAPI } from '@/lib/api';
 import { Plus, X, Loader2, Image as ImageIcon, Film, FileText, Download, Trash2 } from 'lucide-react';
 import Modal from '@/components/Modal';
+import { MODULE_HEADER, SHARED_UI, MEDIA_UI } from '@/lib/ui-labels';
 
 export default function MediaPage() {
   const [media, setMedia] = useState<any[]>([]);
@@ -81,7 +82,7 @@ export default function MediaPage() {
 
   return (
     <>
-      <Header title="Media Library" subtitle="Campaign media assets and documents" />
+      <Header title={MODULE_HEADER.media.title} subtitle={MODULE_HEADER.media.subtitle} />
       <div className="p-8">
         <div className="flex items-center justify-between mb-6">
           <div className="flex gap-3">
@@ -149,14 +150,14 @@ export default function MediaPage() {
       <Modal
         isOpen={showModal}
         onClose={() => setShowModal(false)}
-        title="Add Strategic Media"
-        subtitle="Upload and manage tactical campaign assets"
+        title={SHARED_UI.mediaAddTitle}
+        subtitle={MEDIA_UI.modalSubtitle}
         maxWidth="max-w-[650px]"
         footer={(
           <>
             <button type="button" onClick={() => setShowModal(false)} className="btn-secondary min-w-[120px]">Cancel</button>
             <button type="submit" form="media-form" className="btn-primary min-w-[160px]">
-              Add to Library
+              {MEDIA_UI.addToLibrary}
             </button>
           </>
         )}
@@ -174,9 +175,9 @@ export default function MediaPage() {
             <div className="space-y-2">
               <label className="block text-xs font-black text-dark-400 uppercase tracking-widest px-1">Media Category</label>
               <select value={form.file_type} onChange={e => setForm({...form, file_type: e.target.value})} className="form-input">
-                <option value="image">Strategic Image</option>
-                <option value="video">Tactical Video</option>
-                <option value="pdf">Document / PDF</option>
+                <option value="image">{SHARED_UI.mediaTypeImage}</option>
+                <option value="video">{SHARED_UI.mediaTypeVideo}</option>
+                <option value="pdf">{MEDIA_UI.typePdf}</option>
               </select>
             </div>
             <div className="space-y-2">

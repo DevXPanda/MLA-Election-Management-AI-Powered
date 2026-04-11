@@ -6,8 +6,10 @@ import { showToast } from '@/lib/toast';
 import Header from '@/components/Header';
 import { usersAPI } from '@/lib/api';
 import { User, Role } from '@/types';
-import { Plus, Search, Edit3, Trash2, X, Loader2, UserPlus, Filter } from 'lucide-react';
+import { Plus, Search, Edit3, Trash2, X, Loader2, UserPlus, Filter, Eye } from 'lucide-react';
 import Modal from '@/components/Modal';
+import DetailsModal from '@/components/DetailsModal';
+import { MODULE_HEADER } from '@/lib/ui-labels';
 
 export default function UsersPage() {
   const [users, setUsers] = useState<User[]>([]);
@@ -15,6 +17,7 @@ export default function UsersPage() {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
@@ -111,8 +114,8 @@ export default function UsersPage() {
 
   return (
     <>
-      <Header title="User Management" subtitle="Manage users, roles, and access control" />
-      <div className="p-8">
+      <Header title={MODULE_HEADER.users.title} subtitle={MODULE_HEADER.users.subtitle} />
+      <div className="dashboard-container">
         {/* Top bar */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
           <div>
@@ -155,11 +158,10 @@ export default function UsersPage() {
           </select>
         </div>
 
-        {/* Table */}
-        <div className="glass-card overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="data-table">
-              <thead>
+        {/* Table Container with Horizontal Scroll */}
+        <div className="glass-card table-responsive">
+          <table className="data-table">
+            <thead>
                 <tr>
                   <th>User</th>
                   <th>Role</th>
@@ -204,6 +206,9 @@ export default function UsersPage() {
                       </td>
                       <td>
                         <div className="flex gap-2 justify-end">
+                          <button onClick={() => setSelectedUser(user)} className="btn-icon btn-secondary" title="View details">
+                            <Eye className="w-3.5 h-3.5" />
+                          </button>
                           <button onClick={() => openEdit(user)} className="btn-icon btn-secondary">
                             <Edit3 className="w-3.5 h-3.5" />
                           </button>
@@ -216,8 +221,8 @@ export default function UsersPage() {
                   ))
                 )}
               </tbody>
-            </table>
-          </div>
+          </table>
+        </div>
 
           {/* Pagination */}
           {meta.totalPages > 1 && (
@@ -238,7 +243,6 @@ export default function UsersPage() {
             </div>
           )}
         </div>
-      </div>
 
       <Modal
         isOpen={showModal}
@@ -296,6 +300,28 @@ export default function UsersPage() {
           </div>
         </form>
       </Modal>
+
+      <DetailsModal
+        isOpen={!!selectedUser}
+        onClose={() => setSelectedUser(null)}
+        title="User Details"
+        subtitle="Identity, access role, and geography mapping"
+        items={[
+          { label: 'Name', value: selectedUser?.name },
+          { label: 'Role', value: selectedUser?.role_display_name || selectedUser?.role_name || '—' },
+          { label: 'Designation', value: selectedUser?.role_display_name || '—' },
+          { label: 'Assigned Leader', value: '—' },
+          { label: 'Ward', value: selectedUser?.ward_name || '—' },
+          { label: 'Booth', value: selectedUser?.booth_name || '—' },
+          { label: 'Constituency', value: selectedUser?.constituency_name || '—' },
+          { label: 'Area', value: selectedUser?.area_name || '—' },
+          { label: 'Phone', value: selectedUser?.phone || '—' },
+          { label: 'Email', value: selectedUser?.email || '—' },
+          { label: 'Status', value: selectedUser?.status || '—' },
+          { label: 'Last Login', value: selectedUser?.last_login ? new Date(selectedUser.last_login).toLocaleString() : 'Never' },
+          { label: 'Created At', value: selectedUser?.created_at ? new Date(selectedUser.created_at).toLocaleString() : '—' },
+        ]}
+      />
     </>
   );
 }

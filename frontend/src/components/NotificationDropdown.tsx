@@ -5,6 +5,7 @@ import { notificationsAPI } from '@/lib/api';
 import { socketService } from '@/lib/socket';
 import { formatDistanceToNow } from 'date-fns';
 import { Bell, Check, Trash2, ExternalLink, Inbox } from 'lucide-react';
+import { SHARED_UI } from '@/lib/ui-labels';
 
 interface Notification {
   id: number;
@@ -125,7 +126,7 @@ export default function NotificationDropdown() {
           <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-white/50 dark:bg-black/50 backdrop-blur-md">
             <h3 className="font-bold text-slate-900 dark:text-white flex items-center gap-2">
               <Inbox className="w-4 h-4" />
-              Tactical Alerts
+              {SHARED_UI.notificationsHeading}
             </h3>
             {unreadCount > 0 && (
               <button

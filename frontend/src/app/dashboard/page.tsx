@@ -16,6 +16,7 @@ import MlaDashboard from '@/components/dashboard/MlaDashboard';
 import ManagerDashboard from '@/components/dashboard/ManagerDashboard';
 import WardHeadDashboard from '@/components/dashboard/WardHeadDashboard';
 import WorkerDashboard from '@/components/dashboard/WorkerDashboard';
+import { MODULE_HEADER } from '@/lib/ui-labels';
 
 ChartJS.register(
   CategoryScale, LinearScale, BarElement, PointElement, LineElement,
@@ -108,9 +109,9 @@ export default function DashboardPage() {
   if (loading || !stats) {
     return (
       <div className="min-h-screen bg-white dark:bg-dark-950 flex flex-col transition-colors duration-300">
-        <Header title="War Room Dashboard" subtitle="Loading secure mission data..." />
+        <Header title={MODULE_HEADER.dashboardLoading.title} subtitle={MODULE_HEADER.dashboardLoading.subtitle} />
         <div className="dashboard-container space-y-8 animate-pulse text-dark-400">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
             {[...Array(4)].map((_, i) => (
               <div key={i} className="glass-card h-32" />
             ))}
@@ -127,8 +128,8 @@ export default function DashboardPage() {
   return (
     <main className="min-h-screen bg-white dark:bg-dark-950 selection:bg-saffron-500/30 transition-colors duration-300">
       <Header 
-        title={user?.role_name === 'booth_worker' ? 'Tactical Ops: Ground Zero' : 'Strategic Command Center'} 
-        subtitle={user?.role_name === 'booth_worker' ? 'Logged in as Field Operative' : `Logged in as ${user?.role_name?.replace(/_/g, ' ').toUpperCase()}`} 
+        title={MODULE_HEADER.dashboard.title} 
+        subtitle={user?.role_name === 'booth_worker' ? 'Field worker overview' : `Signed in as ${user?.role_name?.replace(/_/g, ' ')}`} 
       />
       {renderRoleDashboard()}
     </main>

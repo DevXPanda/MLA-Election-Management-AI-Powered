@@ -6,15 +6,18 @@ import { showToast } from '@/lib/toast';
 import Header from '@/components/Header';
 import { teamsAPI, usersAPI } from '@/lib/api';
 import { TeamMember, User } from '@/types';
-import { Plus, Trash2, X, Loader2, Users, UserPlus, ShieldAlert, Award, Grid } from 'lucide-react';
+import { Plus, Trash2, X, Loader2, Users, UserPlus, ShieldAlert, Award, Grid, Eye } from 'lucide-react';
 import Modal from '@/components/Modal';
 import StatsSummary from '@/components/dashboard/StatsSummary';
+import DetailsModal from '@/components/DetailsModal';
+import { MODULE_HEADER, SHARED_UI, TEAMS_UI } from '@/lib/ui-labels';
 
 export default function TeamsPage() {
   const [members, setMembers] = useState<TeamMember[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [selectedMember, setSelectedMember] = useState<TeamMember | null>(null);
   const [stats, setStats] = useState<any>(null);
   const [form, setForm] = useState({ user_id: '', designation: '', team_leader_id: '' });
 
@@ -71,7 +74,7 @@ export default function TeamsPage() {
 
   return (
     <>
-      <Header title="Team Management" subtitle="Manage field workers and team structure" />
+      <Header title={MODULE_HEADER.teams.title} subtitle={MODULE_HEADER.teams.subtitle} />
       <div className="dashboard-container">
         {/* Force Summary Stats */}
         <StatsSummary 
@@ -85,15 +88,14 @@ export default function TeamsPage() {
         />
 
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-medium">Field Operatives</h2>
-          <button onClick={() => setShowModal(true)} className="btn-primary"><UserPlus className="w-4 h-4" /> Add Member</button>
+          <h2 className="text-xl font-medium">{TEAMS_UI.listHeading}</h2>
+          <button onClick={() => setShowModal(true)} className="btn-primary"><UserPlus className="w-4 h-4" /> {TEAMS_UI.addMember}</button>
         </div>
 
-        {/* Table */}
-        <div className="glass-card overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="data-table">
-              <thead>
+        {/* Table Container with Horizontal Scroll */}
+        <div className="glass-card table-responsive">
+          <table className="data-table">
+            <thead>
                 <tr><th>Member</th><th>Role</th><th>Designation</th><th>Leader</th><th>Ward / Booth</th><th>Status</th><th className="text-right">Actions</th></tr>
               </thead>
               <tbody>
@@ -124,16 +126,20 @@ export default function TeamsPage() {
                       </td>
                       <td><span className={`badge ${m.status === 'active' ? 'badge-success' : 'badge-neutral'} font-medium`}>{m.status}</span></td>
                       <td className="text-right">
-                        <button onClick={() => handleRemove(m.id)} className="btn-icon bg-red-500/10 border border-red-500/20 text-red-400"><Trash2 className="w-3.5 h-3.5" /></button>
+                        <div className="flex items-center gap-2 justify-end">
+                          <button onClick={() => setSelectedMember(m)} className="btn-icon btn-secondary" title="View details">
+                            <Eye className="w-3.5 h-3.5" />
+                          </button>
+                          <button onClick={() => handleRemove(m.id)} className="btn-icon bg-red-500/10 border border-red-500/20 text-red-400"><Trash2 className="w-3.5 h-3.5" /></button>
+                        </div>
                       </td>
                     </tr>
                   ))
                 )}
               </tbody>
-            </table>
-          </div>
+          </table>
         </div>
-      </div>
+        </div>
 
       <Modal
         isOpen={showModal}
@@ -159,7 +165,7 @@ export default function TeamsPage() {
           </div>
 
           <div className="space-y-2">
-            <label className="block text-xs font-black text-dark-400 uppercase tracking-widest px-1">Tactical Designation</label>
+            <label className="block text-xs font-black text-dark-400 uppercase tracking-widest px-1">{SHARED_UI.teamsDesignation}</label>
             <input value={form.designation} onChange={e => setForm({...form, designation: e.target.value})} placeholder="e.g. Ward Coordinator" className="form-input" />
           </div>
           
@@ -172,6 +178,26 @@ export default function TeamsPage() {
           </div>
         </form>
       </Modal>
+
+      <DetailsModal
+        isOpen={!!selectedMember}
+        onClose={() => setSelectedMember(null)}
+        title="Team Member Details"
+        subtitle="Operational profile and assignment details"
+        items={[
+          { label: 'Name', value: selectedMember?.name },
+          { label: 'Role', value: selectedMember?.role_name || '—' },
+          { label: 'Designation', value: selectedMember?.designation || '—' },
+          { label: 'Assigned Leader', value: selectedMember?.leader_name || '—' },
+          { label: 'Ward', value: selectedMember?.ward_name || '—' },
+          { label: 'Booth', value: selectedMember?.booth_name || '—' },
+          { label: 'Constituency', value: selectedMember?.constituency_name || '—' },
+          { label: 'Phone', value: selectedMember?.phone || '—' },
+          { label: 'Email', value: selectedMember?.email || '—' },
+          { label: 'Status', value: selectedMember?.status || '—' },
+          { label: 'Joined At', value: selectedMember?.joined_at ? new Date(selectedMember.joined_at).toLocaleString() : '—' },
+        ]}
+      />
     </>
   );
 }

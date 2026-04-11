@@ -6,6 +6,7 @@ import { showToast } from '@/lib/toast';
 import { useAuth } from '@/context/AuthContext';
 import { aiAPI } from '@/lib/api';
 import Header from '@/components/Header';
+import { MODULE_HEADER } from '@/lib/ui-labels';
 import {
   Bot, Send, Plus, Trash2, Copy, Check, Loader2, Sparkles,
   MessageSquare, ArrowDown, User, Clock, ChevronLeft,
@@ -328,7 +329,7 @@ export default function AIAssistantPage() {
   if (!isAllowed) {
     return (
       <>
-        <Header title="AI Assistant" subtitle="Access Restricted" />
+        <Header title={MODULE_HEADER.aiAssistant.title} subtitle={MODULE_HEADER.aiAssistantRestricted.subtitle} />
         <div className="flex items-center justify-center p-12">
           <div className="text-center glass-card p-10 max-w-md">
             <div className="w-14 h-14 rounded-2xl bg-red-500/10 flex items-center justify-center mx-auto mb-4">
@@ -424,10 +425,10 @@ export default function AIAssistantPage() {
 
   return (
     <>
-      <Header title="AI Assistant" subtitle="Intelligent chat powered by XPanda" />
+      <Header title={MODULE_HEADER.aiAssistant.title} subtitle={MODULE_HEADER.aiAssistant.subtitle} />
 
       <div className="dashboard-container">
-        <div className="glass-card overflow-hidden flex" style={{ height: 'calc(100vh - 140px)' }}>
+        <div className="glass-card overflow-hidden flex h-[calc(100vh-160px)] sm:h-[calc(100vh-140px)]">
 
           {/* ── SIDEBAR: Chat History ─────────────────────────── */}
           <div className={`

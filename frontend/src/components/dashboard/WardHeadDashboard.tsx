@@ -4,6 +4,7 @@ import React from 'react';
 import { LayoutDashboard, Users, ClipboardList, ListTodo, Map as MapIcon, ChevronRight, Activity, TrendingUp } from 'lucide-react';
 import { DashboardStats } from '@/types';
 import Link from 'next/link';
+import { SHARED_UI, WARD_DASHBOARD_UI, wardDashboardSubtitle } from '@/lib/ui-labels';
 
 interface DashboardProps {
   stats: DashboardStats;
@@ -26,9 +27,9 @@ export default function WardHeadDashboard({ stats }: DashboardProps) {
       {/* Header Section */}
       <div className="mb-8">
         <h1 className="text-2xl font-medium text-dark-900 dark:text-white flex items-center gap-3 mb-0">
-          <LayoutDashboard className="w-6 h-6 text-saffron-500" /> Ward Command Center
+          <LayoutDashboard className="w-6 h-6 text-saffron-500" /> {WARD_DASHBOARD_UI.title}
         </h1>
-        <p className="text-sm text-dark-500 font-normal mt-1">Monitoring execution across {boothProgress.length} booths.</p>
+        <p className="text-sm text-dark-500 font-normal mt-1">{wardDashboardSubtitle(boothProgress.length)}</p>
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
@@ -47,9 +48,9 @@ export default function WardHeadDashboard({ stats }: DashboardProps) {
         <div className="glass-card overflow-hidden">
           <div className="p-6 border-b border-white/5 flex items-center justify-between">
             <h3 className="text-base font-medium text-dark-900 dark:text-white flex items-center gap-3">
-              <MapIcon className="w-5 h-5 text-saffron-500" /> Booth-Wise Execution Progress
+              <MapIcon className="w-5 h-5 text-saffron-500" /> {SHARED_UI.wardProgressTitle}
             </h3>
-            <span className="text-[10px] font-medium text-dark-500 uppercase tracking-widest bg-white/5 px-3 py-1 rounded-full border border-white/5">Sorted by Coverage</span>
+            <span className="text-[10px] font-medium text-dark-500 uppercase tracking-widest bg-white/5 px-3 py-1 rounded-full border border-white/5">{WARD_DASHBOARD_UI.sortedByCoverage}</span>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">

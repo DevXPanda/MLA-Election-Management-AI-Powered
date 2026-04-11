@@ -9,6 +9,7 @@ import {
   PointElement, LineElement, ArcElement, Title, Tooltip, Legend, Filler
 } from 'chart.js';
 import { Bar, Line, Doughnut } from 'react-chartjs-2';
+import { MODULE_HEADER } from '@/lib/ui-labels';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, PointElement, LineElement, ArcElement, Title, Tooltip, Legend, Filler);
 
@@ -41,14 +42,14 @@ export default function ReportsPage() {
 
   if (loading) return (
     <>
-      <Header title="Reports & Analytics" subtitle="Campaign intelligence center" />
+      <Header title={MODULE_HEADER.reports.title} subtitle={MODULE_HEADER.reports.subtitle} />
       <div className="p-8 flex justify-center py-20"><div className="w-8 h-8 border-[3px] border-dark-700 border-t-saffron-500 rounded-full animate-spin" /></div>
     </>
   );
 
   return (
     <>
-      <Header title="Reports & Analytics" subtitle="Campaign intelligence center" />
+      <Header title={MODULE_HEADER.reports.title} subtitle={MODULE_HEADER.reports.subtitle} />
       <div className="p-8">
         {/* Summary Cards */}
         {dashStats && (

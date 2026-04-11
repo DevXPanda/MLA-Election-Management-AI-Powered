@@ -28,7 +28,15 @@ const getAllocations = async (req, res) => {
              (SELECT json_agg(json_build_object('id', u.id, 'name', u.name))
               FROM work_allocation_users wau
               JOIN users u ON wau.user_id = u.id
-              WHERE wau.work_allocation_id = wa.id) as assigned_users
+              WHERE wau.work_allocation_id = wa.id) as assigned_users,
+             (SELECT COALESCE(json_agg(json_build_object(
+                'id', p.id, 'category', p.category, 'image_url', p.image_url,
+                'created_at', p.created_at, 'uploaded_by', p.uploaded_by,
+                'uploader_name', ub.name
+              ) ORDER BY p.created_at), '[]'::json)
+              FROM work_allocation_proofs p
+              LEFT JOIN users ub ON p.uploaded_by = ub.id
+              WHERE p.work_allocation_id = wa.id) as proofs
       FROM work_allocations wa
       JOIN events e ON wa.event_id = e.id
       LEFT JOIN users creator ON wa.created_by = creator.id
@@ -88,7 +96,11 @@ const getMyTasks = async (req, res) => {
   try {
     const query = `
       SELECT wa.*, e.title as event_title, e.event_date, e.location as event_location,
-             creator.name as assigned_by_name
+             creator.name as assigned_by_name,
+             (SELECT COALESCE(json_agg(json_build_object(
+                'id', p.id, 'category', p.category, 'image_url', p.image_url, 'created_at', p.created_at
+              ) ORDER BY p.created_at), '[]'::json)
+              FROM work_allocation_proofs p WHERE p.work_allocation_id = wa.id) as proofs
       FROM work_allocations wa
       JOIN events e ON wa.event_id = e.id
       JOIN work_allocation_users wau ON wa.id = wau.work_allocation_id
@@ -105,12 +117,17 @@ const getMyTasks = async (req, res) => {
 };
 
 // Update task status and meta
+const isLateWorkDue = (dueDateVal, at = new Date()) => {
+  if (!dueDateVal) return false;
+  const d = typeof dueDateVal === 'string' ? dueDateVal.split('T')[0] : dueDateVal;
+  return at > new Date(`${d}T23:59:59`);
+};
+
 const updateStatus = async (req, res) => {
   const { id } = req.params;
   const { status, not_completed_reason } = req.body;
 
   try {
-    // Check if user is assigned to this task (unless admin)
     if (req.userRole !== 'super_admin' && req.userRole !== 'mla') {
       const assignmentCheck = await pool.query(
         'SELECT 1 FROM work_allocation_users WHERE work_allocation_id = $1 AND user_id = $2',
@@ -119,22 +136,42 @@ const updateStatus = async (req, res) => {
       if (!assignmentCheck.rows.length) return res.status(403).json(formatResponse(false, 'Not assigned to this task.'));
     }
 
+    const waRow = await pool.query(
+      'SELECT due_date, event_id FROM work_allocations WHERE id = $1 AND organization_id = $2',
+      [id, req.tenant]
+    );
+    if (!waRow.rows.length) return res.status(404).json(formatResponse(false, 'Task not found.'));
+    const { due_date: waDue, event_id: eventId } = waRow.rows[0];
+
     let updates = 'status = $1, updated_at = CURRENT_TIMESTAMP';
     let params = [status, id, req.tenant];
+    let paramExtra = 4;
 
     if (status === 'processing') {
-      updates += ', started_at = CURRENT_TIMESTAMP';
+      updates += ', started_at = COALESCE(started_at, CURRENT_TIMESTAMP)';
     } else if (status === 'completed') {
-      // Logic: Ensure after_image exists? Usually handled in upload-proof but can check here
-      const checkProof = await pool.query('SELECT after_image_url FROM work_allocations WHERE id = $1', [id]);
-      if (!checkProof.rows[0].after_image_url) {
+      const legacy = await pool.query('SELECT after_image_url FROM work_allocations WHERE id = $1', [id]);
+      const proofCount = await pool.query(
+        `SELECT COUNT(*)::int as c FROM work_allocation_proofs WHERE work_allocation_id = $1 AND category = 'after'`,
+        [id]
+      );
+      if (!legacy.rows[0]?.after_image_url && proofCount.rows[0].c < 1) {
         return res.status(400).json(formatResponse(false, 'Proof of completion (After Photo) is required.'));
+      }
+      const now = new Date();
+      let lateNote = '';
+      if (isLateWorkDue(waDue, now)) {
+        lateNote = '\n[System] Late submission';
+        updates += `, is_late_completion = true, execution_notes = COALESCE(execution_notes, '') || $${paramExtra}`;
+        params.push(lateNote);
+        paramExtra++;
       }
       updates += ', completed_at = CURRENT_TIMESTAMP';
     } else if (status === 'not_completed') {
       if (!not_completed_reason) return res.status(400).json(formatResponse(false, 'Reason is required for non-completion.'));
-      updates += ', not_completed_reason = $4';
+      updates += `, not_completed_reason = $${paramExtra}`;
       params.push(not_completed_reason);
+      paramExtra++;
     }
 
     const query = `UPDATE work_allocations SET ${updates} WHERE id = $2 AND organization_id = $3 RETURNING *`;
@@ -142,7 +179,15 @@ const updateStatus = async (req, res) => {
 
     if (!result.rows.length) return res.status(404).json(formatResponse(false, 'Task not found.'));
 
-    await logActivity(req.user.id, 'WORK_STATUS_UPDATED', 'work_allocations', { id, status }, req.ip, req.tenant);
+    await logActivity(
+      req.user.id,
+      'WORK_STATUS_UPDATED',
+      'work_allocations',
+      { id, status, event_id: eventId },
+      req.ip,
+      req.tenant,
+      eventId
+    );
     res.json(formatResponse(true, `Task status marked as ${status}.`, result.rows[0]));
   } catch (error) {
     console.error(error);
@@ -150,29 +195,70 @@ const updateStatus = async (req, res) => {
   }
 };
 
-// Upload proof with geo-tagging
+// Upload proof(s) with geo-tagging — supports legacy single payload or `proofs: [{ type, image_url, geo_location }]`
 const uploadProof = async (req, res) => {
   const { id } = req.params;
-  const { type, image_url, geo_location } = req.body; // type: 'before' or 'after'
+  const { type, image_url, geo_location, proofs } = req.body;
 
-  if (!['before', 'after'].includes(type)) return res.status(400).json(formatResponse(false, 'Invalid proof type.'));
-  if (!image_url) return res.status(400).json(formatResponse(false, 'Image URL is required.'));
+  const items = Array.isArray(proofs) && proofs.length
+    ? proofs
+    : (type && image_url ? [{ type, image_url, geo_location }] : []);
+
+  if (!items.length) return res.status(400).json(formatResponse(false, 'Proof image(s) required.'));
 
   try {
-    const colImage = type === 'before' ? 'before_image_url' : 'after_image_url';
-    const colGeo = type === 'before' ? 'geo_location_before' : 'geo_location_after';
+    const waCheck = await pool.query(
+      'SELECT id, event_id, before_image_url, after_image_url FROM work_allocations WHERE id = $1 AND organization_id = $2',
+      [id, req.tenant]
+    );
+    if (!waCheck.rows.length) return res.status(404).json(formatResponse(false, 'Task not found.'));
+    const eventId = waCheck.rows[0].event_id;
+    let beforeLegacy = waCheck.rows[0].before_image_url;
+    let afterLegacy = waCheck.rows[0].after_image_url;
 
-    const query = `
-      UPDATE work_allocations 
-      SET ${colImage} = $1, ${colGeo} = $2, updated_at = CURRENT_TIMESTAMP 
-      WHERE id = $3 AND organization_id = $4 RETURNING *
-    `;
-    const result = await pool.query(query, [image_url, JSON.stringify(geo_location), id, req.tenant]);
+    for (const p of items) {
+      const cat = p.type || p.category;
+      if (!['before', 'after', 'general'].includes(cat)) {
+        return res.status(400).json(formatResponse(false, 'Invalid proof type.'));
+      }
+      if (!p.image_url) return res.status(400).json(formatResponse(false, 'Image URL is required for each proof.'));
 
-    if (!result.rows.length) return res.status(404).json(formatResponse(false, 'Task not found.'));
+      await pool.query(
+        `INSERT INTO work_allocation_proofs (work_allocation_id, category, image_url, geo_location, uploaded_by)
+         VALUES ($1, $2, $3, $4, $5)`,
+        [id, cat, p.image_url, p.geo_location ? JSON.stringify(p.geo_location) : null, req.user.id]
+      );
 
-    await logActivity(req.user.id, 'WORK_PROOF_UPLOADED', 'work_allocations', { id, type, geo_location }, req.ip, req.tenant);
-    res.json(formatResponse(true, `Proof (${type}) uploaded successfully.`, result.rows[0]));
+      if (cat === 'before' && !beforeLegacy) {
+        beforeLegacy = p.image_url;
+        await pool.query(
+          `UPDATE work_allocations SET before_image_url = $1, geo_location_before = $2, updated_at = CURRENT_TIMESTAMP
+           WHERE id = $3 AND organization_id = $4`,
+          [p.image_url, p.geo_location ? JSON.stringify(p.geo_location) : null, id, req.tenant]
+        );
+      }
+      if (cat === 'after' && !afterLegacy) {
+        afterLegacy = p.image_url;
+        await pool.query(
+          `UPDATE work_allocations SET after_image_url = $1, geo_location_after = $2, updated_at = CURRENT_TIMESTAMP
+           WHERE id = $3 AND organization_id = $4`,
+          [p.image_url, p.geo_location ? JSON.stringify(p.geo_location) : null, id, req.tenant]
+        );
+      }
+    }
+
+    const result = await pool.query('SELECT * FROM work_allocations WHERE id = $1 AND organization_id = $2', [id, req.tenant]);
+
+    await logActivity(
+      req.user.id,
+      'WORK_PROOF_UPLOADED',
+      'work_allocations',
+      { id, count: items.length, event_id: eventId },
+      req.ip,
+      req.tenant,
+      eventId
+    );
+    res.json(formatResponse(true, 'Proof uploaded successfully.', result.rows[0]));
   } catch (error) {
     console.error(error);
     res.status(500).json(formatResponse(false, 'Internal server error.'));
@@ -252,6 +338,15 @@ const createAllocation = async (req, res) => {
     }
 
     await client.query('COMMIT');
+    await logActivity(
+      req.user.id,
+      'WORK_ALLOCATION_CREATED',
+      'work_allocations',
+      { id: result.rows[0].id, event_id },
+      req.ip,
+      req.tenant,
+      event_id
+    );
     res.status(201).json(formatResponse(true, 'Work allocation created.', result.rows[0]));
   } catch (error) {
     await client.query('ROLLBACK');

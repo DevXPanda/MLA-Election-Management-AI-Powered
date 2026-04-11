@@ -10,6 +10,7 @@ import {
   Zap, Bot
 } from 'lucide-react';
 import { useState, useMemo, createContext, useContext, useEffect } from 'react';
+import { NAV_SECTIONS, SIDEBAR } from '@/lib/ui-labels';
 
 /**
  * ─── SIDEBAR CONTEXT (shared collapsed state) ───
@@ -46,103 +47,103 @@ export function SidebarProvider({ children }: { children: React.ReactNode }) {
  */
 const NAV_CONFIG = [
   {
-    title: 'Overview',
+    title: NAV_SECTIONS.overview,
     items: [
       {
         href: '/dashboard',
-        label: 'Dashboard',
+        label: SIDEBAR.dashboard,
         icon: LayoutDashboard,
         roles: ['super_admin', 'mla', 'campaign_manager', 'ward_head', 'booth_worker']
       },
     ],
   },
   {
-    title: 'System Control',
+    title: NAV_SECTIONS.systemControl,
     items: [
       {
         href: '/dashboard/users',
-        label: 'Users',
+        label: SIDEBAR.users,
         icon: Users,
         roles: ['super_admin']
       },
       {
         href: '/dashboard/constituency',
-        label: 'Constituency',
+        label: SIDEBAR.constituency,
         icon: MapPin,
         roles: ['super_admin', 'mla']
       },
     ],
   },
   {
-    title: 'Field Operations',
+    title: NAV_SECTIONS.fieldOperations,
     items: [
       {
         href: '/dashboard/teams',
-        label: 'Teams',
+        label: SIDEBAR.teams,
         icon: UsersRound,
         roles: ['super_admin', 'campaign_manager', 'ward_head']
       },
       {
         href: '/dashboard/voters',
-        label: 'Voters',
+        label: SIDEBAR.voters,
         icon: Vote,
         roles: ['super_admin', 'mla', 'campaign_manager', 'ward_head', 'booth_worker']
       },
       {
         href: '/dashboard/tasks',
-        label: 'Tasks',
+        label: SIDEBAR.tasks,
         icon: ListTodo,
         roles: ['super_admin', 'campaign_manager', 'ward_head', 'booth_worker']
       },
       {
         href: '/dashboard/surveys',
-        label: 'Surveys',
+        label: SIDEBAR.surveys,
         icon: ClipboardList,
         roles: ['super_admin', 'mla', 'campaign_manager', 'ward_head', 'booth_worker']
       },
     ],
   },
   {
-    title: 'Mission Intelligence',
+    title: NAV_SECTIONS.campaign,
     items: [
       {
         href: '/dashboard/events',
-        label: 'Event Management',
+        label: SIDEBAR.events,
         icon: Calendar,
         roles: ['super_admin', 'mla', 'campaign_manager']
       },
       {
         href: '/dashboard/work-allocation',
-        label: 'Work Allocation',
+        label: SIDEBAR.workAllocation,
         icon: ListTodo,
         roles: ['super_admin', 'mla', 'campaign_manager', 'ward_head', 'booth_worker']
       },
       {
         href: '/dashboard/reports',
-        label: 'Reports',
+        label: SIDEBAR.reports,
         icon: BarChart3,
         roles: ['super_admin', 'mla']
       },
       {
         href: '/dashboard/messages',
-        label: 'Messages',
+        label: SIDEBAR.messages,
         icon: MessageSquare,
         roles: ['super_admin', 'mla']
       },
       {
         href: '/dashboard/media',
-        label: 'Media Library',
+        label: SIDEBAR.mediaLibrary,
         icon: Image,
         roles: ['super_admin', 'mla']
       },
     ],
   },
   {
-    title: 'AI Tools',
+    title: NAV_SECTIONS.aiTools,
     items: [
       {
         href: '/dashboard/ai-assistant',
-        label: 'Chat With Us',
+        label: SIDEBAR.aiAssistant,
         icon: Bot,
         roles: ['super_admin', 'mla']
       },

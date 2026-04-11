@@ -176,8 +176,27 @@ export interface Task {
   due_date: string;
   completed_at: string | null;
   remarks: string;
+  assigner_remarks?: string;
+  assignee_remarks?: string;
+  completed_by?: number | null;
+  is_late_completion?: boolean;
+  assignees?: Array<{
+    id: number;
+    name: string;
+    phone?: string;
+    role_name?: string;
+    role_display_name?: string;
+  }>;
+  activity?: Array<{
+    id: number;
+    action: string;
+    details: Record<string, unknown>;
+    created_at: string;
+    user_name?: string;
+  }>;
   assigned_to_name?: string;
   assigned_by_name?: string;
+  completed_by_name?: string;
   constituency_name?: string;
   area_name?: string;
   ward_name?: string;
@@ -221,6 +240,16 @@ export interface WorkAllocation {
   after_image_url?: string;
   geo_location_before?: { lat: number; lng: number };
   geo_location_after?: { lat: number; lng: number };
+  is_late_completion?: boolean;
+  execution_notes?: string;
+  proofs?: Array<{
+    id: number;
+    category: string;
+    image_url: string;
+    created_at: string;
+    uploaded_by?: number;
+    uploader_name?: string;
+  }>;
   event_title?: string;
   event_date?: string;
   event_location?: string;

@@ -130,4 +130,116 @@ const markAttendance = async (req, res) => {
   } catch (error) { res.status(500).json(formatResponse(false, 'Internal server error.')); }
 };
 
-module.exports = { getEvents, createEvent, updateEvent, deleteEvent, addParticipants, getParticipants, markAttendance };
+// Full execution / activity view for event (work allocations, participants, logs)
+const getEventExecutionLog = async (req, res) => {
+  try {
+    const eventId = parseInt(req.params.id, 10);
+    const evCheck = await pool.query(
+      'SELECT id, title, event_date, location, status, organization_id FROM events WHERE id = $1 AND organization_id = $2',
+      [eventId, req.tenant]
+    );
+    if (!evCheck.rows.length) return res.status(404).json(formatResponse(false, 'Event not found.'));
+
+    const [participants, allocations, activity] = await Promise.all([
+      pool.query(
+        `SELECT ep.*, u.name, u.phone, u.email, r.display_name as role_name, r.name as role_key
+         FROM event_participants ep
+         JOIN users u ON ep.user_id = u.id
+         LEFT JOIN roles r ON u.role_id = r.id
+         WHERE ep.event_id = $1 ORDER BY ep.created_at`,
+        [eventId]
+      ),
+      pool.query(
+        `SELECT wa.*, creator.name as created_by_name,
+          (SELECT json_agg(json_build_object(
+             'id', u.id, 'name', u.name, 'phone', u.phone, 'role_display_name', r.display_name
+           ))
+           FROM work_allocation_users wau
+           JOIN users u ON wau.user_id = u.id
+           LEFT JOIN roles r ON u.role_id = r.id
+           WHERE wau.work_allocation_id = wa.id) as assigned_users,
+          (SELECT COALESCE(json_agg(json_build_object(
+            'id', p.id, 'category', p.category, 'image_url', p.image_url, 'created_at', p.created_at,
+            'uploaded_by', p.uploaded_by, 'uploader_name', ub.name
+          ) ORDER BY p.created_at), '[]'::json)
+           FROM work_allocation_proofs p
+           LEFT JOIN users ub ON p.uploaded_by = ub.id
+           WHERE p.work_allocation_id = wa.id) as proofs
+         FROM work_allocations wa
+         LEFT JOIN users creator ON wa.created_by = creator.id
+         WHERE wa.event_id = $1 AND wa.organization_id = $2
+         ORDER BY wa.created_at`,
+        [eventId, req.tenant]
+      ),
+      pool.query(
+        `SELECT al.id, al.user_id, al.action, al.module, al.details, al.created_at, al.event_id,
+                u.name as user_name, u.phone as user_phone
+         FROM activity_logs al
+         LEFT JOIN users u ON al.user_id = u.id
+         WHERE al.organization_id = $1
+           AND (
+             al.event_id = $2
+             OR (al.details->>'event_id' IS NOT NULL AND (al.details->>'event_id')::int = $2)
+           )
+         ORDER BY al.created_at ASC`,
+        [req.tenant, eventId]
+      ),
+    ]);
+
+    const memberWorkload = [];
+    for (const wa of allocations.rows) {
+      const users = wa.assigned_users || [];
+      for (const u of users) {
+        const due = wa.due_date ? new Date(wa.due_date) : null;
+        const done = wa.completed_at ? new Date(wa.completed_at) : null;
+        let timing = 'Pending';
+        if (wa.status === 'completed' && done && due && done > due) timing = 'Late';
+        else if (wa.status === 'completed') timing = 'Completed';
+        else if (due && new Date() > due && wa.status !== 'completed') timing = 'Late';
+
+        memberWorkload.push({
+          user_id: u.id,
+          name: u.name,
+          phone: u.phone,
+          role: u.role_display_name,
+          work_type: wa.work_type,
+          allocation_status: wa.status,
+          due_date: wa.due_date,
+          completed_at: wa.completed_at,
+          is_late_completion: wa.is_late_completion,
+          timing_label: timing,
+          execution_notes: wa.execution_notes,
+          not_completed_reason: wa.not_completed_reason,
+          description: wa.description,
+        });
+      }
+    }
+
+    res.json(formatResponse(true, 'Event execution log.', {
+      event: evCheck.rows[0],
+      participants: participants.rows,
+      work_allocations: allocations.rows,
+      activity_log: activity.rows,
+      member_workload: memberWorkload,
+      summary: {
+        participant_count: participants.rows.length,
+        allocation_count: allocations.rows.length,
+        completed_allocations: allocations.rows.filter((a) => a.status === 'completed').length,
+      },
+    }));
+  } catch (error) {
+    console.error(error);
+    res.status(500).json(formatResponse(false, 'Internal server error.'));
+  }
+};
+
+module.exports = {
+  getEvents,
+  createEvent,
+  updateEvent,
+  deleteEvent,
+  addParticipants,
+  getParticipants,
+  markAttendance,
+  getEventExecutionLog,
+};

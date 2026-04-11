@@ -128,7 +128,7 @@ const startServer = async () => {
   try {
     await createTables();
     server.listen(PORT, () => {
-      console.log(`\n🚀 Mission FTC Server v2.0 running on port ${PORT}`);
+      console.log(`\n🚀 MLA Election Management API running on port ${PORT}`);
       console.log(`📡 API:       http://localhost:${PORT}/api`);
       console.log(`🔌 Socket.io: http://localhost:${PORT} (WebSocket)`);
       console.log(`🏛️  MLA Election Management System`);

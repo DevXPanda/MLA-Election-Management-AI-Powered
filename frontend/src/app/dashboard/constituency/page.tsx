@@ -9,6 +9,7 @@ import { State, District, Constituency, Area, Ward, Booth, User } from '@/types'
 import { Plus, X, Loader2, MapPin, ChevronRight, Building2, Home, Edit3, Trash2, Users } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import Modal from '@/components/Modal';
+import { MODULE_HEADER, CONSTITUENCY_UI } from '@/lib/ui-labels';
 
 export default function ConstituencyPage() {
   const { user: currentUser } = useAuth();
@@ -49,7 +50,7 @@ export default function ConstituencyPage() {
     booth: { name: '', number: '', address: '' }
   });
 
-  const isStrategic = currentUser?.role_name === 'super_admin' || currentUser?.role_name === 'mla';
+  const canManageHierarchy = currentUser?.role_name === 'super_admin' || currentUser?.role_name === 'mla';
   const isSuper = currentUser?.role_name === 'super_admin';
 
   useEffect(() => { 
@@ -335,18 +336,18 @@ export default function ConstituencyPage() {
 
   if (loading) return (
     <>
-      <Header title="Constituency Structure" subtitle="Geographical hierarchy management" />
+      <Header title={MODULE_HEADER.constituency.title} subtitle={MODULE_HEADER.constituency.subtitle} />
       <div className="p-8 flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-saffron-400" /></div>
     </>
   );
 
   return (
     <>
-      <Header title="Constituency Structure" subtitle="State → District → Constituency → Area → Ward → Booth" />
+      <Header title={MODULE_HEADER.constituency.title} subtitle={CONSTITUENCY_UI.subtitleDetail} />
       <div className="p-8">
         <div className="flex items-center justify-between mb-8">
-          <h2 className="text-xl font-bold flex items-center gap-2">Hierarchy Management</h2>
-          {isStrategic && (
+          <h2 className="text-xl font-bold flex items-center gap-2">{CONSTITUENCY_UI.sectionHeading}</h2>
+          {canManageHierarchy && (
             <button 
               onClick={() => setShowStructureModal(true)} 
               className="btn-primary py-2.5 px-6 flex items-center gap-2 shadow-lg shadow-saffron-500/20"
@@ -538,7 +539,7 @@ export default function ConstituencyPage() {
           <div className="space-y-6">
             <div className="flex items-center justify-between">
               <h2 className="text-xl font-bold flex items-center gap-2">Areas <span className="text-dark-500 font-normal">({areas.length})</span></h2>
-              {isStrategic && (
+              {canManageHierarchy && (
                 <button onClick={() => openCreate('area')} className="btn-primary py-2 px-4 text-xs">
                   <Plus className="w-4 h-4" /> Add Area
                 </button>
@@ -555,7 +556,7 @@ export default function ConstituencyPage() {
                     </div>
                   </div>
                   <div className="absolute top-4 right-4 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    {isStrategic && (
+                    {canManageHierarchy && (
                       <>
                         <button onClick={(e) => { e.stopPropagation(); openEdit('area', a); }} className="w-7 h-7 rounded-md bg-dark-50 dark:bg-white/5 border border-dark-100 dark:border-white/10 flex items-center justify-center text-dark-600 dark:text-dark-400 hover:text-saffron-500"><Edit3 size={14}/></button>
                         <button onClick={(e) => { e.stopPropagation(); handleDeleteArea(a.id); }} className="w-7 h-7 rounded-md bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-500"><Trash2 size={14}/></button>
@@ -575,7 +576,7 @@ export default function ConstituencyPage() {
           <div className="space-y-6">
             <div className="flex items-center justify-between">
               <h2 className="text-xl font-bold flex items-center gap-2">Wards <span className="text-dark-500 font-normal">({wards.length})</span></h2>
-              {isStrategic && (
+              {canManageHierarchy && (
                 <button onClick={() => openCreate('ward')} className="btn-primary py-2 px-4 text-xs">
                   <Plus className="w-4 h-4" /> Add Ward
                 </button>
@@ -594,7 +595,7 @@ export default function ConstituencyPage() {
                     </div>
                   </div>
                   <div className="absolute top-1/2 -translate-y-1/2 right-4 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    {isStrategic && (
+                    {canManageHierarchy && (
                       <>
                         <button onClick={(e) => { e.stopPropagation(); openEdit('ward', w); }} className="w-7 h-7 rounded-md bg-dark-50 dark:bg-white/5 border border-dark-100 dark:border-white/10 flex items-center justify-center text-dark-600 dark:text-dark-400 hover:text-saffron-500"><Edit3 size={14}/></button>
                         <button onClick={(e) => { e.stopPropagation(); handleDeleteWard(w.id); }} className="w-7 h-7 rounded-md bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-500"><Trash2 size={14}/></button>
@@ -614,7 +615,7 @@ export default function ConstituencyPage() {
           <div className="space-y-6">
             <div className="flex items-center justify-between">
               <h2 className="text-xl font-bold flex items-center gap-2">Booths <span className="text-dark-500 font-normal">({booths.length})</span></h2>
-              {isStrategic && (
+              {canManageHierarchy && (
                 <button onClick={() => openCreate('booth')} className="btn-primary py-2 px-4 text-xs">
                   <Plus className="w-4 h-4" /> Add Booth
                 </button>
@@ -631,7 +632,7 @@ export default function ConstituencyPage() {
                   </div>
                   {b.address && <p className="text-[13px] text-dark-500 flex items-start gap-2 leading-relaxed"><Home className="w-3.5 h-3.5 flex-shrink-0 mt-0.5 text-dark-400" />{b.address}</p>}
                   
-                  {isStrategic && (
+                  {canManageHierarchy && (
                     <div className="absolute bottom-4 right-4 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button onClick={() => openEdit('booth', b)} className="w-7 h-7 rounded-md bg-dark-50 dark:bg-white/5 border border-dark-100 dark:border-white/10 flex items-center justify-center text-dark-600 dark:text-dark-400 hover:text-saffron-500"><Edit3 size={14}/></button>
                       <button onClick={() => handleDeleteBooth(b.id)} className="w-7 h-7 rounded-md bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-500"><Trash2 size={14}/></button>

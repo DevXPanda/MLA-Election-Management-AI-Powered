@@ -249,6 +249,40 @@ const createTables = async () => {
       PRIMARY KEY (work_allocation_id, user_id)
     );
 
+    CREATE TABLE IF NOT EXISTS task_assignees (
+      task_id INTEGER REFERENCES tasks(id) ON DELETE CASCADE,
+      user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+      PRIMARY KEY (task_id, user_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS task_activity_log (
+      id SERIAL PRIMARY KEY,
+      task_id INTEGER REFERENCES tasks(id) ON DELETE CASCADE,
+      user_id INTEGER REFERENCES users(id),
+      action VARCHAR(80) NOT NULL,
+      details JSONB DEFAULT '{}',
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS work_allocation_proofs (
+      id SERIAL PRIMARY KEY,
+      work_allocation_id INTEGER REFERENCES work_allocations(id) ON DELETE CASCADE,
+      category VARCHAR(20) NOT NULL,
+      image_url TEXT NOT NULL,
+      geo_location JSONB,
+      uploaded_by INTEGER REFERENCES users(id),
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS event_participants (
+      event_id INTEGER REFERENCES events(id) ON DELETE CASCADE,
+      user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+      role_in_event VARCHAR(80),
+      attended BOOLEAN DEFAULT false,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (event_id, user_id)
+    );
+
     -- Activity Logs
     CREATE TABLE IF NOT EXISTS activity_logs (
       id SERIAL PRIMARY KEY,
@@ -401,6 +435,22 @@ const createTables = async () => {
             ADD COLUMN geo_location_before JSONB,
             ADD COLUMN geo_location_after JSONB;
         END IF;
+
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='tasks' AND column_name='assigner_remarks') THEN
+            ALTER TABLE tasks ADD COLUMN assigner_remarks TEXT;
+            ALTER TABLE tasks ADD COLUMN assignee_remarks TEXT;
+            ALTER TABLE tasks ADD COLUMN completed_by INTEGER REFERENCES users(id);
+            ALTER TABLE tasks ADD COLUMN is_late_completion BOOLEAN DEFAULT false;
+        END IF;
+
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='work_allocations' AND column_name='is_late_completion') THEN
+            ALTER TABLE work_allocations ADD COLUMN is_late_completion BOOLEAN DEFAULT false;
+            ALTER TABLE work_allocations ADD COLUMN execution_notes TEXT;
+        END IF;
+
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='activity_logs' AND column_name='event_id') THEN
+            ALTER TABLE activity_logs ADD COLUMN event_id INTEGER REFERENCES events(id);
+        END IF;
     END $$;
 
     -- AI Chat Sessions
@@ -437,6 +487,10 @@ const createTables = async () => {
     CREATE INDEX IF NOT EXISTS idx_work_alloc_org ON work_allocations(organization_id);
     CREATE INDEX IF NOT EXISTS idx_work_alloc_status ON work_allocations(status);
     CREATE INDEX IF NOT EXISTS idx_activity_org ON activity_logs(organization_id);
+    CREATE INDEX IF NOT EXISTS idx_activity_event ON activity_logs(event_id);
+    CREATE INDEX IF NOT EXISTS idx_task_assignees_task ON task_assignees(task_id);
+    CREATE INDEX IF NOT EXISTS idx_task_activity_task ON task_activity_log(task_id);
+    CREATE INDEX IF NOT EXISTS idx_work_alloc_proofs_wa ON work_allocation_proofs(work_allocation_id);
     CREATE INDEX IF NOT EXISTS idx_media_org ON media(organization_id);
 
     -- AI User Long-term Memory

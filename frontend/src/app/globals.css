@@ -32,10 +32,11 @@
   }
 
   /* Global Bold Font Removal System */
-  .font-bold, 
-  .font-extrabold, 
+  .font-bold,
+  .font-extrabold,
   .font-black,
-  b, strong {
+  b,
+  strong {
     font-weight: 500 !important;
   }
 
@@ -43,7 +44,7 @@
     font-weight: 400 !important;
   }
 
-  /* Unified Tactical Typography (Inter Only) */
+  /* Unified typography (Inter) */
   h1,
   h2,
   h3,
@@ -156,8 +157,14 @@
     @apply transition-colors duration-200 hover:bg-dark-50/50 dark:hover:bg-white/[0.01];
   }
 
+  /* Responsive Table Container */
+  .table-responsive {
+    @apply w-full overflow-x-auto custom-scrollbar -mx-4 px-4 sm:mx-0 sm:px-0;
+    -webkit-overflow-scrolling: touch;
+  }
+
   .modal-overlay {
-    @apply fixed inset-0 flex items-center justify-center p-4 sm:p-6 bg-black/60 backdrop-blur-sm z-[1000] opacity-0 invisible transition-all duration-300;
+    @apply fixed inset-0 flex items-start sm:items-center justify-center p-2 sm:p-6 bg-black/60 backdrop-blur-sm z-[1200] opacity-0 invisible transition-all duration-300 overflow-y-auto;
   }
 
   .modal-overlay.active {
@@ -165,7 +172,7 @@
   }
 
   .modal-panel {
-    @apply bg-white dark:bg-dark-900 w-full max-w-[600px] rounded-[2rem] shadow-2xl transform scale-95 opacity-0 transition-all duration-300 ease-out overflow-hidden border border-dark-100 dark:border-white/[0.05] relative flex flex-col max-h-[90vh] mx-auto;
+    @apply bg-white dark:bg-dark-900 w-full rounded-[1.5rem] sm:rounded-[2rem] shadow-2xl transform scale-95 opacity-0 transition-all duration-300 ease-out overflow-hidden border border-dark-100 dark:border-white/[0.05] relative flex flex-col max-h-[calc(100vh-1rem)] sm:max-h-[90vh] mx-auto my-2 sm:my-0;
   }
 
   .modal-overlay.active .modal-panel {
@@ -212,12 +219,17 @@
 
   /* Responsive Padding Container */
   .dashboard-container {
-    @apply p-4 md:p-6 lg:p-8;
+    @apply p-3 sm:p-4 md:p-6 lg:p-8 w-full max-w-full overflow-x-hidden;
   }
 
   @keyframes shimmer {
-    0% { background-position: 200% 0; }
-    100% { background-position: -200% 0; }
+    0% {
+      background-position: 200% 0;
+    }
+
+    100% {
+      background-position: -200% 0;
+    }
   }
 
   .animate-shimmer {

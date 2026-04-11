@@ -118,6 +118,7 @@ export const teamsAPI = {
 export const tasksAPI = {
   getAll: (params?: Record<string, string | number>) =>
     api.get('/tasks', { params }),
+  getById: (id: number) => api.get(`/tasks/${id}`),
   getStats: () => api.get('/tasks/stats'),
   create: (data: Record<string, unknown>) => api.post('/tasks', data),
   update: (id: number, data: Record<string, unknown>) => api.put(`/tasks/${id}`, data),
@@ -142,6 +143,7 @@ export const eventsAPI = {
   create: (data: Record<string, unknown>) => api.post('/events', data),
   update: (id: number, data: Record<string, unknown>) => api.put(`/events/${id}`, data),
   delete: (id: number) => api.delete(`/events/${id}`),
+  getExecutionLog: (id: number) => api.get(`/events/${id}/execution-log`),
   getParticipants: (id: number) => api.get(`/events/${id}/participants`),
   addParticipants: (id: number, data: Record<string, unknown>) =>
     api.post(`/events/${id}/participants`, data),

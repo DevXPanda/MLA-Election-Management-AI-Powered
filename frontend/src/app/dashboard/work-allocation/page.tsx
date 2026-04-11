@@ -11,12 +11,14 @@ import {
   MapPin, Users, Clock, CheckCircle2, AlertCircle,
   Filter, Search, ListTodo, ClipboardList, Camera,
   CheckCircle, Play, Ban, Image as ImageIcon,
-  BarChart3, Activity, TrendingUp, Info, RefreshCw, XCircle, Circle, ArrowRight
+  BarChart3, Activity, TrendingUp, Info, RefreshCw, XCircle, Circle, ArrowRight, Eye
 } from 'lucide-react';
 import Modal from '@/components/Modal';
 import { format } from 'date-fns';
 import { useAuth } from '@/context/AuthContext';
 import StatsSummary from '@/components/dashboard/StatsSummary';
+import DetailsModal from '@/components/DetailsModal';
+import { WORK_ALLOCATION_UI as WA, MODULE_HEADER } from '@/lib/ui-labels';
 
 export default function WorkAllocationPage() {
   const { user } = useAuth();
@@ -30,6 +32,8 @@ export default function WorkAllocationPage() {
   const [showExecutionModal, setShowExecutionModal] = useState(false);
   const [editingAllocation, setEditingAllocation] = useState<WorkAllocation | null>(null);
   const [executingAllocation, setExecutingAllocation] = useState<WorkAllocation | null>(null);
+  const [selectedAllocation, setSelectedAllocation] = useState<WorkAllocation | null>(null);
+  const [proofPreviewUrl, setProofPreviewUrl] = useState<string | null>(null);
 
   // Filters
   const [statusFilter, setStatusFilter] = useState('');
@@ -49,17 +53,17 @@ export default function WorkAllocationPage() {
   const [execForm, setExecForm] = useState({
     status: '' as any,
     not_completed_reason: '',
-    proofType: 'before' as 'before' | 'after',
+    proofType: 'before' as 'before' | 'after' | 'general',
     isUploading: false
   });
 
   const [isCameraActive, setIsCameraActive] = useState(false);
-  const [activeCameraType, setActiveCameraType] = useState<'before' | 'after' | null>(null);
+  const [activeCameraType, setActiveCameraType] = useState<'before' | 'after' | 'general' | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const batchProofInputRef = useRef<HTMLInputElement>(null);
 
   const isManagement = user?.role_name === 'super_admin' || user?.role_name === 'mla' || user?.role_name === 'campaign_manager';
 
@@ -120,6 +124,12 @@ export default function WorkAllocationPage() {
       loadDependencies();
     }
   }, [loadAllocations, loadStats, loadDependencies, isManagement, user?.role_name]);
+
+  useEffect(() => {
+    if (!showExecutionModal || !executingAllocation) return;
+    const fresh = allocations.find((a) => a.id === executingAllocation.id);
+    if (fresh) setExecutingAllocation(fresh);
+  }, [allocations, showExecutionModal, executingAllocation?.id]);
 
   const openCreate = () => {
     setEditingAllocation(null);
@@ -202,7 +212,24 @@ export default function WorkAllocationPage() {
     }
   };
 
-  const startTacticalCamera = async (type: 'before' | 'after') => {
+  const getGeoLocation = async () => {
+    return new Promise<GeolocationPosition>((resolve, reject) => {
+      navigator.geolocation.getCurrentPosition(resolve, reject, {
+        enableHighAccuracy: true,
+        timeout: 8000,
+      });
+    });
+  };
+
+  const readFileAsDataUrl = (file: File) =>
+    new Promise<string>((resolve, reject) => {
+      const r = new FileReader();
+      r.onload = () => resolve(String(r.result));
+      r.onerror = () => reject(new Error('read failed'));
+      r.readAsDataURL(file);
+    });
+
+  const startTacticalCamera = async (type: 'before' | 'after' | 'general') => {
     setActiveCameraType(type);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
@@ -216,7 +243,7 @@ export default function WorkAllocationPage() {
       setIsCameraActive(true);
       toast.success('Camera activated for scan');
     } catch (err) {
-      toast.error("Tactical Camera access denied. Ensure you are on a secure connection and have granted permissions.");
+      toast.error(WA.cameraDenied);
       setIsCameraActive(false);
       setActiveCameraType(null);
     }
@@ -251,39 +278,57 @@ export default function WorkAllocationPage() {
     await processPhotoData(dataUrl, proofType);
   };
 
-  const processPhotoData = async (dataUrl: string, type: 'before' | 'after') => {
+  const processPhotoData = async (dataUrl: string, category: 'before' | 'after' | 'general') => {
     if (!executingAllocation) return;
-    setExecForm(prev => ({ ...prev, isUploading: true }));
+    setExecForm((prev) => ({ ...prev, isUploading: true }));
 
     try {
-      const pos: any = await new Promise((resolve, reject) => {
-        navigator.geolocation.getCurrentPosition(resolve, reject, {
-          enableHighAccuracy: true, timeout: 8000
-        });
-      });
-
+      const pos = await getGeoLocation();
+      const geo = {
+        lat: pos.coords.latitude,
+        lng: pos.coords.longitude,
+        accuracy: pos.coords.accuracy,
+        timestamp: new Date().toISOString(),
+      };
       await workAllocationAPI.uploadProof(executingAllocation.id, {
-        type,
-        image_url: dataUrl,
-        geo_location: {
-          lat: pos.coords.latitude,
-          lng: pos.coords.longitude,
-          accuracy: pos.coords.accuracy,
-          timestamp: new Date().toISOString()
-        }
+        proofs: [{ category, image_url: dataUrl, geo_location: geo }],
       });
-
-      alert(`Tactical Proof (${type}) uploaded successfully.`);
-      loadAllocations();
-
-      // Refresh local state
-      const res = await workAllocationAPI.getAll({ id: executingAllocation.id });
-      if (res.data.data.length) setExecutingAllocation(res.data.data[0]);
-    } catch (err: any) {
+      toast.success(`Proof (${category}) uploaded.`);
+      await loadAllocations();
+    } catch (err: unknown) {
       console.error(err);
-      alert('Proof Submission Error: ' + (err.message || 'Check location permissions'));
+      showToast.error('Proof submission failed. Check location permissions.');
     } finally {
-      setExecForm(prev => ({ ...prev, isUploading: false }));
+      setExecForm((prev) => ({ ...prev, isUploading: false }));
+    }
+  };
+
+  const handleBatchProofFiles = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files?.length || !executingAllocation) return;
+    setExecForm((prev) => ({ ...prev, isUploading: true }));
+    try {
+      const pos = await getGeoLocation();
+      const geo = {
+        lat: pos.coords.latitude,
+        lng: pos.coords.longitude,
+        accuracy: pos.coords.accuracy,
+        timestamp: new Date().toISOString(),
+      };
+      const proofs: Array<{ category: string; image_url: string; geo_location: typeof geo }> = [];
+      for (const file of Array.from(files)) {
+        const image_url = await readFileAsDataUrl(file);
+        proofs.push({ category: execForm.proofType, image_url, geo_location: geo });
+      }
+      await workAllocationAPI.uploadProof(executingAllocation.id, { proofs });
+      toast.success(`${proofs.length} proof image(s) uploaded.`);
+      e.target.value = '';
+      await loadAllocations();
+    } catch (err) {
+      console.error(err);
+      showToast.error('Batch upload failed.');
+    } finally {
+      setExecForm((prev) => ({ ...prev, isUploading: false }));
     }
   };
 
@@ -322,14 +367,14 @@ export default function WorkAllocationPage() {
 
   return (
     <>
-      <Header title="Work Execution & Tracking" subtitle="Real-time mission coordination and proof of performance" />
+      <Header title={MODULE_HEADER.workAllocation.title} subtitle={MODULE_HEADER.workAllocation.subtitle} />
       <div className="dashboard-container">
 
         {/* Real-time Operations Summary */}
-        <StatsSummary 
+        <StatsSummary
           loading={loading && !stats}
           stats={[
-            { label: 'Total Missions', value: stats?.total || 0, icon: ClipboardList, color: 'text-saffron-500', bgIcon: 'bg-saffron-500/10' },
+            { label: WA.statsTotal, value: stats?.total || 0, icon: ClipboardList, color: 'text-saffron-500', bgIcon: 'bg-saffron-500/10' },
             { label: 'Completed', value: stats?.by_status?.find((s: any) => s.status === 'completed')?.count || 0, icon: CheckCircle2, color: 'text-emerald-500', bgIcon: 'bg-emerald-500/10' },
             { label: 'Processing', value: stats?.by_status?.find((s: any) => s.status === 'processing')?.count || 0, icon: Activity, color: 'text-blue-500', bgIcon: 'bg-blue-500/10' },
             { label: 'Issues/Incomplete', value: stats?.by_status?.find((s: any) => s.status === 'not_completed')?.count || 0, icon: AlertCircle, color: 'text-orange-500', bgIcon: 'bg-orange-500/10' },
@@ -338,17 +383,17 @@ export default function WorkAllocationPage() {
 
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
           <div>
-            <h2 className="text-2xl font-medium text-dark-900 dark:text-white uppercase tracking-tighter">Mission Control</h2>
-            <p className="text-dark-500 text-sm mt-1">Track and verify tactical campaign execution</p>
+            <h2 className="text-2xl font-medium text-dark-900 dark:text-white uppercase tracking-tighter">{WA.sectionHeading}</h2>
+            <p className="text-dark-500 text-sm mt-1">{WA.sectionSub}</p>
           </div>
           {isManagement && (
             <button onClick={openCreate} className="btn-primary flex items-center gap-2 px-6 shadow-lg shadow-saffron-500/20">
-              <Plus className="w-4 h-4" /> Deploy New Team
+              <Plus className="w-4 h-4" /> {WA.createButton}
             </button>
           )}
         </div>
 
-        {/* Tactical Filters */}
+        {/* Filters */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           <div className="relative group">
             <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-dark-500 group-focus-within:text-saffron-500 transition-colors" />
@@ -357,7 +402,7 @@ export default function WorkAllocationPage() {
               onChange={e => setStatusFilter(e.target.value)}
               className="form-input !pl-10 h-11 bg-white dark:bg-dark-900 border-dark-200 dark:border-white/10"
             >
-              <option value="">All Mission Statuses</option>
+              <option value="">{WA.filterStatusAll}</option>
               <option value="pending">Pending</option>
               <option value="processing">In Progress</option>
               <option value="completed">Completed</option>
@@ -385,7 +430,7 @@ export default function WorkAllocationPage() {
               onChange={e => setTypeFilter(e.target.value)}
               className="form-input !pl-10 h-11 bg-white dark:bg-dark-900 border-dark-200 dark:border-white/10"
             >
-              <option value="">All Work Domains</option>
+              <option value="">{WA.filterWorkTypeAll}</option>
               {workTypes.map(t => <option key={t} value={t}>{t}</option>)}
             </select>
           </div>
@@ -394,20 +439,20 @@ export default function WorkAllocationPage() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-dark-500 group-focus-within:text-saffron-500 transition-colors" />
             <input
               type="text"
-              placeholder="Search by mission..."
+              placeholder={WA.searchPlaceholder}
               className="form-input !pl-10 h-11 bg-white dark:bg-dark-900 border-dark-200 dark:border-white/10"
             />
           </div>
         </div>
 
-        {/* Task Cards Grid for Workers / Execution Focus */}
+        {/* Allocation cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {loading ? (
             <div className="col-span-full py-20 flex justify-center"><Loader2 className="w-10 h-10 animate-spin text-saffron-500" /></div>
           ) : allocations.length === 0 ? (
             <div className="col-span-full text-center py-20 glass-card">
               <ListTodo className="w-16 h-16 text-dark-800 mx-auto mb-4 opacity-50" />
-              <h3 className="text-xl font-bold text-dark-300">No mission assignments</h3>
+              <h3 className="text-xl font-bold text-dark-300">{WA.emptyTitle}</h3>
             </div>
           ) : (
             allocations.map(alloc => (
@@ -423,7 +468,7 @@ export default function WorkAllocationPage() {
                     </span>
                   </div>
 
-                  <p className="text-sm text-dark-700 dark:text-dark-400 mb-6 line-clamp-3 italic leading-relaxed">&quot;{alloc.description || 'Proceed with standard operational protocols.'}&quot;</p>
+                  <p className="text-sm text-dark-700 dark:text-dark-400 mb-6 line-clamp-3 italic leading-relaxed">&quot;{alloc.description || WA.cardFallbackDescription}&quot;</p>
 
                   <div className="space-y-3">
                     <div className="flex items-center gap-3 text-xs font-bold text-dark-600 dark:text-dark-500 uppercase tracking-tighter">
@@ -437,7 +482,7 @@ export default function WorkAllocationPage() {
                   </div>
 
                   <div className="mt-6 pt-6 border-t border-dark-100 dark:border-white/5">
-                    <p className="text-[10px] font-black text-dark-400 uppercase tracking-widest mb-3">Deployment Force</p>
+                    <p className="text-[10px] font-black text-dark-400 uppercase tracking-widest mb-3">{WA.assignedTeamLabel}</p>
                     <div className="flex flex-wrap gap-2">
                       {alloc.assigned_users?.map(u => (
                         <div key={u.id} className="flex items-center gap-1.5 px-2 py-1 bg-dark-50 dark:bg-white/5 rounded border border-dark-200 dark:border-white/10">
@@ -452,15 +497,24 @@ export default function WorkAllocationPage() {
                 {/* Proof Status */}
                 <div className="px-6 py-4 bg-dark-50/50 dark:bg-white/[0.02] flex items-center justify-between">
                   <div className="flex gap-2">
-                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center border ${alloc.before_image_url ? 'bg-emerald-500/10 border-emerald-500/50 text-emerald-500' : 'bg-dark-200/10 border-dark-200/50 text-dark-400'}`} title="Before Proof">
+                    <div
+                      className={`w-8 h-8 rounded-lg flex items-center justify-center border ${alloc.before_image_url ? 'bg-emerald-500/10 border-emerald-500/50 text-emerald-500' : 'bg-dark-200/10 border-dark-200/50 text-dark-400'}`}
+                      title={`Before proof${alloc.proofs ? ` (${alloc.proofs.filter((p) => p.category === 'before').length})` : ''}`}
+                    >
                       <ImageIcon className="w-4 h-4" />
                     </div>
-                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center border ${alloc.after_image_url ? 'bg-emerald-500/10 border-emerald-500/50 text-emerald-500' : 'bg-dark-200/10 border-dark-200/50 text-dark-400'}`} title="After Proof">
+                    <div
+                      className={`w-8 h-8 rounded-lg flex items-center justify-center border ${alloc.after_image_url ? 'bg-emerald-500/10 border-emerald-500/50 text-emerald-500' : 'bg-dark-200/10 border-dark-200/50 text-dark-400'}`}
+                      title={`After proof${alloc.proofs ? ` (${alloc.proofs.filter((p) => p.category === 'after').length})` : ''}`}
+                    >
                       <ImageIcon className="w-4 h-4" />
                     </div>
                   </div>
 
                   <div className="flex gap-2">
+                    <button onClick={() => setSelectedAllocation(alloc)} className="btn-icon size-9 bg-white dark:bg-dark-800 border-dark-200 dark:border-white/10" title="View details">
+                      <Eye className="w-4 h-4" />
+                    </button>
                     {(isManagement) && (
                       <button onClick={() => openEdit(alloc)} className="btn-icon size-9 bg-white dark:bg-dark-800 border-dark-200 dark:border-white/10">
                         <Edit3 className="w-4 h-4" />
@@ -477,16 +531,16 @@ export default function WorkAllocationPage() {
         </div>
       </div>
 
-      {/* Execution Tracker Modal */}
+      {/* Proof & status modal */}
       <Modal
         isOpen={showExecutionModal}
         onClose={() => { stopTacticalCamera(); setShowExecutionModal(false); }}
-        title="Mission Execution Tracker"
-        subtitle="Submit proof and update tactical mission status"
+        title={WA.executionModalTitle}
+        subtitle={WA.executionModalSubtitle}
         maxWidth="max-w-[1000px]"
         footer={(
           <div className="flex gap-2 w-full sm:w-auto ml-auto">
-            <button onClick={() => { stopTacticalCamera(); setShowExecutionModal(false); }} className="btn-secondary w-full sm:px-8 text-xs font-black">CLOSE</button>
+            <button onClick={() => { stopTacticalCamera(); setShowExecutionModal(false); }} className="btn-secondary w-full sm:px-8 text-xs font-black">{WA.modalClose}</button>
           </div>
         )}
       >
@@ -596,12 +650,85 @@ export default function WorkAllocationPage() {
                   </div>
                 </div>
               </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                <div className="space-y-2 sm:space-y-3">
+                  <label className="block text-[9px] sm:text-[10px] font-black text-dark-400 uppercase tracking-widest text-center opacity-70">{WA.generalProofCamera}</label>
+                  <div className="relative group aspect-video rounded-xl sm:rounded-2xl border-2 border-dashed border-dark-200 dark:border-white/10 overflow-hidden flex flex-col items-center justify-center bg-dark-50/50 dark:bg-white/[0.02]">
+                    {isCameraActive && activeCameraType === 'general' ? (
+                      <div className="absolute inset-0 z-20">
+                        <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover" />
+                        <div className="absolute inset-x-0 bottom-4 flex justify-center gap-4 px-4">
+                          <button type="button" onClick={captureTacticalPhoto} className="btn-primary size-12 rounded-full p-0 flex items-center justify-center shadow-lg animate-pulse">
+                            <Circle className="w-7 h-7 fill-white" />
+                          </button>
+                          <button type="button" onClick={stopTacticalCamera} className="bg-red-500/80 backdrop-blur-md text-white p-3 rounded-full shadow-lg">
+                            <XCircle className="w-6 h-6" />
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <button type="button" onClick={() => startTacticalCamera('general')} className="flex flex-col items-center gap-2 p-4 text-center w-full h-full justify-center">
+                        <Camera className="w-8 h-8 text-dark-400 group-hover:text-saffron-500 transition-colors" />
+                        <span className="text-[10px] font-black text-dark-500 uppercase tracking-widest">Capture</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <label className="block text-[9px] sm:text-[10px] font-black text-dark-400 uppercase tracking-widest opacity-70">{WA.batchUploadLabel}</label>
+                  <select
+                    value={execForm.proofType}
+                    onChange={(e) => setExecForm((p) => ({ ...p, proofType: e.target.value as 'before' | 'after' | 'general' }))}
+                    className="form-input mb-2"
+                  >
+                    <option value="before">Before</option>
+                    <option value="after">After</option>
+                    <option value="general">General</option>
+                  </select>
+                  <input
+                    ref={batchProofInputRef}
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    className="hidden"
+                    onChange={handleBatchProofFiles}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => batchProofInputRef.current?.click()}
+                    className="btn-secondary w-full py-3 text-[10px] font-black uppercase"
+                    disabled={execForm.isUploading}
+                  >
+                    {WA.batchSelectImages}
+                  </button>
+                </div>
+              </div>
+
+              {executingAllocation.proofs && executingAllocation.proofs.length > 0 && (
+                <div className="rounded-xl border border-dark-200 dark:border-white/10 p-3 bg-dark-50/30 dark:bg-white/[0.02]">
+                  <p className="text-[10px] font-black text-dark-400 uppercase tracking-widest mb-2">{WA.proofGalleryHint}</p>
+                  <div className="flex flex-wrap gap-2">
+                    {executingAllocation.proofs.map((p) => (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => setProofPreviewUrl(p.image_url)}
+                        className="relative w-14 h-14 sm:w-16 sm:h-16 rounded-lg border border-dark-200 dark:border-white/10 overflow-hidden"
+                      >
+                        <img src={p.image_url} alt="" className="w-full h-full object-cover" />
+                        <span className="absolute bottom-0 inset-x-0 bg-black/60 text-[7px] text-white text-center uppercase font-black py-0.5">{p.category}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Right Column: Status & Timeline */}
             <div className="lg:col-span-5 space-y-6 lg:border-l lg:border-dark-100 lg:dark:border-white/5 lg:pl-8">
               <div className="space-y-3">
-                <label className="block text-[10px] font-black text-dark-400 uppercase tracking-widest">Operational Command</label>
+                <label className="block text-[10px] font-black text-dark-400 uppercase tracking-widest">{WA.statusActionsLabel}</label>
                 <div className="grid grid-cols-1 gap-2.5">
                   <button onClick={() => handleStatusUpdate('processing')} className="w-full btn-secondary py-3 sm:py-4 flex items-center justify-between px-4 sm:px-6 rounded-xl sm:rounded-2xl group border border-dark-200 dark:border-white/10 hover:border-saffron-500/30">
                     <div className="flex items-center gap-3 text-left min-w-0">
@@ -609,8 +736,8 @@ export default function WorkAllocationPage() {
                         <Activity className="w-4 h-4 sm:w-5 sm:h-5" />
                       </div>
                       <div className="min-w-0">
-                        <p className="text-xs sm:text-sm font-black text-dark-900 dark:text-white uppercase leading-none truncate">Start Mission</p>
-                        <p className="text-[9px] text-dark-500 uppercase font-bold mt-1 truncate">Commence phase</p>
+                        <p className="text-xs sm:text-sm font-black text-dark-900 dark:text-white uppercase leading-none truncate">{WA.actionStart}</p>
+                        <p className="text-[9px] text-dark-500 uppercase font-bold mt-1 truncate">{WA.actionStartSub}</p>
                       </div>
                     </div>
                     <ArrowRight className="w-4 h-4 text-dark-300 sm:group-hover:text-saffron-500 transition-colors flex-shrink-0" />
@@ -622,8 +749,8 @@ export default function WorkAllocationPage() {
                         <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5" />
                       </div>
                       <div className="min-w-0">
-                        <p className="text-xs sm:text-sm font-black text-white uppercase leading-none truncate">Mission Done</p>
-                        <p className="text-[9px] text-white/70 uppercase font-bold mt-1 truncate">Verify & close</p>
+                        <p className="text-xs sm:text-sm font-black text-white uppercase leading-none truncate">{WA.actionComplete}</p>
+                        <p className="text-[9px] text-white/70 uppercase font-bold mt-1 truncate">{WA.actionCompleteSub}</p>
                       </div>
                     </div>
                     <ArrowRight className="w-4 h-4 text-white/50 sm:group-hover:text-white transition-colors flex-shrink-0" />
@@ -632,86 +759,86 @@ export default function WorkAllocationPage() {
               </div>
 
               <div className="p-4 bg-dark-50 dark:bg-white/[0.02] rounded-2xl border border-dark-100 dark:border-white/5">
-                <h5 className="text-[10px] font-black text-dark-400 uppercase tracking-widest mb-4">Mission Timeline</h5>
+                <h5 className="text-[10px] font-black text-dark-400 uppercase tracking-widest mb-4">{WA.timelineHeading}</h5>
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-bold text-dark-500 uppercase">Initiated</span>
-                    <span className="text-[11px] font-black text-dark-900 dark:text-white">{executingAllocation.started_at ? format(new Date(executingAllocation.started_at), 'dd MMM | hh:mm a') : 'TBA'}</span>
+                    <span className="text-[10px] font-bold text-dark-500 uppercase">{WA.timelineStarted}</span>
+                    <span className="text-[11px] font-black text-dark-900 dark:text-white">{executingAllocation.started_at ? format(new Date(executingAllocation.started_at), 'dd MMM | hh:mm a') : WA.timelineTba}</span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-bold text-dark-500 uppercase">Completed</span>
-                    <span className="text-[11px] font-black text-dark-900 dark:text-white">{executingAllocation.completed_at ? format(new Date(executingAllocation.completed_at), 'dd MMM | hh:mm a') : 'TBA'}</span>
+                    <span className="text-[10px] font-bold text-dark-500 uppercase">{WA.timelineCompleted}</span>
+                    <span className="text-[11px] font-black text-dark-900 dark:text-white">{executingAllocation.completed_at ? format(new Date(executingAllocation.completed_at), 'dd MMM | hh:mm a') : WA.timelineTba}</span>
                   </div>
                 </div>
               </div>
 
               <div className="space-y-4">
-                <button onClick={() => handleStatusUpdate('not_completed')} className="w-full p-2.5 rounded-xl border border-orange-500/30 text-orange-500 text-[10px] font-black uppercase tracking-widest hover:bg-orange-500 hover:text-white transition-all disabled:opacity-50">Confirm Abort</button>
+                <button onClick={() => handleStatusUpdate('not_completed')} className="w-full p-2.5 rounded-xl border border-orange-500/30 text-orange-500 text-[10px] font-black uppercase tracking-widest hover:bg-orange-500 hover:text-white transition-all disabled:opacity-50">{WA.actionNotCompleted}</button>
               </div>
             </div>
           </div>
         )}
       </Modal>
 
-      {/* Deployment Modal (Horizontal Form) */}
+      {/* Create / edit allocation */}
       <Modal
         isOpen={showModal}
         onClose={() => setShowModal(false)}
-        title={editingAllocation ? 'Modify Mission Assignment' : 'Tactical Resource Allocation'}
-        subtitle="Ensure each campaign vertical is properly staffed"
-        maxWidth="max-w-[1000px]"
+        title={editingAllocation ? WA.formEditTitle : WA.formCreateTitle}
+        subtitle={WA.formSubtitle}
+        maxWidth="max-w-[620px] md:max-w-[700px] lg:max-w-[780px] xl:max-w-[920px]"
         footer={(
-          <div className="flex gap-3 w-full sm:w-auto ml-auto">
-            <button type="button" onClick={() => setShowModal(false)} className="btn-secondary px-8">Abort</button>
-            <button type="submit" form="work-alloc-form" className="btn-primary px-12 shadow-lg shadow-saffron-500/20">
-              {editingAllocation ? 'Update Strategy' : 'Confirm Assignment'}
+          <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto ml-auto">
+            <button type="button" onClick={() => setShowModal(false)} className="btn-secondary w-full sm:px-8">{WA.formFooterCancel}</button>
+            <button type="submit" form="work-alloc-form" className="btn-primary w-full sm:px-12 shadow-lg shadow-saffron-500/20">
+              {editingAllocation ? WA.formFooterSave : WA.formFooterCreate}
             </button>
           </div>
         )}
       >
-        <form id="work-alloc-form" onSubmit={handleSubmit} className="space-y-8">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <form id="work-alloc-form" onSubmit={handleSubmit} className="space-y-5 sm:space-y-7">
+          <div className="grid grid-cols-1 xl:grid-cols-2 2xl:grid-cols-4 gap-3 sm:gap-5">
             <div className="space-y-2">
-              <label className="block text-xs font-black text-dark-400 uppercase tracking-[0.2em] px-1">Target Mission</label>
+              <label className="block text-xs font-black text-dark-400 uppercase tracking-[0.2em] px-1">{WA.formEventLabel}</label>
               <select value={form.event_id} onChange={e => setForm({ ...form, event_id: e.target.value })} className="form-input" required disabled={!!editingAllocation}>
-                <option value="">Select Event</option>
+                <option value="">{WA.formSelectEvent}</option>
                 {events.map(e => <option key={e.id} value={e.id}>{e.title}</option>)}
               </select>
             </div>
             <div className="space-y-2">
-              <label className="block text-xs font-black text-dark-400 uppercase tracking-[0.2em] px-1">Functional Vertical</label>
+              <label className="block text-xs font-black text-dark-400 uppercase tracking-[0.2em] px-1">{WA.formWorkTypeLabel}</label>
               <select value={form.work_type} onChange={e => setForm({ ...form, work_type: e.target.value })} className="form-input" required>
-                <option value="">Select Work Type</option>
+                <option value="">{WA.formSelectWorkType}</option>
                 {workTypes.map(t => <option key={t} value={t}>{t}</option>)}
               </select>
             </div>
             <div className="space-y-2">
-              <label className="block text-xs font-black text-dark-400 uppercase tracking-[0.2em] px-1">Execution Deadline</label>
+              <label className="block text-xs font-black text-dark-400 uppercase tracking-[0.2em] px-1">{WA.formDeadlineLabel}</label>
               <input type="datetime-local" value={form.due_date} onChange={e => setForm({ ...form, due_date: e.target.value })} className="form-input" />
             </div>
             <div className="space-y-2">
-              <label className="block text-xs font-black text-dark-400 uppercase tracking-[0.2em] px-1">Operational Status</label>
+              <label className="block text-xs font-black text-dark-400 uppercase tracking-[0.2em] px-1">{WA.formStatusLabel}</label>
               <select value={form.status} onChange={e => setForm({ ...form, status: e.target.value })} className="form-input">
-                <option value="pending">Pending Initiation</option>
-                <option value="processing">In Active Execution</option>
-                <option value="completed">Mission Accomplished</option>
-                <option value="cancelled">Mission Aborted</option>
-                <option value="not_completed">Not Completed</option>
+                <option value="pending">{WA.formStatusPending}</option>
+                <option value="processing">{WA.formStatusProcessing}</option>
+                <option value="completed">{WA.formStatusCompleted}</option>
+                <option value="cancelled">{WA.formStatusCancelled}</option>
+                <option value="not_completed">{WA.formStatusNotCompleted}</option>
               </select>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
-            <div className="space-y-4">
-              <label className="block text-xs font-black text-dark-400 uppercase tracking-[0.2em] px-1">Deployment Force (Select Unit)</label>
-              <div className="max-h-[300px] overflow-y-auto pr-2 grid grid-cols-1 sm:grid-cols-2 gap-3 custom-scrollbar">
+          <div className="grid grid-cols-1 xl:grid-cols-12 gap-4 sm:gap-6 items-start">
+            <div className="xl:col-span-6 space-y-3 sm:space-y-4">
+              <label className="block text-xs font-black text-dark-400 uppercase tracking-[0.2em] px-1">{WA.formAssignLabel}</label>
+              <div className="max-h-[240px] sm:max-h-[300px] lg:max-h-[340px] overflow-y-auto pr-1 sm:pr-2 grid grid-cols-1 gap-2.5 sm:gap-3 custom-scrollbar">
                 {teamMembers.map(member => (
-                  <label key={member.id} className={`flex items-center justify-between p-3 rounded-2xl border-2 transition-all cursor-pointer ${form.assigned_user_ids.includes(member.id) ? 'border-saffron-500 bg-saffron-500/5 shadow-inner' : 'border-dark-100 dark:border-white/5 hover:border-saffron-500/30'}`}>
+                  <label key={member.id} className={`flex items-center justify-between p-2.5 sm:p-3 rounded-xl sm:rounded-2xl border-2 transition-all cursor-pointer ${form.assigned_user_ids.includes(member.id) ? 'border-saffron-500 bg-saffron-500/5 shadow-inner' : 'border-dark-100 dark:border-white/5 hover:border-saffron-500/30'}`}>
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 rounded-full bg-saffron-500/10 flex items-center justify-center text-[10px] font-black text-saffron-600 uppercase">{member.name.charAt(0)}</div>
-                      <div>
-                        <p className="text-xs font-black text-dark-900 dark:text-white uppercase leading-none">{member.name}</p>
-                        <p className="text-[9px] text-dark-500 uppercase font-black mt-1 tracking-tighter">{member.role_display_name}</p>
+                      <div className="min-w-0">
+                        <p className="text-[11px] sm:text-xs font-black text-dark-900 dark:text-white uppercase leading-none truncate">{member.name}</p>
+                        <p className="text-[8px] sm:text-[9px] text-dark-500 uppercase font-black mt-1 tracking-tighter truncate">{member.role_display_name}</p>
                       </div>
                     </div>
                     <input type="checkbox" checked={form.assigned_user_ids.includes(member.id)} onChange={() => toggleUserAssignment(member.id)} className="w-5 h-5 rounded-lg border-2 border-dark-300 text-saffron-600 focus:ring-saffron-500" />
@@ -720,13 +847,75 @@ export default function WorkAllocationPage() {
               </div>
             </div>
 
-            <div className="space-y-4">
-              <label className="block text-xs font-black text-dark-400 uppercase tracking-[0.2em] px-1">Tactical Briefing (Mission Details)</label>
-              <textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} className="form-input h-[300px] resize-none border-2 focus:border-saffron-500 transition-colors" placeholder="Provide detailed tactical objectives, mission constraints, and deployment guidelines..." />
+            <div className="xl:col-span-6 space-y-3 sm:space-y-4">
+              <label className="block text-xs font-black text-dark-400 uppercase tracking-[0.2em] px-1">{WA.formDescriptionLabel}</label>
+              <textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} className="form-input h-[180px] sm:h-[220px] lg:h-[260px] xl:h-[320px] resize-none border-2 focus:border-saffron-500 transition-colors" placeholder={WA.formDescriptionPlaceholder} />
             </div>
           </div>
         </form>
       </Modal>
+
+      <Modal
+        isOpen={!!proofPreviewUrl}
+        onClose={() => setProofPreviewUrl(null)}
+        title={WA.proofPreviewTitle}
+        subtitle={WA.proofPreviewSubtitle}
+        maxWidth="max-w-3xl"
+        footer={(
+          <button type="button" onClick={() => setProofPreviewUrl(null)} className="btn-secondary min-w-[120px]">
+            {WA.modalClose}
+          </button>
+        )}
+      >
+        {proofPreviewUrl && (
+          <img src={proofPreviewUrl} alt="" className="max-h-[70vh] w-full object-contain rounded-lg border border-dark-100 dark:border-white/10" />
+        )}
+      </Modal>
+
+      <DetailsModal
+        isOpen={!!selectedAllocation}
+        onClose={() => setSelectedAllocation(null)}
+        title={WA.detailsTitle}
+        subtitle={WA.detailsSubtitle}
+        items={[
+          { label: 'Name', value: selectedAllocation?.event_title || '—' },
+          { label: 'Role', value: selectedAllocation?.work_type || '—' },
+          { label: 'Designation', value: selectedAllocation?.work_type || '—' },
+          { label: 'Assigned Leader', value: selectedAllocation?.created_by_name || '—' },
+          { label: 'Ward / Booth', value: selectedAllocation?.event_location || '—' },
+          { label: 'Status', value: selectedAllocation?.status || '—' },
+          { label: 'Late completion', value: selectedAllocation?.is_late_completion ? 'Yes' : 'No' },
+          { label: 'Assigned Team', value: selectedAllocation?.assigned_users?.map((u) => u.name).join(', ') || '—' },
+          { label: 'Due Date', value: selectedAllocation?.due_date ? new Date(selectedAllocation.due_date).toLocaleString() : '—' },
+          { label: 'Started At', value: selectedAllocation?.started_at ? new Date(selectedAllocation.started_at).toLocaleString() : '—' },
+          { label: 'Completed At', value: selectedAllocation?.completed_at ? new Date(selectedAllocation.completed_at).toLocaleString() : '—' },
+          { label: 'Before Proof', value: selectedAllocation?.before_image_url ? 'Uploaded' : 'Not uploaded' },
+          { label: 'After Proof', value: selectedAllocation?.after_image_url ? 'Uploaded' : 'Not uploaded' },
+          { label: 'Execution notes', value: selectedAllocation?.execution_notes || '—' },
+          { label: 'Not Completed Reason', value: selectedAllocation?.not_completed_reason || '—' },
+          { label: 'Description', value: selectedAllocation?.description || '—' },
+        ]}
+        extra={
+          selectedAllocation?.proofs && selectedAllocation.proofs.length > 0 ? (
+            <div className="rounded-lg border border-dark-100 dark:border-white/10 bg-dark-50/40 dark:bg-white/[0.02] p-3">
+              <p className="text-[10px] uppercase tracking-widest text-dark-500 mb-2">All proof images</p>
+              <div className="flex flex-wrap gap-2">
+                {selectedAllocation.proofs.map((p) => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => setProofPreviewUrl(p.image_url)}
+                    className="relative w-16 h-16 rounded-lg border border-dark-200 dark:border-white/10 overflow-hidden"
+                  >
+                    <img src={p.image_url} alt="" className="w-full h-full object-cover" />
+                    <span className="absolute bottom-0 inset-x-0 bg-black/60 text-[7px] text-white text-center uppercase">{p.category}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : null
+        }
+      />
     </>
   );
 }

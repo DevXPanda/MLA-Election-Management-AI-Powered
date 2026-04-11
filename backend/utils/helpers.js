@@ -3,12 +3,12 @@ const pool = require('../config/db');
 /**
  * Log an activity — now includes organization_id and entity tracking
  */
-const logActivity = async (userId, action, module, details = {}, ipAddress = null, organizationId = null) => {
+const logActivity = async (userId, action, module, details = {}, ipAddress = null, organizationId = null, eventId = null) => {
   try {
     await pool.query(
-      `INSERT INTO activity_logs (user_id, action, module, details, ip_address, organization_id) 
-       VALUES ($1, $2, $3, $4, $5, $6)`,
-      [userId, action, module, JSON.stringify(details), ipAddress, organizationId]
+      `INSERT INTO activity_logs (user_id, action, module, details, ip_address, organization_id, event_id) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [userId, action, module, JSON.stringify(details), ipAddress, organizationId, eventId]
     );
   } catch (error) {
     console.error('Error logging activity:', error.message);

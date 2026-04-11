@@ -4,13 +4,15 @@ import { useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
 import { showToast } from '@/lib/toast';
 import Header from '@/components/Header';
-import { tasksAPI, usersAPI } from '@/lib/api';
+import { tasksAPI, usersAPI, teamsAPI } from '@/lib/api';
 import { Task, User } from '@/types';
-import { Plus, Search, Edit3, Trash2, X, Loader2, CheckCircle2, Clock, Circle, AlertTriangle, ListTodo, Layout } from 'lucide-react';
+import { Plus, Search, Edit3, Trash2, X, Loader2, CheckCircle2, Clock, Circle, AlertTriangle, ListTodo, Layout, Eye } from 'lucide-react';
 import Modal from '@/components/Modal';
 import { useAuth } from '@/context/AuthContext';
 import StatsSummary from '@/components/dashboard/StatsSummary';
 import { useCallback } from 'react';
+import DetailsModal from '@/components/DetailsModal';
+import { MODULE_HEADER, TASKS_UI, TASK_TYPE_OPTIONS, taskTypeLabel } from '@/lib/ui-labels';
 
 export default function TasksPage() {
   const { user } = useAuth();
@@ -19,6 +21,10 @@ export default function TasksPage() {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [selectedTaskDetail, setSelectedTaskDetail] = useState<Task | null>(null);
+  const [taskDetailLoading, setTaskDetailLoading] = useState(false);
+  const [teamLeaderOptions, setTeamLeaderOptions] = useState<{ id: number; name: string }[]>([]);
   const [statusFilter, setStatusFilter] = useState('');
   const [priorityFilter, setPriorityFilter] = useState('');
   const [meta, setMeta] = useState({ total: 0, page: 1, totalPages: 1 });
@@ -28,7 +34,13 @@ export default function TasksPage() {
   const [form, setForm] = useState({
     title: '', description: '', type: 'door_to_door', assigned_to: '',
     priority: 'medium', status: 'pending', due_date: '',
+    assigned_user_ids: [] as number[],
+    assigner_remarks: '',
+    expand_team_leader_id: '',
+    assignee_remark_chunk: '',
   });
+
+  const canManage = !!(user && ['super_admin', 'mla', 'campaign_manager', 'ward_head'].includes(user.role_name));
 
   useEffect(() => { 
     loadTasks(); 
@@ -36,10 +48,54 @@ export default function TasksPage() {
     // Only fetch user list if current user has permission to assign tasks
     const canAssign = user && ['super_admin', 'mla', 'campaign_manager', 'ward_head'].includes(user.role_name);
     if (canAssign) {
-      loadUsers(); 
+      loadUsers();
+      loadTeamLeaders();
     }
     loadTasksStats();
   }, [statusFilter, priorityFilter, user]);
+
+  const loadTeamLeaders = async () => {
+    try {
+      const res = await teamsAPI.getAll({ limit: 500, status: 'active' });
+      const rows = res.data.data as Array<{ team_leader_id?: number | null; leader_name?: string | null }>;
+      const map = new Map<number, string>();
+      for (const m of rows) {
+        if (m.team_leader_id != null && m.leader_name) {
+          map.set(m.team_leader_id, m.leader_name);
+        }
+      }
+      setTeamLeaderOptions(
+        Array.from(map.entries())
+          .map(([id, name]) => ({ id, name }))
+          .sort((a, b) => a.name.localeCompare(b.name))
+      );
+    } catch {
+      setTeamLeaderOptions([]);
+    }
+  };
+
+  useEffect(() => {
+    if (!selectedTask) {
+      setSelectedTaskDetail(null);
+      return;
+    }
+    let cancelled = false;
+    setTaskDetailLoading(true);
+    tasksAPI
+      .getById(selectedTask.id)
+      .then((res) => {
+        if (!cancelled) setSelectedTaskDetail(res.data.data as Task);
+      })
+      .catch(() => {
+        if (!cancelled) setSelectedTaskDetail(selectedTask);
+      })
+      .finally(() => {
+        if (!cancelled) setTaskDetailLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedTask]);
 
   const loadTasksStats = async () => {
     setStatsLoading(true);
@@ -74,27 +130,81 @@ export default function TasksPage() {
 
   const openCreate = () => {
     setEditingTask(null);
-    setForm({ title: '', description: '', type: 'door_to_door', assigned_to: '', priority: 'medium', status: 'pending', due_date: '' });
+    setForm({
+      title: '', description: '', type: 'door_to_door', assigned_to: '', priority: 'medium', status: 'pending', due_date: '',
+      assigned_user_ids: [], assigner_remarks: '', expand_team_leader_id: '', assignee_remark_chunk: '',
+    });
     setShowModal(true);
   };
 
   const openEdit = (task: Task) => {
     setEditingTask(task);
+    const ids = task.assignees?.length
+      ? task.assignees.map((a) => a.id)
+      : task.assigned_to
+        ? [task.assigned_to]
+        : [];
     setForm({
       title: task.title, description: task.description || '', type: task.type,
       assigned_to: task.assigned_to ? String(task.assigned_to) : '', priority: task.priority,
       status: task.status, due_date: task.due_date ? task.due_date.split('T')[0] : '',
+      assigned_user_ids: ids,
+      assigner_remarks: task.assigner_remarks || '',
+      expand_team_leader_id: '',
+      assignee_remark_chunk: '',
     });
     setShowModal(true);
+  };
+
+  const toggleTaskAssignee = (userId: number) => {
+    setForm((prev) => ({
+      ...prev,
+      assigned_user_ids: prev.assigned_user_ids.includes(userId)
+        ? prev.assigned_user_ids.filter((id) => id !== userId)
+        : [...prev.assigned_user_ids, userId],
+    }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const data = { ...form, assigned_to: form.assigned_to ? parseInt(form.assigned_to) : null };
-      if (editingTask) {
+      if (editingTask && !canManage) {
+        await tasksAPI.update(editingTask.id, {
+          status: form.status,
+          ...(form.assignee_remark_chunk.trim() ? { assignee_remarks: form.assignee_remark_chunk.trim() } : {}),
+        });
+      } else if (editingTask) {
+        const assigned_to = form.assigned_user_ids.length ? form.assigned_user_ids[0] : null;
+        const data: Record<string, unknown> = {
+          title: form.title,
+          description: form.description,
+          type: form.type,
+          priority: form.priority,
+          status: form.status,
+          due_date: form.due_date || null,
+          assigned_to,
+          assigned_user_ids: form.assigned_user_ids,
+          assigner_remarks: form.assigner_remarks || null,
+        };
+        if (form.expand_team_leader_id) {
+          data.expand_team_leader_id = parseInt(form.expand_team_leader_id, 10);
+        }
         await tasksAPI.update(editingTask.id, data);
       } else {
+        const assigned_to = form.assigned_user_ids.length ? form.assigned_user_ids[0] : null;
+        const data: Record<string, unknown> = {
+          title: form.title,
+          description: form.description,
+          type: form.type,
+          priority: form.priority,
+          due_date: form.due_date || null,
+          assigned_to,
+          assigned_user_ids: form.assigned_user_ids,
+          assigner_remarks: form.assigner_remarks || null,
+        };
+        if (form.expand_team_leader_id) {
+          data.expand_team_leader_id = parseInt(form.expand_team_leader_id, 10);
+        }
         await tasksAPI.create(data);
       }
       setShowModal(false);
@@ -135,23 +245,15 @@ export default function TasksPage() {
     }
   };
 
-  const taskTypes = [
-    { value: 'door_to_door', label: 'Door-to-Door' },
-    { value: 'survey_collection', label: 'Survey Collection' },
-    { value: 'event_participation', label: 'Event Participation' },
-    { value: 'voter_outreach', label: 'Voter Outreach' },
-    { value: 'report_submission', label: 'Report Submission' },
-  ];
-
   return (
     <>
-      <Header title="Task Management" subtitle="Assign and track campaign tasks" />
+      <Header title={MODULE_HEADER.tasks.title} subtitle={MODULE_HEADER.tasks.subtitle} />
       <div className="dashboard-container">
-        {/* Mission Summary Stats */}
+        {/* Summary stats */}
         <StatsSummary 
           loading={statsLoading}
           stats={[
-            { label: 'Total Missions', value: tasksStats?.total_tasks || 0, icon: ListTodo, color: 'text-blue-500', bgIcon: 'bg-blue-500/10' },
+            { label: TASKS_UI.statsTotal, value: tasksStats?.total_tasks || 0, icon: ListTodo, color: 'text-blue-500', bgIcon: 'bg-blue-500/10' },
             { label: 'Completed', value: tasksStats?.status_breakdown?.find((s: any) => s.status === 'completed')?.count || 0, icon: CheckCircle2, color: 'text-emerald-500', bgIcon: 'bg-emerald-500/10' },
             { label: 'In Progress', value: tasksStats?.status_breakdown?.find((s: any) => s.status === 'in_progress')?.count || 0, icon: Clock, color: 'text-amber-500', bgIcon: 'bg-amber-500/10' },
             { label: 'Pending', value: tasksStats?.status_breakdown?.find((s: any) => s.status === 'pending')?.count || 0, icon: Layout, color: 'text-purple-500', bgIcon: 'bg-purple-500/10' },
@@ -159,8 +261,10 @@ export default function TasksPage() {
         />
 
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
-          <h2 className="text-xl font-medium">Mission Briefings</h2>
-          <button onClick={openCreate} className="btn-primary"><Plus className="w-4 h-4" /> Create Task</button>
+          <h2 className="text-xl font-medium">{TASKS_UI.listHeading}</h2>
+          {canManage && (
+            <button onClick={openCreate} className="btn-primary"><Plus className="w-4 h-4" /> {TASKS_UI.createButton}</button>
+          )}
         </div>
 
         {/* Filters */}
@@ -199,17 +303,26 @@ export default function TasksPage() {
                   <div className="flex items-center gap-3 mb-1">
                     <h4 className={`font-bold ${task.status === 'completed' ? 'line-through text-dark-400' : 'text-dark-900 dark:text-dark-100'}`}>{task.title}</h4>
                     <span className={`badge ${priorityBadge(task.priority)} text-[10px]`}>{task.priority}</span>
-                    <span className="badge badge-neutral text-[10px]">{task.type.replace(/_/g, ' ')}</span>
+                    <span className="badge badge-neutral text-[10px]">{taskTypeLabel(task.type)}</span>
                   </div>
                   <div className="flex items-center gap-4 text-[11px] font-bold uppercase tracking-wider text-dark-600 dark:text-dark-500">
-                    {task.assigned_to_name && <span className="flex items-center gap-1">👤 {task.assigned_to_name}</span>}
+                    {(task.assignees?.length
+                      ? <span className="flex items-center gap-1">👤 {task.assignees.map((a) => a.name).join(', ')}</span>
+                      : task.assigned_to_name
+                        ? <span className="flex items-center gap-1">👤 {task.assigned_to_name}</span>
+                        : null)}
                     {task.due_date && <span className="flex items-center gap-1">📅 {new Date(task.due_date).toLocaleDateString()}</span>}
                     {task.ward_name && <span className="flex items-center gap-1">📍 {task.ward_name}</span>}
                   </div>
                 </div>
                 <div className="flex gap-2">
-                  <button onClick={() => openEdit(task)} className="btn-icon btn-secondary"><Edit3 className="w-3.5 h-3.5" /></button>
-                  <button onClick={() => handleDelete(task.id)} className="btn-icon bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500/20"><Trash2 className="w-3.5 h-3.5" /></button>
+                  <button onClick={() => setSelectedTask(task)} className="btn-icon btn-secondary"><Eye className="w-3.5 h-3.5" /></button>
+                  {(canManage || (user && (task.assigned_to === user.id || task.assignees?.some((a) => a.id === user.id)))) && (
+                    <button onClick={() => openEdit(task)} className="btn-icon btn-secondary"><Edit3 className="w-3.5 h-3.5" /></button>
+                  )}
+                  {canManage && (
+                    <button onClick={() => handleDelete(task.id)} className="btn-icon bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500/20"><Trash2 className="w-3.5 h-3.5" /></button>
+                  )}
                 </div>
               </div>
             ))}
@@ -220,74 +333,196 @@ export default function TasksPage() {
       <Modal
         isOpen={showModal}
         onClose={() => setShowModal(false)}
-        title={editingTask ? 'Edit Task' : 'Create New Mission'}
-        subtitle="Assign and manage mission-critical tasks for field workers"
+        title={editingTask && !canManage ? TASKS_UI.modalAssigneeTitle : editingTask ? TASKS_UI.modalEditTitle : TASKS_UI.modalCreateTitle}
+        subtitle={MODULE_HEADER.tasks.subtitle}
         maxWidth="max-w-[700px]"
         footer={(
           <>
             <button type="button" onClick={() => setShowModal(false)} className="btn-secondary min-w-[120px]">Cancel</button>
             <button type="submit" form="task-form" className="btn-primary min-w-[180px]">
-              {editingTask ? 'Save Changes' : 'Create & Assign Mission'}
+              {editingTask ? TASKS_UI.modalFooterSave : TASKS_UI.modalFooterCreate}
             </button>
           </>
         )}
       >
         <form id="task-form" onSubmit={handleSubmit} className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-2">
-              <label className="block text-xs font-black text-dark-400 uppercase tracking-widest px-1">Task Title *</label>
-              <input value={form.title} onChange={e => setForm({...form, title: e.target.value})} className="form-input" placeholder="e.g. Booth Outreach" required />
-            </div>
-            <div className="space-y-2">
-              <label className="block text-xs font-black text-dark-400 uppercase tracking-widest px-1">Task Type</label>
-              <select value={form.type} onChange={e => setForm({...form, type: e.target.value})} className="form-input">
-                {taskTypes.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-              </select>
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <label className="block text-xs font-black text-dark-400 uppercase tracking-widest px-1">Task Description</label>
-            <textarea value={form.description} onChange={e => setForm({...form, description: e.target.value})} className="form-input h-24 resize-none" placeholder="Provide detailed instructions for the assignee..." />
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-2">
-              <label className="block text-xs font-black text-dark-400 uppercase tracking-widest px-1">Priority Level</label>
-              <select value={form.priority} onChange={e => setForm({...form, priority: e.target.value})} className="form-input">
-                <option value="low">Low Priority</option>
-                <option value="medium">Medium Priority</option>
-                <option value="high">High Priority</option>
-              </select>
-            </div>
-            <div className="space-y-2">
-              <label className="block text-xs font-black text-dark-400 uppercase tracking-widest px-1">Assign To</label>
-              <select value={form.assigned_to} onChange={e => setForm({...form, assigned_to: e.target.value})} className="form-input">
-                <option value="">No Assignment</option>
-                {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
-              </select>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-2">
-              <label className="block text-xs font-black text-dark-400 uppercase tracking-widest px-1">Due Date</label>
-              <input type="date" value={form.due_date} onChange={e => setForm({...form, due_date: e.target.value})} className="form-input" />
-            </div>
-            {editingTask && (
+          {editingTask && !canManage ? (
+            <>
               <div className="space-y-2">
                 <label className="block text-xs font-black text-dark-400 uppercase tracking-widest px-1">Task Status</label>
-                <select value={form.status} onChange={e => setForm({...form, status: e.target.value})} className="form-input">
+                <select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })} className="form-input">
                   <option value="pending">Pending</option>
                   <option value="in_progress">In Progress</option>
                   <option value="completed">Completed</option>
                   <option value="cancelled">Cancelled</option>
                 </select>
               </div>
-            )}
-          </div>
+              <div className="space-y-2">
+                <label className="block text-xs font-black text-dark-400 uppercase tracking-widest px-1">Your remarks</label>
+                <textarea
+                  value={form.assignee_remark_chunk}
+                  onChange={(e) => setForm({ ...form, assignee_remark_chunk: e.target.value })}
+                  className="form-input h-24 resize-none"
+                  placeholder="Notes or comments for this task..."
+                />
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <label className="block text-xs font-black text-dark-400 uppercase tracking-widest px-1">Task Title *</label>
+                  <input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className="form-input" placeholder="e.g. Booth Outreach" required />
+                </div>
+                <div className="space-y-2">
+                  <label className="block text-xs font-black text-dark-400 uppercase tracking-widest px-1">Task Type</label>
+                  <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })} className="form-input">
+                    {TASK_TYPE_OPTIONS.map((t) => (
+                      <option key={t.value} value={t.value}>
+                        {t.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="block text-xs font-black text-dark-400 uppercase tracking-widest px-1">Task Description</label>
+                <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className="form-input h-24 resize-none" placeholder="Provide detailed instructions for the assignee..." />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <label className="block text-xs font-black text-dark-400 uppercase tracking-widest px-1">Priority Level</label>
+                  <select value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value })} className="form-input">
+                    <option value="low">Low Priority</option>
+                    <option value="medium">Medium Priority</option>
+                    <option value="high">High Priority</option>
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <label className="block text-xs font-black text-dark-400 uppercase tracking-widest px-1">Add team by leader</label>
+                  <select
+                    value={form.expand_team_leader_id}
+                    onChange={(e) => setForm({ ...form, expand_team_leader_id: e.target.value })}
+                    className="form-input"
+                  >
+                    <option value="">None</option>
+                    {teamLeaderOptions.map((l) => (
+                      <option key={l.id} value={l.id}>
+                        {l.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="block text-xs font-black text-dark-400 uppercase tracking-widest px-1">Assign to users</label>
+                <div className="max-h-[200px] overflow-y-auto pr-1 grid grid-cols-1 gap-2 custom-scrollbar border border-dark-100 dark:border-white/10 rounded-lg p-2">
+                  {users.map((u) => (
+                    <label
+                      key={u.id}
+                      className={`flex items-center justify-between p-2 rounded-lg border transition-all cursor-pointer ${
+                        form.assigned_user_ids.includes(u.id) ? 'border-saffron-500 bg-saffron-500/5' : 'border-dark-100 dark:border-white/5'
+                      }`}
+                    >
+                      <span className="text-xs font-bold text-dark-700 dark:text-dark-300">{u.name}</span>
+                      <input
+                        type="checkbox"
+                        checked={form.assigned_user_ids.includes(u.id)}
+                        onChange={() => toggleTaskAssignee(u.id)}
+                        className="w-4 h-4 rounded border-dark-300 text-saffron-600"
+                      />
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="block text-xs font-black text-dark-400 uppercase tracking-widest px-1">Assigner remarks / notes</label>
+                <textarea
+                  value={form.assigner_remarks}
+                  onChange={(e) => setForm({ ...form, assigner_remarks: e.target.value })}
+                  className="form-input h-20 resize-none"
+                  placeholder="Instructions or context for assignees..."
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <label className="block text-xs font-black text-dark-400 uppercase tracking-widest px-1">Due Date</label>
+                  <input type="date" value={form.due_date} onChange={(e) => setForm({ ...form, due_date: e.target.value })} className="form-input" />
+                </div>
+                {editingTask && (
+                  <div className="space-y-2">
+                    <label className="block text-xs font-black text-dark-400 uppercase tracking-widest px-1">Task Status</label>
+                    <select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })} className="form-input">
+                      <option value="pending">Pending</option>
+                      <option value="in_progress">In Progress</option>
+                      <option value="completed">Completed</option>
+                      <option value="cancelled">Cancelled</option>
+                    </select>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
         </form>
       </Modal>
+
+      <DetailsModal
+        isOpen={!!selectedTask}
+        onClose={() => { setSelectedTask(null); setSelectedTaskDetail(null); }}
+        title={TASKS_UI.detailsTitle}
+        subtitle={TASKS_UI.detailsSubtitle}
+        items={(() => {
+          const td = selectedTaskDetail || selectedTask;
+          const assigneeLine =
+            td?.assignees?.length ? td.assignees.map((a) => a.name).join(', ') : td?.assigned_to_name || 'Unassigned';
+          return [
+            { label: 'Name', value: td?.title },
+            { label: 'Assignees', value: assigneeLine },
+            { label: 'Type', value: td?.type ? taskTypeLabel(td.type) : '—' },
+            { label: 'Assigned by', value: td?.assigned_by_name || '—' },
+            { label: 'Ward', value: td?.ward_name || '—' },
+            { label: 'Booth', value: td?.booth_name || '—' },
+            { label: 'Constituency', value: td?.constituency_name || '—' },
+            { label: 'Priority', value: td?.priority || '—' },
+            { label: 'Status', value: td?.status || '—' },
+            { label: 'Late completion', value: td?.is_late_completion ? 'Yes' : 'No' },
+            { label: 'Due Date', value: td?.due_date ? new Date(td.due_date).toLocaleString() : '—' },
+            { label: 'End date (completed)', value: td?.completed_at ? new Date(td.completed_at).toLocaleString() : '—' },
+            { label: 'Completed by', value: td?.completed_by_name || '—' },
+            { label: 'Assigner remarks', value: td?.assigner_remarks || '—' },
+            { label: 'Assignee remarks', value: td?.assignee_remarks || '—' },
+            { label: 'Description', value: td?.description || '—' },
+          ];
+        })()}
+        extra={
+          <>
+            {taskDetailLoading && (
+              <div className="flex justify-center py-4">
+                <Loader2 className="w-6 h-6 animate-spin text-saffron-400" />
+              </div>
+            )}
+            {selectedTaskDetail?.activity && selectedTaskDetail.activity.length > 0 && (
+              <div className="rounded-lg border border-dark-100 dark:border-white/10 bg-dark-50/40 dark:bg-white/[0.02] p-3">
+                <p className="text-[10px] uppercase tracking-widest text-dark-500 mb-2">Activity log</p>
+                <ul className="space-y-2 text-xs text-dark-700 dark:text-dark-300 max-h-48 overflow-y-auto">
+                  {selectedTaskDetail.activity.map((row) => (
+                    <li key={row.id} className="border-b border-dark-100/80 dark:border-white/5 pb-2 last:border-0">
+                      <span className="font-semibold text-dark-900 dark:text-dark-100">{row.action}</span>
+                      {row.user_name && <span className="text-dark-500"> · {row.user_name}</span>}
+                      <span className="text-dark-500"> · {new Date(row.created_at).toLocaleString()}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </>
+        }
+      />
     </>
   );
 }

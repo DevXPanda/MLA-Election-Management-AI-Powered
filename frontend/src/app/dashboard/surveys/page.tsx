@@ -9,12 +9,14 @@ import { Survey } from '@/types';
 import {
   Plus, Search, Trash2, X, Loader2, ClipboardList,
   BarChart3, Camera, Circle, XCircle, RefreshCw,
-  Activity, HelpCircle, Heart, Users
+  Activity, HelpCircle, Heart, Users, Eye
 } from 'lucide-react';
 import Modal from '@/components/Modal';
+import { MODULE_HEADER, SHARED_UI } from '@/lib/ui-labels';
 import StatsSummary from '@/components/dashboard/StatsSummary';
 import { Doughnut } from 'react-chartjs-2';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
+import DetailsModal from '@/components/DetailsModal';
 
 ChartJS.register(ArcElement, Tooltip, Legend);
 
@@ -23,6 +25,7 @@ export default function SurveysPage() {
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [selectedSurvey, setSelectedSurvey] = useState<Survey | null>(null);
   const [view, setView] = useState<'list' | 'analytics'>('list');
   const [supportFilter, setSupportFilter] = useState('');
   const [meta, setMeta] = useState({ total: 0, page: 1, totalPages: 1 });
@@ -138,7 +141,7 @@ export default function SurveysPage() {
 
   return (
     <>
-      <Header title="Survey Module" subtitle="Voter sentiment tracking and analysis" />
+      <Header title={MODULE_HEADER.surveys.title} subtitle={MODULE_HEADER.surveys.subtitle} />
       <div className="dashboard-container">
         {/* View Toggle */}
         <div className="flex items-center justify-between mb-6">
@@ -218,11 +221,10 @@ export default function SurveysPage() {
               ))}
             </div>
 
-            {/* Survey List */}
-            <div className="glass-card overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="data-table">
-                  <thead>
+            {/* Survey List with Horizontal Scroll */}
+            <div className="glass-card table-responsive">
+              <table className="data-table">
+                <thead>
                     <tr><th>Voter</th><th>Surveyor</th><th>Support</th><th>Satisfaction</th><th>Booth</th><th>Survey Name</th><th>Date</th><th className="text-right">Actions</th></tr>
                   </thead>
                   <tbody>
@@ -251,7 +253,10 @@ export default function SurveysPage() {
                           </td>
                           <td className="text-[11px] font-bold text-dark-600 dark:text-dark-500 uppercase tracking-tighter">{new Date(survey.created_at).toLocaleDateString()}</td>
                           <td className="text-right">
-                            <button onClick={() => handleDelete(survey.id)} className="btn-icon bg-red-500/10 border border-red-500/20 text-red-400"><Trash2 className="w-3.5 h-3.5" /></button>
+                            <div className="flex items-center gap-2 justify-end">
+                              <button onClick={() => setSelectedSurvey(survey)} className="btn-icon btn-secondary" title="View details"><Eye className="w-3.5 h-3.5" /></button>
+                              <button onClick={() => handleDelete(survey.id)} className="btn-icon bg-red-500/10 border border-red-500/20 text-red-400"><Trash2 className="w-3.5 h-3.5" /></button>
+                            </div>
                           </td>
                         </tr>
                       ))
@@ -259,7 +264,6 @@ export default function SurveysPage() {
                   </tbody>
                 </table>
               </div>
-            </div>
           </>
         )}
       </div>
@@ -279,7 +283,7 @@ export default function SurveysPage() {
       >
         <form id="survey-form" onSubmit={handleSubmit} className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
-            {/* Left: Tactical Proof */}
+            {/* Left: Photo proof */}
             <div className="space-y-4">
               <label className="block text-xs font-black text-dark-400 uppercase tracking-[0.2em] px-1">Voter/ID Proof (Mandatory)</label>
               <div className="relative aspect-video rounded-2xl border-2 border-dashed border-dark-200 dark:border-white/10 overflow-hidden bg-dark-50/50 flex flex-col items-center justify-center group">
@@ -314,7 +318,7 @@ export default function SurveysPage() {
                 ) : (
                   <button type="button" onClick={startTacticalCamera} className="flex flex-col items-center gap-2 text-dark-400 hover:text-saffron-500 transition-colors">
                     <Camera className="w-10 h-10" />
-                    <span className="text-[10px] font-black uppercase tracking-widest">Open Tactical Camera</span>
+                    <span className="text-[10px] font-black uppercase tracking-widest">{SHARED_UI.cameraOpen}</span>
                   </button>
                 )}
               </div>
@@ -341,13 +345,33 @@ export default function SurveysPage() {
               </div>
 
               <div className="space-y-2">
-                <label className="block text-xs font-black text-dark-400 uppercase tracking-[0.2em] px-1">Tactical Observations</label>
+                <label className="block text-xs font-black text-dark-400 uppercase tracking-[0.2em] px-1">{SHARED_UI.surveyObservations}</label>
                 <textarea value={form.remarks} onChange={e => setForm({ ...form, remarks: e.target.value })} className="form-input h-36 resize-none" placeholder="Provide detailed field observations, voter concerns, or strategic insights..." />
               </div>
             </div>
           </div>
         </form>
       </Modal>
+
+      <DetailsModal
+        isOpen={!!selectedSurvey}
+        onClose={() => setSelectedSurvey(null)}
+        title="Survey Details"
+        subtitle="Field feedback and sentiment data"
+        items={[
+          { label: 'Name', value: selectedSurvey?.voter_name || 'Anonymous' },
+          { label: 'Role', value: 'Survey Record' },
+          { label: 'Designation', value: selectedSurvey?.support_status || '—' },
+          { label: 'Assigned Leader', value: selectedSurvey?.surveyor_name || '—' },
+          { label: 'Ward', value: selectedSurvey?.ward_name || '—' },
+          { label: 'Booth', value: selectedSurvey?.booth_name || '—' },
+          { label: 'Support Status', value: selectedSurvey?.support_status || '—' },
+          { label: 'Satisfaction Level', value: selectedSurvey?.satisfaction_level || '—' },
+          { label: 'Issues', value: selectedSurvey?.issues?.map(i => i.issue_name).join(', ') || '—' },
+          { label: 'Remarks', value: selectedSurvey?.remarks || '—' },
+          { label: 'Created At', value: selectedSurvey?.created_at ? new Date(selectedSurvey.created_at).toLocaleString() : '—' },
+        ]}
+      />
     </>
   );
 }

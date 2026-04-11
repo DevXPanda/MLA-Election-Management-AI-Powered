@@ -9,17 +9,20 @@ import { Voter } from '@/types';
 import { 
   Plus, Search, Edit3, Trash2, X, Loader2, UserPlus, 
   ChevronLeft, ChevronRight as ChevronRightIcon,
-  Users, Heart, Users2, ShieldAlert
+  Users, Heart, Users2, ShieldAlert, Eye
 } from 'lucide-react';
 import Modal from '@/components/Modal';
 import { useSearchParams } from 'next/navigation';
 import StatsSummary from '@/components/dashboard/StatsSummary';
+import DetailsModal from '@/components/DetailsModal';
+import { MODULE_HEADER, SHARED_UI } from '@/lib/ui-labels';
 
 function VotersContent() {
   const [voters, setVoters] = useState<Voter[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingVoter, setEditingVoter] = useState<Voter | null>(null);
+  const [selectedVoter, setSelectedVoter] = useState<Voter | null>(null);
   const [search, setSearch] = useState('');
   const [supportFilter, setSupportFilter] = useState('');
   const [meta, setMeta] = useState({ total: 0, page: 1, totalPages: 1 });
@@ -138,7 +141,7 @@ function VotersContent() {
 
   return (
     <>
-      <Header title="Voter Management" subtitle="Voter database and support tracking" />
+      <Header title={MODULE_HEADER.voters.title} subtitle={MODULE_HEADER.voters.subtitle} />
       <div className="dashboard-container">
         {/* Summary Stats Row */}
         <StatsSummary 
@@ -171,11 +174,10 @@ function VotersContent() {
           ))}
         </div>
 
-        {/* Table */}
-        <div className="glass-card overflow-hidden">
-          <div className="overflow-x-auto overflow-y-hidden">
-            <table className="data-table">
-              <thead>
+        {/* Table container with horizontal scroll for responsiveness */}
+        <div className="glass-card table-responsive">
+          <table className="data-table">
+            <thead>
                 <tr>
                   <th className="w-[30%] min-w-[200px]">Voter</th>
                   <th className="min-w-[120px]">Phone</th>
@@ -229,6 +231,7 @@ function VotersContent() {
                       </td>
                       <td>
                         <div className="flex gap-2 justify-end">
+                          <button onClick={() => setSelectedVoter(voter)} className="p-2 rounded-lg bg-dark-100 dark:bg-dark-800 text-dark-600 dark:text-dark-400 hover:bg-saffron-500/10 hover:text-saffron-500 transition-all" title="View details"><Eye className="w-3.5 h-3.5" /></button>
                           <button onClick={() => openEdit(voter)} className="p-2 rounded-lg bg-dark-100 dark:bg-dark-800 text-dark-600 dark:text-dark-400 hover:bg-saffron-500/10 hover:text-saffron-500 transition-all"><Edit3 className="w-3.5 h-3.5" /></button>
                           <button onClick={() => handleDelete(voter.id)} className="p-2 rounded-lg bg-red-500/10 text-red-500 hover:bg-red-500/20 transition-all"><Trash2 className="w-3.5 h-3.5" /></button>
                         </div>
@@ -237,8 +240,8 @@ function VotersContent() {
                   ))
                 )}
               </tbody>
-            </table>
-          </div>
+          </table>
+        </div>
           
           {/* Pagination */}
           {!loading && meta.totalPages > 1 && (
@@ -265,7 +268,6 @@ function VotersContent() {
             </div>
           )}
         </div>
-      </div>
 
       <Modal
         isOpen={showModal}
@@ -351,11 +353,36 @@ function VotersContent() {
           </div>
 
           <div className="space-y-2">
-            <label className="block text-[10px] font-medium text-dark-400 uppercase tracking-widest px-1">Remarks & Tactical Notes</label>
+            <label className="block text-[10px] font-medium text-dark-400 uppercase tracking-widest px-1">{SHARED_UI.voterRemarks}</label>
             <textarea value={form.remarks} onChange={e => setForm({...form, remarks: e.target.value})} className="form-input h-24 resize-none" placeholder="Add observations..." />
           </div>
         </form>
       </Modal>
+
+      <DetailsModal
+        isOpen={!!selectedVoter}
+        onClose={() => setSelectedVoter(null)}
+        title="Voter Details"
+        subtitle="Complete constituency and sentiment profile"
+        items={[
+          { label: 'Name', value: selectedVoter?.name },
+          { label: 'Role', value: 'Voter' },
+          { label: 'Designation', value: selectedVoter?.caste || '—' },
+          { label: 'Assigned Leader', value: selectedVoter?.created_by_name || '—' },
+          { label: 'Ward', value: selectedVoter?.ward_name || '—' },
+          { label: 'Booth', value: selectedVoter?.booth_name || '—' },
+          { label: 'Constituency', value: selectedVoter?.constituency_name || '—' },
+          { label: 'Voter ID', value: selectedVoter?.voter_id_number || '—' },
+          { label: 'Phone', value: selectedVoter?.phone || '—' },
+          { label: 'Age', value: selectedVoter?.age || '—' },
+          { label: 'Gender', value: selectedVoter?.gender || '—' },
+          { label: 'Address', value: selectedVoter?.address || '—' },
+          { label: 'Support Status', value: selectedVoter?.support_status || '—' },
+          { label: 'Scheme Beneficiary', value: selectedVoter?.scheme_beneficiary ? 'Yes' : 'No' },
+          { label: 'Remarks', value: selectedVoter?.remarks || '—' },
+          { label: 'Created At', value: selectedVoter?.created_at ? new Date(selectedVoter.created_at).toLocaleString() : '—' },
+        ]}
+      />
     </>
   );
 }

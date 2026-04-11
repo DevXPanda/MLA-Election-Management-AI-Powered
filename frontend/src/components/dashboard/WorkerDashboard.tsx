@@ -55,7 +55,7 @@ export default function WorkerDashboard({ stats }: DashboardProps) {
             ))}
          </div>
 
-         {/* Task List Section - Strictly Tactical */}
+         {/* Task list */}
          <div className="grid grid-cols-1 lg:grid-cols-1 gap-6">
             <div className="glass-card overflow-hidden flex flex-col">
                <div className="p-6 border-b border-white/5 flex items-center justify-between">

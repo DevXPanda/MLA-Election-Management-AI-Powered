@@ -9,6 +9,7 @@ import { Message } from '@/types';
 import { Plus, X, Loader2, MessageSquare, Send, Mail, MailOpen } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import Modal from '@/components/Modal';
+import { MODULE_HEADER } from '@/lib/ui-labels';
 
 export default function MessagesPage() {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -72,7 +73,7 @@ export default function MessagesPage() {
 
   return (
     <>
-      <Header title="Messages" subtitle="Communication center" />
+      <Header title={MODULE_HEADER.messages.title} subtitle={MODULE_HEADER.messages.subtitle} />
       <div className="p-8">
         <div className="flex items-center justify-between mb-6">
           <div className="tabs-toggle">
