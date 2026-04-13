@@ -226,7 +226,7 @@ function ChartCard({ chart }: { chart: AIChartPayload }) {
         display: !!chart.title,
         text: chart.title,
         color: '#0F172A',
-        font: { size: 14, weight: '600' as const },
+        font: { size: 14, weight: 600 },
         padding: { bottom: 8 },
       },
       tooltip: {
