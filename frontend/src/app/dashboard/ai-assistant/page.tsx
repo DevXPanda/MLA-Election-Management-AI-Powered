@@ -186,15 +186,24 @@ function TypingIndicator() {
 }
 
 function ChartCard({ chart }: { chart: AIChartPayload }) {
+  const palette = ['#F97316', '#3B82F6', '#10B981', '#A855F7', '#EF4444', '#EAB308', '#14B8A6', '#EC4899'];
+  const pieBackground = (chart.labels || []).map((_, idx) => `${palette[idx % palette.length]}CC`);
+  const pieBorder = (chart.labels || []).map((_, idx) => palette[idx % palette.length]);
+
   const data = {
     labels: chart.labels || [],
     datasets: [{
       label: chart.title || 'Series',
       data: Array.isArray(chart.data) ? chart.data : [],
-      borderColor: '#f59e0b',
-      backgroundColor: 'rgba(245, 158, 11, 0.25)',
+      borderColor: chart.chartType === 'pie' ? pieBorder : '#F97316',
+      backgroundColor: chart.chartType === 'pie' ? pieBackground : 'rgba(249, 115, 22, 0.35)',
       tension: 0.3,
       fill: chart.chartType !== 'bar',
+      borderWidth: 2,
+      pointBackgroundColor: '#F97316',
+      pointBorderColor: '#FFFFFF',
+      pointRadius: 4,
+      pointHoverRadius: 6,
     }],
   };
 
@@ -202,14 +211,48 @@ function ChartCard({ chart }: { chart: AIChartPayload }) {
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
-      legend: { display: true, position: 'top' as const },
-      title: { display: !!chart.title, text: chart.title },
+      legend: {
+        display: true,
+        position: 'top' as const,
+        labels: {
+          color: '#334155',
+          boxWidth: 14,
+          usePointStyle: true,
+          pointStyle: 'rectRounded' as const,
+          padding: 14,
+        },
+      },
+      title: {
+        display: !!chart.title,
+        text: chart.title,
+        color: '#0F172A',
+        font: { size: 14, weight: '600' as const },
+        padding: { bottom: 8 },
+      },
+      tooltip: {
+        backgroundColor: '#0F172A',
+        titleColor: '#FFFFFF',
+        bodyColor: '#E2E8F0',
+        borderColor: '#334155',
+        borderWidth: 1,
+      },
+    },
+    scales: chart.chartType === 'pie' ? undefined : {
+      y: {
+        beginAtZero: true,
+        ticks: { color: '#475569' },
+        grid: { color: 'rgba(148, 163, 184, 0.25)' },
+      },
+      x: {
+        ticks: { color: '#475569' },
+        grid: { color: 'rgba(148, 163, 184, 0.15)' },
+      },
     },
   };
 
   return (
-    <div className="mt-3 rounded-xl border border-dark-200 dark:border-white/[0.08] bg-white/70 dark:bg-dark-900/30 p-3">
-      <p className="text-[11px] font-medium text-dark-600 dark:text-dark-300 mb-2">{chart.title}</p>
+    <div className="mt-3 rounded-xl border border-saffron-200/70 dark:border-white/[0.1] bg-gradient-to-br from-white to-orange-50/60 dark:from-dark-900/50 dark:to-dark-800/20 p-3 shadow-sm">
+      <p className="text-[11px] font-semibold text-dark-700 dark:text-dark-200 mb-2">{chart.title}</p>
       <div className="h-56">
         {chart.chartType === 'bar' ? <Bar data={data} options={options} /> : null}
         {chart.chartType === 'pie' ? <Pie data={data} options={options} /> : null}

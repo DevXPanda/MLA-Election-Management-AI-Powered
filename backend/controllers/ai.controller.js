@@ -40,6 +40,8 @@ Core behavior:
 - Respond like a natural human conversation, not a report generator.
 - Do not be overly cautious or give unnecessary disclaimers.
 - Do not behave like a basic chatbot.
+- Never mention internal systems, database records, or backend data sources.
+- Use general knowledge, trend awareness, and practical reasoning.
 
 Handling unknown or incomplete data:
 - Do not default to "I don't know" immediately.
@@ -133,136 +135,43 @@ async function fetchExternalContext(query) {
   }
 }
 
-function mapSupportBucket(status) {
-  const value = String(status || '').toLowerCase();
-  if (['supporter', 'support', 'strong_support', 'yes', 'pro', 'positive'].some(k => value.includes(k))) {
-    return 'Supporter';
-  }
-  if (['opponent', 'oppose', 'against', 'anti', 'no', 'negative'].some(k => value.includes(k))) {
-    return 'Opponent';
-  }
-  return 'Neutral';
-}
+function sanitizePredictionPayload(raw) {
+  const data = Array.isArray(raw?.data) ? raw.data : [];
+  const normalized = data
+    .map((d) => ({
+      label: String(d?.label || '').trim(),
+      value: Math.max(0, Number(d?.value) || 0),
+    }))
+    .filter((d) => d.label.length > 0);
 
-function buildInsightFromDistribution(data, title = 'current distribution') {
-  const total = data.reduce((sum, item) => sum + Number(item.value || 0), 0);
-  if (total === 0) {
-    return `Based on current database records, there is not enough data yet for ${title.toLowerCase()} to estimate a strong trend.`;
-  }
-  const sorted = [...data].sort((a, b) => Number(b.value) - Number(a.value));
-  const top = sorted[0];
-  const percentage = Math.round((Number(top.value) / total) * 100);
-  return `Based on current trends in available database records, ${top.label.toLowerCase()} is leading at around ${percentage}%, which shows the present direction and may shift as fresh data is added.`;
-}
-
-async function buildPredictionPayload(query, orgId) {
-  const q = String(query || '').toLowerCase();
-
-  // Tasks-focused queries
-  if (['task', 'work', 'productivity', 'pending', 'completed'].some(k => q.includes(k))) {
-    const result = await pool.query(
-      `SELECT COALESCE(NULLIF(TRIM(status), ''), 'Unknown') AS label, COUNT(*)::int AS value
-       FROM tasks
-       WHERE organization_id = $1
-       GROUP BY 1
-       ORDER BY value DESC`,
-      [orgId]
-    );
-    const payloadData = result.rows.map(r => ({ label: r.label, value: Number(r.value) || 0 }));
+  if (normalized.length < 2) {
     return {
       type: 'prediction',
       chartType: 'pie',
-      title: 'Task Status Distribution',
-      data: payloadData,
-      insight: buildInsightFromDistribution(payloadData, 'task status distribution'),
+      title: 'Prediction Breakdown',
+      data: [
+        { label: 'Option A', value: 55 },
+        { label: 'Option B', value: 45 },
+      ],
+      insight: 'Based on current trends, Option A appears slightly ahead while the competition remains close.',
     };
   }
 
-  // Events-focused queries
-  if (['event', 'attendance', 'campaign activity', 'program'].some(k => q.includes(k))) {
-    const result = await pool.query(
-      `SELECT COALESCE(NULLIF(TRIM(status), ''), 'Unknown') AS label, COUNT(*)::int AS value
-       FROM events
-       WHERE organization_id = $1
-       GROUP BY 1
-       ORDER BY value DESC`,
-      [orgId]
-    );
-    const payloadData = result.rows.map(r => ({ label: r.label, value: Number(r.value) || 0 }));
-    return {
-      type: 'prediction',
-      chartType: 'pie',
-      title: 'Event Status Distribution',
-      data: payloadData,
-      insight: buildInsightFromDistribution(payloadData, 'event status distribution'),
-    };
-  }
+  const total = normalized.reduce((s, d) => s + d.value, 0);
+  const scaled = total > 0
+    ? normalized.map((d) => ({ ...d, value: Math.round((d.value / total) * 100) }))
+    : normalized.map((d, i) => ({ ...d, value: i === 0 ? 60 : 40 / (normalized.length - 1) }));
 
-  // Support/prediction-style queries from surveys/voters
-  const surveyRes = await pool.query(
-    `SELECT support_status, COUNT(*)::int AS value
-     FROM surveys
-     WHERE organization_id = $1
-     GROUP BY support_status`,
-    [orgId]
-  );
-
-  let sourceRows = surveyRes.rows;
-  if (!sourceRows || sourceRows.length === 0) {
-    const voterRes = await pool.query(
-      `SELECT support_status, COUNT(*)::int AS value
-       FROM voters
-       WHERE organization_id = $1
-       GROUP BY support_status`,
-      [orgId]
-    );
-    sourceRows = voterRes.rows;
-  }
-
-  const buckets = { Supporter: 0, Opponent: 0, Neutral: 0 };
-  for (const row of sourceRows || []) {
-    const bucket = mapSupportBucket(row.support_status);
-    buckets[bucket] += Number(row.value) || 0;
-  }
-
-  let payloadData = [
-    { label: 'Supporter', value: buckets.Supporter },
-    { label: 'Opponent', value: buckets.Opponent },
-    { label: 'Neutral', value: buckets.Neutral },
-  ];
-
-  // Generic fallback for any query using real operational counts
-  const totalSupport = payloadData.reduce((sum, d) => sum + d.value, 0);
-  if (totalSupport === 0) {
-    const counts = await Promise.all([
-      pool.query('SELECT COUNT(*)::int AS value FROM voters WHERE organization_id = $1', [orgId]),
-      pool.query('SELECT COUNT(*)::int AS value FROM surveys WHERE organization_id = $1', [orgId]),
-      pool.query('SELECT COUNT(*)::int AS value FROM tasks WHERE organization_id = $1', [orgId]),
-      pool.query('SELECT COUNT(*)::int AS value FROM events WHERE organization_id = $1', [orgId]),
-    ]);
-
-    payloadData = [
-      { label: 'Voters', value: Number(counts[0].rows[0]?.value) || 0 },
-      { label: 'Surveys', value: Number(counts[1].rows[0]?.value) || 0 },
-      { label: 'Tasks', value: Number(counts[2].rows[0]?.value) || 0 },
-      { label: 'Events', value: Number(counts[3].rows[0]?.value) || 0 },
-    ];
-
-    return {
-      type: 'prediction',
-      chartType: 'pie',
-      title: 'Operational Data Distribution',
-      data: payloadData,
-      insight: buildInsightFromDistribution(payloadData, 'operational data distribution'),
-    };
-  }
+  // Correct rounding drift so sum is exactly 100
+  const sum = scaled.reduce((s, d) => s + d.value, 0);
+  if (sum !== 100) scaled[0].value += (100 - sum);
 
   return {
     type: 'prediction',
     chartType: 'pie',
-    title: 'Support Distribution',
-    data: payloadData,
-    insight: buildInsightFromDistribution(payloadData, 'support distribution'),
+    title: String(raw?.title || 'Prediction Breakdown'),
+    data: scaled,
+    insight: String(raw?.insight || 'Based on current trends, this is the most realistic probability split right now.'),
   };
 }
 
@@ -328,6 +237,55 @@ class AIService {
     }
     const contextualMessage = `${message}${contextBlock}\n\nUse the external context when relevant and provide concise insights.`;
     return this.chat(contextualMessage, history, memories);
+  }
+
+  async predictionChart(message, history = [], memories = []) {
+    if (!this.client) {
+      throw new Error('AI service not configured. Please set OPENAI_API_KEY in environment.');
+    }
+
+    let dynamicPrompt = SYSTEM_PROMPT;
+    if (memories && memories.length > 0) {
+      const memoryString = memories.map(m => `${m.memory_key}: ${m.memory_value}`).join('\n');
+      dynamicPrompt += `\n\nUser Info:\n${memoryString}`;
+    }
+
+    const messages = [
+      {
+        role: 'system',
+        content:
+          `${dynamicPrompt}\n\n` +
+          `For chart requests, return STRICT JSON only (no markdown, no extra text):\n` +
+          `{"type":"prediction","chartType":"pie","title":"Prediction Breakdown","data":[{"label":"Option A","value":60},{"label":"Option B","value":40}],"insight":"1-2 lines natural explanation"}\n` +
+          `Rules:\n` +
+          `- values must be realistic and sum to 100\n` +
+          `- do not mention database/internal records\n` +
+          `- do not include any text outside JSON`,
+      },
+      ...normalizeHistory(history),
+      { role: 'user', content: message.substring(0, 4000) },
+    ];
+
+    const completion = await this.client.chat.completions.create({
+      model: DEFAULT_MODEL,
+      messages,
+      temperature: 0.7,
+      max_tokens: 700,
+    });
+
+    const content = completion?.choices?.[0]?.message?.content || '{}';
+    const raw = String(content).trim();
+    try {
+      return sanitizePredictionPayload(JSON.parse(raw));
+    } catch {
+      const jsonMatch = raw.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) return sanitizePredictionPayload({});
+      try {
+        return sanitizePredictionPayload(JSON.parse(jsonMatch[0]));
+      } catch {
+        return sanitizePredictionPayload({});
+      }
+    }
   }
 
   async extractMemories(message, lastResponse) {
@@ -495,7 +453,7 @@ const chat = async (req, res) => {
         reply = await aiService.chatWithContext(message, effectiveHistory, memories, snippets);
         aiResponse = { type: 'text', text: reply, queryType };
       } else if (chartRequested) {
-        const predictionPayload = await buildPredictionPayload(message, orgId);
+        const predictionPayload = await aiService.predictionChart(message, effectiveHistory, memories);
         reply = predictionPayload.insight;
         aiResponse = predictionPayload;
       } else {
