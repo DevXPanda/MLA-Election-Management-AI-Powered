@@ -218,8 +218,8 @@ export const workAllocationAPI = {
 
 // ─── AI Chat API ───
 export const aiAPI = {
-  chat: (message: string, history: Array<{ role: string; content: string }>, session_id?: number) =>
-    api.post('/ai/chat', { message, history, session_id }),
+  chat: (message: string, history: Array<{ role: string; content: string }>, session_id?: number, userId?: number | string) =>
+    api.post('/ai/chat', { message, history, session_id, userId }),
   getSessions: () =>
     api.get('/ai/sessions'),
   getSessionMessages: (sessionId: number) =>

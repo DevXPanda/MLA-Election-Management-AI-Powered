@@ -12,13 +12,40 @@ import {
   MessageSquare, ArrowDown, User, Clock, ChevronLeft,
   MoreHorizontal, X
 } from 'lucide-react';
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  BarElement,
+  ArcElement,
+  Tooltip,
+  Legend,
+} from 'chart.js';
+import { Line, Bar, Pie } from 'react-chartjs-2';
+
+ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, ArcElement, Tooltip, Legend);
 
 // ── Types ──────────────────────────────────────────────────────
 interface ChatMessage {
   id: string | number;
   role: 'user' | 'assistant';
   content: string;
+  charts?: AIChartPayload[];
   timestamp: Date;
+}
+
+interface PredictionDataPoint {
+  label: string;
+  value: number;
+}
+
+interface AIChartPayload {
+  chartType: 'line' | 'bar' | 'pie';
+  title: string;
+  labels: string[];
+  data: number[];
 }
 
 interface ChatSession {
@@ -153,6 +180,40 @@ function TypingIndicator() {
           <div className="w-2 h-2 rounded-full bg-saffron-400 animate-bounce" style={{ animationDelay: '200ms', animationDuration: '1.4s' }} />
           <div className="w-2 h-2 rounded-full bg-saffron-400 animate-bounce" style={{ animationDelay: '400ms', animationDuration: '1.4s' }} />
         </div>
+      </div>
+    </div>
+  );
+}
+
+function ChartCard({ chart }: { chart: AIChartPayload }) {
+  const data = {
+    labels: chart.labels || [],
+    datasets: [{
+      label: chart.title || 'Series',
+      data: Array.isArray(chart.data) ? chart.data : [],
+      borderColor: '#f59e0b',
+      backgroundColor: 'rgba(245, 158, 11, 0.25)',
+      tension: 0.3,
+      fill: chart.chartType !== 'bar',
+    }],
+  };
+
+  const options = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { display: true, position: 'top' as const },
+      title: { display: !!chart.title, text: chart.title },
+    },
+  };
+
+  return (
+    <div className="mt-3 rounded-xl border border-dark-200 dark:border-white/[0.08] bg-white/70 dark:bg-dark-900/30 p-3">
+      <p className="text-[11px] font-medium text-dark-600 dark:text-dark-300 mb-2">{chart.title}</p>
+      <div className="h-56">
+        {chart.chartType === 'bar' ? <Bar data={data} options={options} /> : null}
+        {chart.chartType === 'pie' ? <Pie data={data} options={options} /> : null}
+        {chart.chartType === 'line' ? <Line data={data} options={options} /> : null}
       </div>
     </div>
   );
@@ -363,7 +424,7 @@ export default function AIAssistantPage() {
 
     try {
       const history = [...messages, userMsg].slice(-10).map(m => ({ role: m.role, content: m.content }));
-      const res = await aiAPI.chat(messageText, history, activeSessionId || undefined);
+      const res = await aiAPI.chat(messageText, history, activeSessionId || undefined, user?.id);
 
       if (res.data.success && res.data.reply) {
         // Update active session
@@ -371,10 +432,23 @@ export default function AIAssistantPage() {
           setActiveSessionId(res.data.session_id);
         }
 
+        const aiResponse = res.data.ai_response;
+        const predictionCharts: AIChartPayload[] =
+          aiResponse?.type === 'prediction' && Array.isArray(aiResponse?.data)
+            ? [{
+              chartType: aiResponse.chartType === 'pie' ? 'pie' : 'pie',
+              title: aiResponse?.title || 'Prediction Distribution',
+              labels: aiResponse.data.map((d: PredictionDataPoint) => d.label),
+              data: aiResponse.data.map((d: PredictionDataPoint) => Number(d.value) || 0),
+            }]
+            : [];
+
+        const genericCharts: AIChartPayload[] = Array.isArray(aiResponse?.charts) ? aiResponse.charts : [];
         const aiMsg: ChatMessage = {
           id: `ai-${Date.now()}`,
           role: 'assistant',
-          content: res.data.reply,
+          content: aiResponse?.insight || aiResponse?.text || res.data.reply,
+          charts: predictionCharts.length > 0 ? predictionCharts : genericCharts,
           timestamp: new Date(res.data.timestamp || Date.now()),
         };
         setMessages(prev => [...prev, aiMsg]);
@@ -538,7 +612,7 @@ export default function AIAssistantPage() {
                 <div>
                   <p className="text-xs font-medium text-dark-900 dark:text-white leading-tight">AI Assistant</p>
                   <p className="text-[9px] text-dark-400 dark:text-dark-500">
-                    {isLoading ? 'Typing...' : 'Online • Groq LLaMA 3.3'}
+                    {isLoading ? 'Typing...' : 'Online • OpenAI'}
                   </p>
                 </div>
               </div>
@@ -571,6 +645,9 @@ export default function AIAssistantPage() {
                           }
                         `}>
                           {msg.role === 'assistant' ? renderMarkdown(msg.content) : msg.content}
+                          {msg.role === 'assistant' && Array.isArray(msg.charts) && msg.charts.length > 0
+                            ? msg.charts.map((chart, idx) => <ChartCard key={`${msg.id}-chart-${idx}`} chart={chart} />)
+                            : null}
                         </div>
 
                         {/* Copy action for AI messages */}
