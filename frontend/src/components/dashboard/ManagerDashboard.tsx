@@ -22,8 +22,10 @@ export default function ManagerDashboard({ stats, chartDefaults }: DashboardProp
     labels: ['Completed', 'Pending'],
     datasets: [{
       data: [70, 30],
-      backgroundColor: ['#22c55e', '#1e293b'],
+      backgroundColor: ['#10b981', '#334155'],
+      hoverBackgroundColor: ['#059669', '#1e293b'],
       borderWidth: 0,
+      weight: 1
     }],
   };
 

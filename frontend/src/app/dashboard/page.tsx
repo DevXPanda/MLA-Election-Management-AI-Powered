@@ -32,36 +32,57 @@ export default function DashboardPage() {
   const chartDefaults = useMemo(() => ({
     responsive: true,
     maintainAspectRatio: false,
+    layout: {
+      padding: { top: 10, bottom: 0, left: 0, right: 10 }
+    },
     plugins: {
-      legend: { display: false },
+      legend: { 
+        display: false,
+      },
       tooltip: {
         backgroundColor: theme === 'dark' ? '#0f172a' : '#ffffff',
         titleColor: theme === 'dark' ? '#f1f5f9' : '#1e293b',
         bodyColor: theme === 'dark' ? '#94a3b8' : '#475569',
-        borderColor: theme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
+        borderColor: theme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)',
         borderWidth: 1,
-        padding: 12,
-        cornerRadius: 12,
+        padding: 14,
+        cornerRadius: 16,
+        usePointStyle: true,
+        titleFont: { size: 13, weight: 700 },
+        bodyFont: { size: 12 },
+        boxPadding: 6,
+        shadowBlur: 10,
+        shadowColor: 'rgba(0,0,0,0.1)',
       },
     },
     scales: {
       x: {
         grid: { display: false },
+        border: { display: false },
         ticks: { 
           color: theme === 'dark' ? '#64748b' : '#334155', 
-          font: { size: 10, weight: '500' } 
+          font: { size: 11, weight: 400, family: "'Inter', sans-serif" },
+          padding: 10
         },
       },
       y: {
+        beginAtZero: true,
         grid: { 
-          color: theme === 'dark' ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.05)' 
+          color: theme === 'dark' ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.03)',
+          drawTicks: false,
         },
         ticks: { 
           color: theme === 'dark' ? '#64748b' : '#334155', 
-          font: { size: 10, weight: '500' } 
+          font: { size: 11, weight: 400, family: "'Inter', sans-serif" },
+          padding: 12,
+          maxTicksLimit: 6
         },
         border: { display: false },
       },
+    },
+    interaction: {
+      mode: 'index' as const,
+      intersect: false,
     },
   }), [theme]);
 

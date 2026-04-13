@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Vote, Target, ShieldAlert, Activity, Map as MapIcon, TrendingUp, HelpCircle } from 'lucide-react';
+import { Users, ListTodo, Vote, Target, ShieldAlert, Activity, Map as MapIcon, TrendingUp, HelpCircle, BarChart3 } from 'lucide-react';
 import { Doughnut, Bar, Line } from 'react-chartjs-2';
 import { format } from 'date-fns';
 import { DashboardStats } from '@/types';
@@ -30,8 +30,9 @@ export default function MlaDashboard({ stats, chartDefaults }: DashboardProps) {
         booth_strength?.competitive_booths || 0,
         booth_strength?.weak_booths || 0
       ],
-      backgroundColor: ['#22c55e', '#f59e0b', '#ef4444'],
+      backgroundColor: ['#10b981', '#f59e0b', '#ef4444'],
       borderWidth: 0,
+      weight: 1
     }],
   };
 
@@ -40,29 +41,35 @@ export default function MlaDashboard({ stats, chartDefaults }: DashboardProps) {
     datasets: [{
       label: 'Reported Counts',
       data: top_issues?.map(i => parseInt(i.count)) || [],
-      backgroundColor: 'rgba(249, 115, 22, 0.4)',
+      backgroundColor: 'rgba(249, 115, 22, 0.2)',
       borderColor: '#f97316',
-      borderWidth: 1,
-      borderRadius: 4,
+      borderWidth: 2,
+      borderRadius: 12,
+      borderSkipped: false,
     }],
   };
 
   const surveyTrendData = {
     labels: stats.charts.survey_trend?.map((s) => format(new Date(s.date), 'dd MMM')) || [],
     datasets: [{
-      label: 'Constituency Surveys',
+      label: 'Campaign Growth',
       data: stats.charts.survey_trend?.map((s) => parseInt(s.count)) || [],
       borderColor: '#f97316',
-      backgroundColor: 'rgba(249, 115, 22, 0.1)',
+      backgroundColor: 'rgba(249, 115, 22, 0.12)',
       fill: true,
-      tension: 0.4,
-      pointRadius: 0,
-      borderWidth: 2,
+      tension: 0.35,
+      pointRadius: 3,
+      pointBackgroundColor: '#f97316',
+      pointBorderColor: '#ffffff',
+      pointBorderWidth: 2,
+      pointHoverRadius: 6,
+      borderWidth: 3,
     }],
   };
 
   return (
     <div className="dashboard-container pb-12">
+      {/* Metrics Row */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-5 mb-8">
         {statCards.map((card) => (
           <div key={card.label} className="glass-card-hover p-5 relative overflow-hidden group">
@@ -99,33 +106,100 @@ export default function MlaDashboard({ stats, chartDefaults }: DashboardProps) {
           </div>
         </div>
 
-        <div className="lg:col-span-2 space-y-6">
-          <div className="glass-card p-6 h-1/2 min-h-[250px]">
-            <h3 className="text-base font-medium text-dark-900 dark:text-white mb-6 flex items-center gap-2">
-              <HelpCircle className="w-5 h-5 text-blue-500" /> Top Issues
+        <div className="glass-card p-6 border border-dark-100/50 dark:border-white/5 shadow-xl">
+          <h3 className="text-base font-medium text-dark-900 dark:text-white mb-8 flex items-center gap-2">
+             <Users className="w-5 h-5 text-blue-500" /> Gender Distribution
+          </h3>
+          <div className="h-[220px]">
+            <Doughnut data={{
+              labels: stats.charts.gender_breakdown?.map(g => g.gender) || [],
+              datasets: [{
+                data: stats.charts.gender_breakdown?.map(g => parseInt(g.count)) || [],
+                backgroundColor: ['#3b82f6', '#ec4899', '#64748b'],
+                borderWidth: 0,
+              }]
+            }} options={{ ...chartDefaults, cutout: '75%' }} />
+          </div>
+        </div>
+
+        <div className="glass-card p-6 border border-dark-100/50 dark:border-white/5 shadow-xl bg-gradient-to-br from-indigo-500/[0.02] to-transparent">
+          <h3 className="text-base font-medium text-dark-900 dark:text-white mb-8 flex items-center gap-2">
+             <BarChart3 className="w-5 h-5 text-indigo-500" /> Key Constituency Issues
+          </h3>
+          <div className="space-y-5">
+            {stats.stats.top_issues?.slice(0, 5).map((issue, i) => (
+              <div key={i} className="relative">
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-[11px] font-bold text-dark-700 dark:text-dark-300 uppercase tracking-widest flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-indigo-500" /> {issue.name}
+                  </span>
+                  <span className="text-[10px] font-black text-indigo-500">{issue.count} REF</span>
+                </div>
+                <div className="h-1.5 bg-dark-100 dark:bg-dark-800 rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-gradient-to-r from-indigo-600 to-blue-400 rounded-full transition-all duration-1000"
+                    style={{ width: `${(parseInt(issue.count) / Math.max(...(stats.stats.top_issues?.map(it => parseInt(it.count)) || [1]))) * 100}%` }} 
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="glass-card overflow-hidden">
+          <div className="p-6 border-b border-dark-100 dark:border-white/5 flex items-center justify-between">
+            <h3 className="text-base font-medium text-dark-900 dark:text-white flex items-center gap-2">
+              <Users className="w-5 h-5 text-emerald-500" /> Field Performance
             </h3>
-            <div className="h-[180px]">
-              <Bar
-                data={issuesData}
-                options={{
-                  ...chartDefaults,
-                  indexAxis: 'y',
-                  scales: {
-                    x: { display: false },
-                    y: { grid: { display: false }, ticks: { color: '#64748b', font: { size: 10, weight: '500' } } }
-                  }
-                }}
-              />
+            <span className="text-[10px] font-bold text-dark-500 uppercase tracking-widest">Top Contributors</span>
+          </div>
+          <div className="p-4 space-y-2">
+            {stats.lists.top_performers?.map((worker, i) => (
+              <div key={worker.name} className="flex items-center justify-between p-3 rounded-xl hover:bg-dark-50 dark:hover:bg-white/5 transition-colors">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-dark-100 dark:bg-dark-800 flex items-center justify-center text-xs font-medium text-dark-500 dark:text-dark-400">{i + 1}</div>
+                  <div className="text-sm font-medium text-dark-800 dark:text-dark-100">{worker.name}</div>
+                </div>
+                <div className="text-[11px] font-medium text-green-600 dark:text-green-400 capitalize bg-green-500/10 px-3 py-1 rounded-full">{worker.surveys_count} Surveys</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="glass-card p-6 flex flex-col bg-gradient-to-br from-saffron-500/[0.03] to-transparent border border-saffron-500/10">
+          <div className="flex items-center gap-3 mb-8">
+            <div className="w-10 h-10 rounded-xl bg-saffron-500/10 flex items-center justify-center">
+              <Target className="w-5 h-5 text-saffron-500" />
+            </div>
+            <div>
+              <h4 className="text-sm font-bold text-dark-900 dark:text-white uppercase tracking-wider leading-none">Constituency Target</h4>
+              <p className="text-[10px] text-dark-500 mt-1 uppercase tracking-widest">Election Goal 2026</p>
             </div>
           </div>
+          
+          <div className="space-y-6 flex-grow flex flex-col justify-center">
+             <div>
+                <div className="flex justify-between items-end mb-3">
+                   <span className="text-xs font-bold text-dark-600 dark:text-dark-400 uppercase tracking-[2px]">Booth Penetration</span>
+                   <span className="text-lg font-black text-saffron-500">65%</span>
+                </div>
+                <div className="h-4 bg-dark-100 dark:bg-dark-800/50 rounded-full overflow-hidden p-[3px] border border-dark-200 dark:border-white/5">
+                   <div className="bg-gradient-to-r from-saffron-600 to-amber-400 h-full w-[65%] rounded-full shadow-[0_0_15px_rgba(249,115,22,0.4)]" />
+                </div>
+             </div>
 
-          <div className="glass-card p-6 h-1/2 min-h-[250px]">
-            <h3 className="text-base font-medium text-dark-900 dark:text-white mb-6 flex items-center gap-2">
-              <TrendingUp className="w-5 h-5 text-emerald-500" /> Ground Momentum
-            </h3>
-            <div className="h-[180px]">
-              <Line data={surveyTrendData} options={chartDefaults} />
-            </div>
+             <div className="grid grid-cols-2 gap-4">
+                <div className="p-4 rounded-2xl bg-white/50 dark:bg-white/5 border border-dark-100 dark:border-white/5">
+                   <div className="text-[10px] font-bold text-dark-500 uppercase tracking-widest mb-1">Target Voters</div>
+                   <div className="text-xl font-black text-dark-900 dark:text-white">14.2K</div>
+                </div>
+                <div className="p-4 rounded-2xl bg-white/50 dark:bg-white/5 border border-dark-100 dark:border-white/5">
+                   <div className="text-[10px] font-bold text-dark-500 uppercase tracking-widest mb-1">Reach Gap</div>
+                   <div className="text-xl font-black text-red-500">-4.8K</div>
+                </div>
+             </div>
           </div>
         </div>
       </div>

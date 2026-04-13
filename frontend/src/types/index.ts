@@ -337,6 +337,8 @@ export interface DashboardStats {
     support_stats: Array<{ support_status: string; count: string }>;
     survey_trend: Array<{ date: string; count: string }>;
     worker_performance?: Array<{ name: string; surveys_count: string; tasks_completed: string }>;
+    gender_breakdown?: Array<{ gender: string; count: string }>;
+    task_status?: Array<{ status: string; count: string }>;
   };
   lists: {
     recent_activity: Array<{

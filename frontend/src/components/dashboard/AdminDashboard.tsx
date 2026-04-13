@@ -1,6 +1,6 @@
 'use client';
 
-import { Users, Vote, ClipboardList, ListTodo, Calendar, UserCheck, Activity, ArrowUpRight } from 'lucide-react';
+import { Users, Vote, ClipboardList, ListTodo, Calendar, UserCheck, Activity, ArrowUpRight, Target, BarChart3 } from 'lucide-react';
 import { Doughnut, Line } from 'react-chartjs-2';
 import { format, formatDistanceToNow } from 'date-fns';
 import { DashboardStats } from '@/types';
@@ -24,7 +24,7 @@ export default function AdminDashboard({ stats, chartDefaults }: DashboardProps)
     labels: stats.charts.support_stats?.map((s) => s.support_status.toUpperCase()) || [],
     datasets: [{
       data: stats.charts.support_stats?.map((s) => parseInt(s.count)) || [],
-      backgroundColor: ['#16a34a', '#d97706', '#dc2626', '#475569'],
+      backgroundColor: ['#10b981', '#f59e0b', '#ef4444', '#64748b'],
       borderWidth: 0,
     }],
   };
@@ -32,14 +32,36 @@ export default function AdminDashboard({ stats, chartDefaults }: DashboardProps)
   const surveyTrendData = {
     labels: stats.charts.survey_trend?.map((s) => format(new Date(s.date), 'dd MMM')) || [],
     datasets: [{
-      label: 'Surveys',
+      label: 'Campaign Growth',
       data: stats.charts.survey_trend?.map((s) => parseInt(s.count)) || [],
       borderColor: '#f97316',
-      backgroundColor: 'rgba(249, 115, 22, 0.1)',
+      backgroundColor: 'rgba(249, 115, 22, 0.12)',
       fill: true,
-      tension: 0.4,
-      pointRadius: 0,
-      borderWidth: 2,
+      tension: 0.35,
+      pointRadius: 3,
+      pointBackgroundColor: '#f97316',
+      pointBorderColor: '#ffffff',
+      pointBorderWidth: 2,
+      pointHoverRadius: 6,
+      borderWidth: 3,
+    }],
+  };
+
+  const genderData = {
+    labels: stats.charts.gender_breakdown?.map(g => g.gender) || [],
+    datasets: [{
+      data: stats.charts.gender_breakdown?.map(g => parseInt(g.count)) || [],
+      backgroundColor: ['#3b82f6', '#ec4899', '#64748b'],
+      borderWidth: 0,
+    }],
+  };
+
+  const taskBreakdownData = {
+    labels: stats.charts.task_status?.map(t => t.status.replace(/_/g, ' ').toUpperCase()) || [],
+    datasets: [{
+      data: stats.charts.task_status?.map(t => parseInt(t.count)) || [],
+      backgroundColor: ['#10b981', '#f59e0b', '#ef4444', '#334155'],
+      borderWidth: 0,
     }],
   };
 
@@ -78,7 +100,7 @@ export default function AdminDashboard({ stats, chartDefaults }: DashboardProps)
 
         <div className="glass-card p-6 lg:col-span-2 border border-dark-100/50 dark:border-white/5 shadow-xl">
           <h3 className="text-base font-medium text-dark-900 dark:text-white mb-8 flex items-center gap-2">
-            <ArrowUpRight className="w-5 h-5 text-emerald-500" /> Campaign Growth
+            <ArrowUpRight className="w-5 h-5 text-saffron-500" /> Campaign Growth
           </h3>
           <div className="h-[280px]">
             <Line data={surveyTrendData} options={chartDefaults} />
@@ -86,45 +108,120 @@ export default function AdminDashboard({ stats, chartDefaults }: DashboardProps)
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="glass-card overflow-hidden">
-          <div className="p-6 border-b border-dark-100 dark:border-white/5 flex items-center justify-between">
-            <h3 className="text-base font-medium text-dark-900 dark:text-white">Regional Top Performers</h3>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+        <div className="glass-card p-6 border border-dark-100/50 dark:border-white/5 shadow-xl">
+          <h3 className="text-base font-medium text-dark-900 dark:text-white mb-8 flex items-center gap-2">
+             <Users className="w-5 h-5 text-blue-500" /> Gender Distribution
+          </h3>
+          <div className="h-[220px]">
+            <Doughnut data={genderData} options={{ ...chartDefaults, cutout: '75%' }} />
+          </div>
+          <div className="flex flex-wrap gap-2 mt-6 justify-center">
+            {stats.charts.gender_breakdown?.map((g, i) => (
+              <div key={i} className="px-3 py-1.5 rounded-lg bg-dark-50 dark:bg-dark-800/40 flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider border border-dark-100 dark:border-transparent">
+                <span className={`w-1.5 h-1.5 rounded-full ${['bg-blue-500', 'bg-pink-500', 'bg-slate-500'][i % 3]}`} />
+                <span className="text-dark-600 dark:text-dark-400">{g.gender}: {g.count}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="glass-card p-6 border border-dark-100/50 dark:border-white/5 shadow-xl">
+          <h3 className="text-base font-medium text-dark-900 dark:text-white mb-8 flex items-center gap-2">
+             <ListTodo className="w-5 h-5 text-purple-500" /> Task Efficiency
+          </h3>
+          <div className="h-[220px]">
+            <Doughnut data={taskBreakdownData} options={{ ...chartDefaults, cutout: '75%' }} />
+          </div>
+          <div className="flex flex-wrap gap-2 mt-6 justify-center">
+            {stats.charts.task_status?.map((t, i) => (
+              <div key={i} className="px-3 py-1.5 rounded-lg bg-dark-50 dark:bg-dark-800/40 flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider border border-dark-100 dark:border-transparent">
+                <span className={`w-1.5 h-1.5 rounded-full ${['bg-green-500', 'bg-amber-500', 'bg-red-500', 'bg-indigo-500'][i % 4]}`} />
+                <span className="text-dark-600 dark:text-dark-400">{t.status.split('_').join(' ')}: {t.count}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="glass-card overflow-hidden h-full border border-dark-100/50 dark:border-white/5 shadow-xl">
+          <div className="p-6 border-b border-dark-100 dark:border-white/5 flex items-center justify-between bg-dark-50/50 dark:bg-white/[0.02]">
+            <h3 className="text-base font-medium text-dark-900 dark:text-white flex items-center gap-2">
+               <UserCheck className="w-5 h-5 text-emerald-500" /> Top Performers
+            </h3>
             <ArrowUpRight className="w-4 h-4 text-dark-500" />
           </div>
           <div className="p-4 space-y-2">
-            {stats.lists.top_performers?.map((worker, i) => (
-              <div key={worker.name} className="flex items-center justify-between p-3 rounded-xl hover:bg-dark-50 dark:hover:bg-white/5 transition-colors">
+            {stats.lists.top_performers?.slice(0, 5).map((worker, i) => (
+              <div key={worker.name} className="flex items-center justify-between p-3 rounded-xl hover:bg-dark-50 dark:hover:bg-white/5 transition-colors group">
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-dark-100 dark:bg-dark-800 flex items-center justify-center text-xs font-medium text-dark-500 dark:text-dark-400">{i + 1}</div>
+                  <div className="w-8 h-8 rounded-lg bg-dark-100 dark:bg-dark-800 flex items-center justify-center text-xs font-bold text-dark-500 group-hover:text-emerald-500 transition-colors">{i + 1}</div>
                   <div className="text-sm font-medium text-dark-800 dark:text-dark-100">{worker.name}</div>
                 </div>
-                <div className="flex gap-4 text-[11px] font-medium uppercase tracking-wider">
-                  <span className="text-green-600 dark:text-green-400">{worker.surveys_count} Surveys</span>
-                  <span className="text-blue-600 dark:text-blue-400">{worker.tasks_completed} Tasks</span>
+                <div className="flex gap-4 text-[10px] font-bold uppercase tracking-wider">
+                  <span className="text-emerald-500">{worker.surveys_count}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="glass-card overflow-hidden border border-dark-100/50 dark:border-white/5 shadow-xl">
+          <div className="p-6 border-b border-dark-100 dark:border-white/5 flex items-center justify-between bg-dark-50/50 dark:bg-white/[0.02]">
+            <h3 className="text-base font-medium text-dark-900 dark:text-white flex items-center gap-2">
+               <Activity className="w-5 h-5 text-saffron-500" /> Live Operation Logs
+            </h3>
+          </div>
+          <div className="max-h-[360px] overflow-y-auto p-4 custom-scrollbar">
+            {stats.lists.recent_activity?.map((activity) => (
+              <div key={activity.id} className="flex gap-4 p-4 rounded-2xl hover:bg-dark-50 dark:hover:bg-white/5 transition-all mb-1">
+                <div className="w-10 h-10 rounded-full bg-dark-100 dark:bg-dark-800 flex items-center justify-center shrink-0 border border-dark-200/50 dark:border-white/5">
+                  <Activity className="w-4 h-4 text-dark-400" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[13px] text-dark-700 dark:text-dark-300 leading-snug">
+                    <span className="font-bold text-dark-900 dark:text-dark-100">{activity.user_name}</span> {activity.action.toLowerCase().replace(/_/g, ' ')}
+                  </p>
+                  <div className="flex justify-between items-center mt-2">
+                    <div className="text-[10px] font-bold text-dark-400 dark:text-dark-500 uppercase tracking-widest bg-dark-100 dark:bg-dark-800 px-2 py-0.5 rounded-md">
+                      {activity.module}
+                    </div>
+                    <div className="text-[10px] font-medium text-dark-400">
+                      {formatDistanceToNow(new Date(activity.created_at), { addSuffix: true })}
+                    </div>
+                  </div>
                 </div>
               </div>
             ))}
           </div>
         </div>
 
-        <div className="glass-card overflow-hidden">
-          <div className="p-6 border-b border-dark-100 dark:border-white/5">
-            <h3 className="text-base font-medium text-dark-900 dark:text-white">Live Operation Logs</h3>
+        <div className="glass-card p-8 border border-dark-100/50 dark:border-white/5 shadow-xl bg-gradient-to-br from-indigo-500/[0.03] to-transparent">
+          <div className="mb-10 flex items-center justify-between">
+            <div>
+              <h3 className="text-lg font-bold text-dark-900 dark:text-white flex items-center gap-3">
+                <BarChart3 className="w-6 h-6 text-indigo-500" /> Key Constituency Issues
+              </h3>
+              <p className="text-xs text-dark-500 font-medium uppercase tracking-[2px] mt-2">Major Public Constraints</p>
+            </div>
+            <div className="bg-indigo-500/10 text-indigo-500 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest">LIVE DATA</div>
           </div>
-          <div className="max-h-[320px] overflow-y-auto p-4 custom-scrollbar">
-            {stats.lists.recent_activity?.map((activity) => (
-              <div key={activity.id} className="flex gap-3 p-3 rounded-xl hover:bg-dark-50 dark:hover:bg-white/5 transition-all">
-                <div className="w-8 h-8 rounded-full bg-dark-100 dark:bg-dark-800 flex items-center justify-center shrink-0">
-                  <Activity className="w-4 h-4 text-dark-500 dark:text-dark-600" />
+          
+          <div className="space-y-6">
+            {stats.stats.top_issues?.slice(0, 5).map((issue, i) => (
+              <div key={i} className="relative group">
+                <div className="flex justify-between items-center mb-2.5">
+                  <span className="text-[11px] font-black text-dark-800 dark:text-dark-300 uppercase tracking-[1.5px] group-hover:text-indigo-500 transition-colors">
+                    {issue.name}
+                  </span>
+                  <span className="text-[10px] font-black text-indigo-500">{issue.count} REF</span>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs text-dark-600 dark:text-dark-300">
-                    <span className="font-medium text-dark-900 dark:text-dark-100">{activity.user_name}</span> {activity.action.toLowerCase().replace(/_/g, ' ')}
-                  </p>
-                  <div className="text-[10px] font-medium text-dark-400 dark:text-dark-500 uppercase mt-1">
-                    {formatDistanceToNow(new Date(activity.created_at), { addSuffix: true })} • {activity.module}
-                  </div>
+                <div className="h-2 bg-dark-100 dark:bg-dark-800 rounded-full overflow-hidden p-[1px] border border-dark-200/50 dark:border-white/5">
+                  <div 
+                    className="h-full bg-gradient-to-r from-indigo-600 to-blue-400 rounded-full transition-all duration-1000 group-hover:shadow-[0_0_12px_rgba(79,70,229,0.3)]"
+                    style={{ width: `${(parseInt(issue.count) / Math.max(...(stats.stats.top_issues?.map(it => parseInt(it.count)) || [1]))) * 100}%` }} 
+                  />
                 </div>
               </div>
             ))}

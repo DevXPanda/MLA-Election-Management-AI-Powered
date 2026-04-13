@@ -117,12 +117,42 @@ exports.getDashboardStats = async (req, res) => {
         GROUP BY si.name ORDER BY count DESC LIMIT 5
       `, scopeS.params);
 
+      const genderBreakdown = await pool.query(`
+        SELECT gender, COUNT(*) as count 
+        FROM voters 
+        WHERE gender IS NOT NULL AND 1=1${clause}
+        GROUP BY gender
+      `, params);
+
+      const taskStatus = await pool.query(`
+        SELECT status, COUNT(*) as count 
+        FROM tasks 
+        WHERE 1=1${clause}
+        GROUP BY status
+      `, params);
+
+      const topPerformers = await pool.query(`
+        SELECT u.name, COUNT(s.id) as surveys_count, 
+               (SELECT COUNT(*) FROM tasks t WHERE t.assigned_to = u.id AND t.status = 'completed') as tasks_completed
+        FROM users u
+        JOIN surveys s ON u.id = s.surveyor_id
+        WHERE 1=1${clause.replace('organization_id', 'u.organization_id')}
+        GROUP BY u.id, u.name
+        ORDER BY surveys_count DESC
+        LIMIT 5
+      `, params);
+
       const surveyTrend = await pool.query(`
-        SELECT DATE(created_at) as date, COUNT(*) as count 
-        FROM surveys 
-        WHERE created_at >= CURRENT_DATE - INTERVAL '7 days' AND 1=1${clause}
-        GROUP BY DATE(created_at)
-        ORDER BY date ASC
+        WITH days AS (
+          SELECT generate_series(CURRENT_DATE - INTERVAL '6 days', CURRENT_DATE, '1 day')::date as day
+        )
+        SELECT 
+          d.day as date, 
+          COUNT(s.id) as count
+        FROM days d
+        LEFT JOIN surveys s ON DATE(s.created_at) = d.day AND 1=1${clause}
+        GROUP BY d.day
+        ORDER BY d.day ASC
       `, params);
 
       stats = {
@@ -135,6 +165,9 @@ exports.getDashboardStats = async (req, res) => {
       };
       charts.support_stats = sentiment.rows;
       charts.survey_trend = surveyTrend.rows;
+      charts.gender_breakdown = genderBreakdown.rows;
+      charts.task_status = taskStatus.rows;
+      lists.top_performers = topPerformers.rows;
     }
 
     // 4. SUPER ADMIN (System Logs)
