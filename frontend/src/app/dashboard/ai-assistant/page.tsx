@@ -24,7 +24,15 @@ import {
   Legend,
 } from 'chart.js';
 import { Line, Bar, Pie } from 'react-chartjs-2';
+import { marked } from 'marked';
 
+const renderer = new marked.Renderer();
+
+marked.setOptions({
+  renderer: renderer,
+  breaks: false,
+  gfm: true,
+});
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, ArcElement, Tooltip, Legend);
 
 // ── Types ──────────────────────────────────────────────────────
@@ -605,6 +613,22 @@ export default function AIAssistantPage() {
             </div>
           </div>
 
+          <style dangerouslySetInnerHTML={{ __html: `
+            .ai-message p { margin: 4px 0; }
+            .ai-message ul { margin: 4px 0; padding-left: 20px; list-style-type: disc; }
+            .ai-message ol { margin: 4px 0; padding-left: 20px; list-style-type: decimal; }
+            .ai-message li { margin: 2px 0; display: list-item; }
+            .ai-message h1, .ai-message h2, .ai-message h3 { margin: 8px 0 4px 0; }
+            .ai-message br { display: none; }
+            .ai-message table { border-collapse: collapse; width: 100%; margin: 8px 0; font-size: 13px; }
+            .ai-message th, .ai-message td { border: 1px solid #ddd; padding: 6px 10px; text-align: left; }
+            .ai-message th { background-color: #f5f5f5; font-weight: bold; }
+            .ai-message tr:nth-child(even) { background-color: #fafafa; }
+            .dark .ai-message th, .dark .ai-message td { border-color: rgba(255,255,255,0.1); }
+            .dark .ai-message th { background-color: rgba(255,255,255,0.05); color: #fff; }
+            .dark .ai-message tr:nth-child(even) { background-color: rgba(255,255,255,0.02); color: #e5e5e5; }
+          `}} />
+
           {/* ── Mobile History Overlay ──────────────────────────── */}
           {mobileHistoryOpen && (
             <div className="fixed inset-0 z-50 lg:hidden">
@@ -681,13 +705,15 @@ export default function AIAssistantPage() {
                       <div className={`group max-w-[80%] ${msg.role === 'user' ? 'max-w-[75%]' : ''}`}>
                         {/* Bubble */}
                         <div className={`
-                          px-4 py-3 text-[13.5px] leading-[1.75] whitespace-pre-wrap break-words
+                          px-4 py-3 text-[13.5px] leading-[1.75] break-words
                           ${msg.role === 'user'
-                            ? 'bg-gradient-to-br from-saffron-500 to-amber-600 text-white rounded-2xl rounded-br-md shadow-md shadow-saffron-500/20'
+                            ? 'whitespace-pre-wrap bg-gradient-to-br from-saffron-500 to-amber-600 text-white rounded-2xl rounded-br-md shadow-md shadow-saffron-500/20'
                             : 'bg-white dark:bg-dark-800/60 text-dark-700 dark:text-dark-300 border border-dark-100 dark:border-white/[0.06] rounded-2xl rounded-bl-md shadow-sm'
                           }
                         `}>
-                          {msg.role === 'assistant' ? renderMarkdown(msg.content) : msg.content}
+                          {msg.role === 'assistant' 
+                            ? <div className="ai-message" dangerouslySetInnerHTML={{ __html: marked.parse(msg.content) as string }} /> 
+                            : msg.content}
                           {msg.role === 'assistant' && Array.isArray(msg.charts) && msg.charts.length > 0
                             ? msg.charts.map((chart, idx) => <ChartCard key={`${msg.id}-chart-${idx}`} chart={chart} />)
                             : null}
