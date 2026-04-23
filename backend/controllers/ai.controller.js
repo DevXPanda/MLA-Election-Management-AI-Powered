@@ -150,7 +150,218 @@ Then show:
 
 💡 Strategic Tag: "Alliance-Driven Competitive Seat"
 
----END HARDCODED KNOWLEDGE BASE---`;
+---END HARDCODED KNOWLEDGE BASE---
+
+---BHARATBN CONSTITUENCY DATABASE---
+
+GHAZIABAD CONSTITUENCY (Seat 56) - BJP:
+Candidates:
+1. Sanjeev Sharma - Probability: 84% - Tag: Incumbent Lock
+   Strengths: Strong organization, Sitting MLA advantage, High recall
+   Weaknesses: Potential anti-incumbency
+
+2. Mayank Goel - Probability: 60% - Tag: High Potential Challenger
+   Strengths: Urban appeal, Clean image, Good resources
+   Weaknesses: Weak organization depth
+
+3. Rajeev Gumber - Probability: 66% - Tag: Strong Internal Challenger
+   Strengths: Trader network, Business influence
+   Weaknesses: Limited mass connect
+
+Insights: Incumbent advantage dominant, Urban voter base decisive, 
+Ticket depends on anti-incumbency
+
+---
+
+MURADNAGAR CONSTITUENCY (Seat 54) - SP:
+Candidates:
+1. OBC Local Leader - Probability: 68% - Tag: Most Viable
+   Strengths: OBC base, Rural reach
+   Weaknesses: Needs broader coalition
+
+2. Tyagi Community Leader - Probability: 62% - Tag: Caste Counter
+   Strengths: Strong caste presence
+   Weaknesses: Limited SP base
+
+3. Minority Leader - Probability: 60% - Tag: Vote Consolidation
+   Strengths: Muslim vote consolidation
+   Weaknesses: Limited winning potential alone
+
+Insights: BJP stronghold seat, Alliance shift hurt SP significantly,
+OBC + Muslim strategy required
+
+---
+
+MODINAGAR CONSTITUENCY (Seat 57) - SP:
+Current MLA: Dr. Manju Shiwach (BJP), won 2022 by 34,619 votes
+2022 runner-up: Sudesh Sharma (RLD alliance), ~35% vote share
+Seat type: Jat-dominant, semi-urban, competitive
+
+Candidates:
+1. Sudesh Sharma - Probability: 70-75% - Tag: Strongest Candidate
+   Former MLA (2012-2017), Runner-up 2022
+   Strengths: Proven winnability, Jat+rural vote base, High recall
+   Weaknesses: Depends on SP-RLD alliance
+
+2. Jat-Dominant Local Leader - Probability: 65%
+   Strengths: Jat community decisive in Modinagar belt
+   
+3. Brahmin/Tyagi Strategic Face - Probability: 60%
+   Strengths: Upper-caste counter to BJP MLA
+
+4. Minority Leader (Muslim Face) - Probability: 55-58%
+   Strengths: Muslim vote consolidation
+
+5. SP Organization Leader - Probability: 52-55%
+   Strengths: Booth-level cadre, ground network
+
+Insights: RLD-BJP alliance changed dynamics, Jat vote shifted from SP,
+SP must rebuild caste coalition. Alliance = Game Changer.
+If SP+RLD continues: Sudesh Sharma almost confirmed (70-75%)
+Strategic Tag: Alliance-Driven Competitive Seat
+
+---
+
+SAHIBABAD CONSTITUENCY (Seat 55) - BJP:
+Candidates:
+1. Sunil Kumar Sharma - Probability: 90% - Tag: Dominant Leader
+   Strengths: Strong organization, Ministerial influence, High urban support
+   
+2. Other BJP Leader - Probability: 55% - Tag: Backup
+
+Insights: Very strong BJP seat, Low probability of ticket change,
+Urban consolidation is key
+
+---
+
+AI SCORING FORMULA (for analysis):
+Score = Winnability(30%) + Organization(20%) + Caste(15%) + 
+        Loyalty(10%) + Image(10%) + Resources(5%) + Survey(10%)
+
+IMPORTANT RULES when answering from this database:
+- Always use this data as PRIMARY source for Ghaziabad district questions
+- Give probability percentages from above data
+- Mention candidate tags (Incumbent Lock, Most Viable, etc.)
+- Show insights section for each constituency
+- If question is about these constituencies, use ONLY this data
+- Format response with proper sections and tables
+
+---BJP TICKET PROBABILITY MODEL---
+
+AI SCORING FORMULA:
+Ticket Score = (0.30 × Winnability) + (0.20 × Organization) + 
+(0.15 × Caste Fit) + (0.10 × Loyalty) + (0.10 × Image) + 
+(0.05 × Resources) + (0.10 × Survey)
+
+Score Interpretation:
+- 80+    → Almost Confirmed
+- 65-80  → Strong Contender  
+- 50-65  → Competitive Zone
+- <50    → Low Probability
+
+---
+
+SAHARANPUR CONSTITUENCY - BJP TICKET ANALYSIS:
+
+Top 5 Candidates - Strategic Comparison:
+
+1. Raghav Lakhanpal - Probability: 85% - Tier 1
+   Political Level: MP (National Level)
+   Strengths: Very High recall, Strong BJP/RSS org, National weight, 
+   Strong rural+urban, Very high winnability
+   Weaknesses: May stay at MP level
+   Tag: Top Contender
+
+2. Jaswant Saini - Probability: 78% - Tier 1
+   Political Level: Sitting MLA
+   Strengths: Strong caste+OBC base, MLA experience, 
+   Strong rural reach, High winnability
+   Tag: Strong Contender
+
+3. Rajeev Gumber - Probability: 68% - Tier 2
+   Political Level: District Leader
+   Strengths: Trader/business network, Strong urban+org support
+   Weaknesses: Weak rural reach
+   Tag: Competitive
+
+4. Shiv Kumar Gupta - Probability: 62% - Tier 2
+   Political Level: ULB Chairman
+   Strengths: Good Vaishya/local caste fit, Clean image, 
+   Strong in Nakur area
+   Weaknesses: Low election experience, Weak rural reach, 
+   Limited district-wide influence
+   How to improve to 80%+:
+   - Build BJP district sangathan pakad
+   - Get RSS backing (CRITICAL)
+   - Expand from Nakur to full Saharanpur
+   - Show survey-based winnability proof
+   Tag: Competitive Zone
+
+5. Dr. Sanjeev Walia - Probability: 55% - Tier 3
+   Political Level: Professional Leader
+   Strengths: Educated image, Urban appeal
+   Weaknesses: Low experience, Moderate org support
+   Tag: Emerging/Backup
+
+---
+
+GHAZIABAD VIDHAN SABHA (AC-56) - BJP TICKET ANALYSIS:
+
+Top 5 Candidates - Strategic Comparison:
+
+1. Atul Garg - Probability: 88% - Tier 1
+   Political Level: Sitting MLA
+   Strengths: Very High recall, Very Strong BJP org+RSS, 
+   Very Strong urban, High winnability, Very strong booth network
+   Tag: Dominant Incumbent - Almost Confirmed
+
+2. Sunil Sharma - Probability: 78% - Tier 2
+   Political Level: Senior BJP Leader
+   Strengths: Strong org, High recall, Strong urban+rural, 
+   Strong RSS alignment
+   Tag: Strong Backup Option
+
+3. Mayank Goel - Probability: 65% - Tier 2
+   Political Level: Emerging Leader
+   Strengths: Strong urban appeal, Clean/fresh image, 
+   Good Vaishya/trader caste fit, Good resources
+   Weaknesses: Low election experience, Weak rural reach, 
+   Developing booth network
+   How to improve to 80%+:
+   - Break incumbency - highlight need for fresh leadership
+   - Build direct connect with BJP district president + booth presidents
+   - Build strong urban wave (RWAs, Traders, Professionals)
+   - Prove winnability through internal surveys
+   Positioning: "Modern Urban Leader + Clean Image + Strong Execution"
+   Tag: Rising Contender
+
+4. Sanjay Nagar - Probability: 60% - Tier 2
+   Political Level: Local Influencer
+   Strengths: Urban appeal, Local influence
+   Weaknesses: Moderate org, Low rural reach
+   Tag: Competitive
+
+5. Ajay Sharma - Probability: 55% - Tier 3
+   Political Level: Organization Leader
+   Strengths: Strong RSS alignment, Moderate org
+   Weaknesses: Low recall, Low urban appeal
+   Tag: Backup Candidate
+
+GHAZIABAD STRATEGIC INSIGHT:
+- Atul Garg = clear front-runner (sitting MLA advantage)
+- If anti-incumbency builds → Mayank Goel can become Top 2
+- Urban voter base is decisive for this seat
+- Seat type: Urban, highly competitive
+
+---
+
+BHARATBN PLATFORM VISION:
+- India's first Political SaaS for Ticket Prediction
+- Target: 4000+ MLAs, 500+ MPs, 100,000+ serious candidates
+- Revenue model: ₹5K-1L/month subscription per candidate/party
+- USP: Ticket Prediction + War Room Dashboard + Booth Analytics + AI Insights
+
+---END BHARATBN DATABASE---`;
 
 const DEFAULT_MODEL = process.env.OPENAI_MODEL || 'gpt-4o';
 const MEMORY_MODEL = process.env.OPENAI_MEMORY_MODEL || 'gpt-4o';
