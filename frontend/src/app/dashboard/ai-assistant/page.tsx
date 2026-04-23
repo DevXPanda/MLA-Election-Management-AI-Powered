@@ -10,7 +10,7 @@ import { MODULE_HEADER } from '@/lib/ui-labels';
 import {
   Bot, Send, Plus, Trash2, Copy, Check, Loader2, Sparkles,
   MessageSquare, ArrowDown, User, Clock, ChevronLeft,
-  MoreHorizontal, X
+  MoreHorizontal, X, Pencil
 } from 'lucide-react';
 import {
   Chart as ChartJS,
@@ -175,18 +175,51 @@ function CopyButton({ text, size = 'md' }: { text: string; size?: 'sm' | 'md' })
   );
 }
 
-// ── Typing indicator ────────────────────────────────────────────
-function TypingIndicator() {
+// ── Thinking / status indicator ─────────────────────────────────
+const STATUS_MESSAGES = [
+  { icon: '🧠', text: 'Thinking...' },
+  { icon: '🔍', text: 'Searching web...' },
+  { icon: '📊', text: 'Analyzing data...' },
+  { icon: '🗳️', text: 'Checking election records...' },
+  { icon: '📰', text: 'Reading latest news...' },
+  { icon: '⚡', text: 'Generating response...' },
+];
+
+function ThinkingIndicator() {
+  const [idx, setIdx] = useState(0);
+  const [visible, setVisible] = useState(true);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      // Fade out → change → fade in
+      setVisible(false);
+      setTimeout(() => {
+        setIdx(prev => (prev + 1) % STATUS_MESSAGES.length);
+        setVisible(true);
+      }, 200);
+    }, 1500);
+    return () => clearInterval(interval);
+  }, []);
+
+  const current = STATUS_MESSAGES[idx];
+
   return (
     <div className="flex items-end gap-2.5 max-w-[85%]">
       <div className="w-7 h-7 rounded-full bg-gradient-to-br from-saffron-500 to-amber-600 flex items-center justify-center flex-shrink-0 shadow-md shadow-saffron-500/20">
         <Bot size={14} className="text-white" />
       </div>
       <div className="bg-white dark:bg-dark-800/60 border border-dark-100 dark:border-white/[0.06] rounded-2xl rounded-bl-md px-4 py-3 shadow-sm">
-        <div className="flex items-center gap-1.5">
-          <div className="w-2 h-2 rounded-full bg-saffron-400 animate-bounce" style={{ animationDelay: '0ms', animationDuration: '1.4s' }} />
-          <div className="w-2 h-2 rounded-full bg-saffron-400 animate-bounce" style={{ animationDelay: '200ms', animationDuration: '1.4s' }} />
-          <div className="w-2 h-2 rounded-full bg-saffron-400 animate-bounce" style={{ animationDelay: '400ms', animationDuration: '1.4s' }} />
+        <div
+          className="flex items-center gap-2"
+          style={{
+            opacity: visible ? 1 : 0,
+            transition: 'opacity 0.2s ease-in-out',
+          }}
+        >
+          <span style={{ fontSize: '14px' }}>{current.icon}</span>
+          <span className="text-dark-400 dark:text-dark-500" style={{ fontSize: '13px' }}>
+            {current.text}
+          </span>
         </div>
       </div>
     </div>
@@ -333,6 +366,10 @@ export default function AIAssistantPage() {
   const [sessionsLoading, setSessionsLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileHistoryOpen, setMobileHistoryOpen] = useState(false);
+
+  // Edit state for user messages
+  const [editingMsgId, setEditingMsgId] = useState<string | number | null>(null);
+  const [editText, setEditText] = useState('');
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
@@ -640,8 +677,8 @@ export default function AIAssistantPage() {
     <>
       <Header title={MODULE_HEADER.aiAssistant.title} subtitle={MODULE_HEADER.aiAssistant.subtitle} />
 
-      <div className="dashboard-container">
-        <div className="glass-card overflow-hidden flex h-[calc(100vh-160px)] sm:h-[calc(100vh-140px)]">
+      <div className="dashboard-container" style={{ padding: 0 }}>
+        <div className="glass-card overflow-hidden flex rounded-none border-x-0 border-b-0" style={{ height: 'calc(100vh - 57px)' }}>
 
           {/* ── SIDEBAR: Chat History ─────────────────────────── */}
           <div className={`
@@ -701,12 +738,17 @@ export default function AIAssistantPage() {
             </div>
           </div>
 
-          <style dangerouslySetInnerHTML={{ __html: `
-            .ai-message p { margin: 4px 0; }
+          <style dangerouslySetInnerHTML={{
+            __html: `
+            .ai-message p { font-size: 13px; line-height: 1.5; margin: 3px 0; }
             .ai-message ul { margin: 4px 0; padding-left: 20px; list-style-type: disc; }
             .ai-message ol { margin: 4px 0; padding-left: 20px; list-style-type: decimal; }
-            .ai-message li { margin: 2px 0; display: list-item; }
-            .ai-message h1, .ai-message h2, .ai-message h3 { margin: 8px 0 4px 0; }
+            .ai-message li { font-size: 13px; line-height: 1.5; margin: 2px 0; display: list-item; }
+            .ai-message strong { font-size: 13px; }
+            .ai-message h1 { font-size: 16px; font-weight: 700; margin: 8px 0 4px 0; }
+            .ai-message h2 { font-size: 15px; font-weight: 600; margin: 6px 0 4px 0; }
+            .ai-message h3 { font-size: 14px; font-weight: 600; margin: 4px 0 3px 0; }
+            .ai-message h4 { font-size: 13px; font-weight: 600; margin: 4px 0 2px 0; }
             .ai-message br { display: none; }
             .ai-message table { border-collapse: collapse; width: 100%; margin: 8px 0; font-size: 13px; }
             .ai-message th, .ai-message td { border: 1px solid #ddd; padding: 6px 10px; text-align: left; }
@@ -787,41 +829,108 @@ export default function AIAssistantPage() {
               {messages.length === 0 ? (
                 <WelcomeScreen onSuggestion={(text) => sendMessage(text)} />
               ) : (
-                <div className="max-w-3xl mx-auto py-5 px-4 space-y-4">
-                  {messages.map((msg) => (
-                    <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                      <div className={`group max-w-[80%] ${msg.role === 'user' ? 'max-w-[75%]' : ''}`}>
-                        {/* Bubble */}
-                        <div className={`
-                          px-4 py-3 text-[13.5px] leading-[1.75] break-words
-                          ${msg.role === 'user'
-                            ? 'whitespace-pre-wrap bg-gradient-to-br from-saffron-500 to-amber-600 text-white rounded-2xl rounded-br-md shadow-md shadow-saffron-500/20'
-                            : 'bg-white dark:bg-dark-800/60 text-dark-700 dark:text-dark-300 border border-dark-100 dark:border-white/[0.06] rounded-2xl rounded-bl-md shadow-sm'
-                          }
-                        `}>
-                          {msg.role === 'assistant' 
-                            ? <div className="ai-message" dangerouslySetInnerHTML={{ __html: marked.parse(msg.content) as string }} /> 
-                            : msg.content}
-                          {msg.role === 'assistant' && Array.isArray(msg.charts) && msg.charts.length > 0
-                            ? msg.charts.map((chart, idx) => <ChartCard key={`${msg.id}-chart-${idx}`} chart={chart} />)
-                            : null}
+                /* ── Message feed ─ Claude-style clean layout ── */
+                <div className="max-w-3xl mx-auto pt-4 pb-6 px-6 space-y-6">
+                  {messages.map((msg, msgIndex) => {
+                    const isEditing = editingMsgId === msg.id;
+
+                    return (
+                      <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                        <div className={`group ${msg.role === 'user' ? 'max-w-[72%]' : 'w-full'
+                          }`}>
+
+                          {/* User message — edit mode */}
+                          {msg.role === 'user' && isEditing ? (
+                            <div className="flex flex-col gap-2">
+                              <textarea
+                                autoFocus
+                                value={editText}
+                                onChange={e => setEditText(e.target.value)}
+                                onKeyDown={e => {
+                                  if (e.key === 'Escape') {
+                                    setEditingMsgId(null);
+                                    setEditText('');
+                                  }
+                                }}
+                                rows={Math.max(2, editText.split('\n').length)}
+                                className="w-full px-4 py-2.5 text-[13.5px] leading-[1.75] break-words whitespace-pre-wrap bg-gradient-to-br from-saffron-500 to-amber-600 text-white rounded-2xl rounded-br-md shadow-md shadow-saffron-500/20 resize-none outline-none placeholder-white/60 border-2 border-white/30"
+                              />
+                              <div className="flex items-center justify-end gap-2">
+                                <button
+                                  onClick={() => { setEditingMsgId(null); setEditText(''); }}
+                                  className="text-[12px] text-dark-400 dark:text-dark-500 hover:text-dark-600 dark:hover:text-dark-300 transition-colors px-2 py-1"
+                                >
+                                  Cancel
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    const trimmed = editText.trim();
+                                    if (!trimmed) return;
+                                    setMessages(prev => prev.slice(0, msgIndex));
+                                    setEditingMsgId(null);
+                                    setEditText('');
+                                    sendMessage(trimmed);
+                                  }}
+                                  disabled={!editText.trim() || isLoading}
+                                  className="text-[12px] font-medium px-3 py-1.5 rounded-lg bg-gradient-to-br from-saffron-500 to-amber-600 text-white shadow-sm hover:scale-105 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                  Save &amp; Resend
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <>
+                              {msg.role === 'user' ? (
+                                /* ── USER BUBBLE (keep orange) ──────────── */
+                                <div className="px-4 py-2.5 text-[13.5px] leading-[1.75] break-words whitespace-pre-wrap bg-gradient-to-br from-saffron-500 to-amber-600 text-white rounded-2xl rounded-br-sm shadow-sm shadow-saffron-500/20">
+                                  {msg.content}
+                                </div>
+                              ) : (
+                                /* ── AI MESSAGE — borderless, clean text ── */
+                                <div className="text-[13.5px] leading-[1.8] text-dark-800 dark:text-dark-200">
+                                  <div className="ai-message" dangerouslySetInnerHTML={{ __html: marked.parse(msg.content) as string }} />
+                                  {Array.isArray(msg.charts) && msg.charts.length > 0
+                                    ? msg.charts.map((chart, idx) => <ChartCard key={`${msg.id}-chart-${idx}`} chart={chart} />)
+                                    : null}
+                                </div>
+                              )}
+
+                              {/* Edit — below user bubble on hover */}
+                              {msg.role === 'user' && !isLoading && (
+                                <div className="flex items-center justify-end mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <button
+                                    onClick={() => { setEditingMsgId(msg.id); setEditText(msg.content); }}
+                                    className="flex items-center gap-1 p-1 rounded-md text-dark-400 dark:text-dark-500 hover:text-dark-600 dark:hover:text-dark-300 transition-colors"
+                                    title="Edit message"
+                                  >
+                                    <Pencil size={11} />
+                                    <span style={{ fontSize: '11px' }}>Edit</span>
+                                  </button>
+                                </div>
+                              )}
+
+                              {/* Copy — below AI message on hover */}
+                              {msg.role === 'assistant' && (
+                                <div className="flex items-center mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <CopyButton text={msg.content} size="sm" />
+                                </div>
+                              )}
+                            </>
+                          )}
                         </div>
-
-                        {/* Copy action for AI messages */}
-                        {msg.role === 'assistant' && (
-                          <div className="flex items-center mt-1 px-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <CopyButton text={msg.content} size="sm" />
-                          </div>
-                        )}
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
 
-                  {isLoading && (
-                    <div className="flex justify-start">
-                      <TypingIndicator />
-                    </div>
-                  )}
+                  {isLoading && (() => {
+                    const lastMsg = messages[messages.length - 1];
+                    const streamHasContent = lastMsg?.role === 'assistant' && lastMsg.content.length > 0;
+                    return !streamHasContent ? (
+                      <div className="flex justify-start">
+                        <ThinkingIndicator />
+                      </div>
+                    ) : null;
+                  })()}
 
                   {error && (
                     <div className="flex justify-center">
@@ -847,42 +956,38 @@ export default function AIAssistantPage() {
               )}
             </div>
 
-            {/* ── INPUT ─────────────────────────────────────── */}
-            <div className="flex-shrink-0 border-t border-dark-100 dark:border-white/[0.04] bg-white/60 dark:bg-dark-900/40 px-4 py-3">
+            {/* ── INPUT — full-width pill, Claude-style ─── */}
+            <div className="flex-shrink-0 border-t border-dark-100 dark:border-white/[0.04] bg-white/80 dark:bg-dark-900/50 px-6 py-3">
               <div className="max-w-3xl mx-auto">
-                <div className={`flex items-end gap-2.5 bg-white dark:bg-dark-800/60 rounded-2xl border transition-all duration-300 p-1.5 pl-4 ${isLoading
-                  ? 'border-saffron-500/40 shadow-md shadow-saffron-500/10'
-                  : 'border-dark-200 dark:border-white/[0.06] focus-within:border-saffron-500/30 focus-within:shadow-md focus-within:shadow-saffron-500/5'
+                <div className={`relative flex items-end gap-2 rounded-full border px-5 py-3 transition-all duration-200 ${isLoading
+                  ? 'border-saffron-400/50 bg-white dark:bg-dark-800/70'
+                  : 'border-dark-200 dark:border-white/[0.08] bg-white dark:bg-dark-800/60 focus-within:border-saffron-400/60'
                   }`}>
-                  {isLoading && (
-                    <div className="absolute top-0 left-4 right-4 h-[1.5px] overflow-hidden rounded-full">
-                      <div className="h-full bg-gradient-to-r from-transparent via-saffron-500 to-transparent w-full animate-shimmer"
-                        style={{ backgroundSize: '200% 100%' }} />
-                    </div>
-                  )}
                   <textarea
                     ref={inputRef}
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
                     onKeyDown={handleKeyDown}
-                    placeholder="Type a message..."
+                    placeholder="Message AI Assistant..."
                     rows={1}
-                    className="flex-1 bg-transparent resize-none outline-none text-sm text-dark-900 dark:text-dark-100 placeholder-dark-400 dark:placeholder-dark-500 py-2 max-h-[160px] custom-scrollbar leading-relaxed"
+                    className="flex-1 bg-transparent resize-none outline-none text-[13.5px] text-dark-900 dark:text-dark-100 placeholder-dark-400 dark:placeholder-dark-500 max-h-[140px] custom-scrollbar leading-relaxed py-0.5"
                     id="ai-chat-input"
                   />
-                  <button onClick={() => sendMessage()} disabled={!input.trim() || isLoading}
-                    className={`flex-shrink-0 w-9 h-9 rounded-xl flex items-center justify-center transition-all duration-300 ${input.trim() && !isLoading
-                      ? 'bg-gradient-to-br from-saffron-500 to-amber-600 text-white shadow-md shadow-saffron-500/20 hover:shadow-saffron-500/35 hover:scale-105 active:scale-95'
+                  <button
+                    onClick={() => sendMessage()}
+                    disabled={!input.trim() || isLoading}
+                    className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 ${input.trim() && !isLoading
+                      ? 'bg-gradient-to-br from-saffron-500 to-amber-600 text-white shadow-md shadow-saffron-500/25 hover:scale-105 active:scale-95'
                       : isLoading
                         ? 'bg-saffron-500/10 text-saffron-500'
-                        : 'bg-dark-100 dark:bg-dark-700/50 text-dark-400 dark:text-dark-500 cursor-not-allowed'
+                        : 'bg-dark-100 dark:bg-dark-700/50 text-dark-300 cursor-not-allowed'
                       }`}
                     id="ai-chat-send"
                   >
-                    {isLoading ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+                    {isLoading ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
                   </button>
                 </div>
-                <p className="text-[10px] text-dark-300 dark:text-dark-600 mt-1.5 px-1 flex items-center gap-1.5">
+                <p className="text-[10px] text-dark-300 dark:text-dark-600 mt-2 flex items-center justify-center gap-1.5">
                   <Sparkles size={9} className="text-saffron-400/60" />
                   AI responses may not always be accurate. Verify important info.
                 </p>
