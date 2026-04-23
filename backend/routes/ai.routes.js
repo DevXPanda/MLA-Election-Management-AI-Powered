@@ -17,6 +17,7 @@ const aiController = require('../controllers/ai.controller');
 
 const guard = [authenticateToken, requireRole('super_admin', 'mla')];
 
+router.post('/chat/stream', ...guard, aiController.chatStream);
 router.post('/chat', ...guard, aiController.chat);
 router.get('/sessions', ...guard, aiController.getSessions);
 router.get('/sessions/:id/messages', ...guard, aiController.getSessionMessages);

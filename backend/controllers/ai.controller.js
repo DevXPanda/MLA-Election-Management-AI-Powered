@@ -584,6 +584,58 @@ class AIService {
     }
   }
 
+  // ── Streaming chat — pipes token chunks directly to res ──────────
+  async chatStream(message, history = [], memories = [], res) {
+    if (!this.client) {
+      res.write(`data: ${JSON.stringify({ error: 'AI service not configured.' })}\n\n`);
+      res.end();
+      return '';
+    }
+
+    let dynamicPrompt = SYSTEM_PROMPT;
+    if (memories && memories.length > 0) {
+      const memoryString = memories.map(m => `${m.memory_key}: ${m.memory_value}`).join('\n');
+      dynamicPrompt += `\n\nUser Info:\n${memoryString}`;
+    }
+
+    const messages = [{ role: 'system', content: dynamicPrompt }];
+    messages.push(...normalizeHistory(history));
+    messages.push({ role: 'user', content: message.substring(0, 4000) });
+
+    let fullText = '';
+    try {
+      const stream = await this.client.chat.completions.create({
+        model: DEFAULT_MODEL,
+        messages,
+        temperature: 0.3,
+        max_tokens: 4096,
+        stream: true,
+      });
+
+      for await (const chunk of stream) {
+        const token = chunk.choices?.[0]?.delta?.content || '';
+        if (token) {
+          fullText += token;
+          res.write(`data: ${JSON.stringify({ token })}\n\n`);
+        }
+        // Detect stream end via finish_reason
+        if (chunk.choices?.[0]?.finish_reason === 'stop') break;
+      }
+    } catch (error) {
+      const status = error?.status || error?.response?.status;
+      console.error('AI Stream Error:', error?.message || error);
+      const errMsg = status === 429
+        ? 'AI service is busy. Please try again.'
+        : 'Stream error. Please try again.';
+      res.write(`data: ${JSON.stringify({ error: errMsg })}\n\n`);
+    }
+
+    // Signal end of stream
+    res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
+    res.end();
+    return fullText;
+  }
+
   async extractMemories(message, lastResponse) {
     if (!this.client || !message) return [];
 
@@ -905,4 +957,107 @@ const updateSession = async (req, res) => {
   }
 };
 
-module.exports = { chat, getSessions, getSessionMessages, deleteSession, updateSession };
+/**
+ * POST /api/ai/chat/stream
+ * Streaming chat — pipes token chunks as SSE to the client.
+ * The full reply is saved to DB after streaming completes.
+ */
+const chatStream = async (req, res) => {
+  try {
+    const { message, session_id, history, userId: bodyUserId } = req.body || {};
+    const userId = req.user.id;
+    const orgId = req.user.organization_id;
+
+    // ── Validation ───────────────────────────────────────────────────
+    if (!message || typeof message !== 'string') {
+      return res.status(400).json({ success: false, message: 'Message is required.' });
+    }
+    if (message.length > 4000) {
+      return res.status(400).json({ success: false, message: 'Message too long.' });
+    }
+    if (bodyUserId && String(bodyUserId) !== String(userId)) {
+      return res.status(403).json({ success: false, message: 'Unauthorized user.' });
+    }
+    if (history && !Array.isArray(history)) {
+      return res.status(400).json({ success: false, message: 'History must be an array.' });
+    }
+    if (!checkRateLimit(userId)) {
+      return res.status(429).json({ success: false, message: 'Too many requests.' });
+    }
+
+    // ── Session setup ────────────────────────────────────────────────
+    let sessionId = session_id;
+    if (!sessionId) {
+      const title = generateTitle(message);
+      const result = await pool.query(
+        'INSERT INTO chat_sessions (user_id, title, organization_id) VALUES ($1, $2, $3) RETURNING id',
+        [userId, title, orgId]
+      );
+      sessionId = result.rows[0].id;
+    }
+
+    const sessionCheck = await pool.query(
+      'SELECT id FROM chat_sessions WHERE id = $1 AND user_id = $2',
+      [sessionId, userId]
+    );
+    if (sessionCheck.rows.length === 0) {
+      return res.status(403).json({ success: false, message: 'Unauthorized session.' });
+    }
+
+    // ── Save user message ────────────────────────────────────────────
+    await pool.query(
+      'INSERT INTO chat_messages (session_id, role, content) VALUES ($1, $2, $3)',
+      [sessionId, 'user', message]
+    );
+
+    // ── Fetch memory + history ───────────────────────────────────────
+    const memories = await getUserMemories(userId);
+    let effectiveHistory = normalizeHistory(history);
+    try {
+      const historyResult = await pool.query(
+        'SELECT role, content FROM chat_messages WHERE session_id = $1 ORDER BY created_at DESC LIMIT 10',
+        [sessionId]
+      );
+      effectiveHistory = normalizeHistory(historyResult.rows.reverse());
+    } catch (e) {
+      console.warn('History fetch failed, using client fallback.', e?.message || e);
+    }
+
+    // ── Set SSE headers ──────────────────────────────────────────────
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no'); // Disable nginx buffering on Render
+    // Send session_id immediately so frontend can capture it
+    res.write(`data: ${JSON.stringify({ session_id: sessionId })}\n\n`);
+
+    // ── Stream from OpenAI ───────────────────────────────────────────
+    const fullReply = await aiService.chatStream(message, effectiveHistory, memories, res);
+
+    // ── Persist full reply + background tasks (after stream ends) ────
+    if (fullReply) {
+      await pool.query(
+        'INSERT INTO chat_messages (session_id, role, content) VALUES ($1, $2, $3)',
+        [sessionId, 'assistant', fullReply]
+      );
+      await pool.query(
+        'UPDATE chat_sessions SET updated_at = NOW() WHERE id = $1',
+        [sessionId]
+      );
+      aiService.extractMemories(message, fullReply).then(newMemories => {
+        if (newMemories && newMemories.length > 0) saveMemories(userId, newMemories);
+      }).catch(err => console.error('BG Memory Sync Error:', err));
+    }
+  } catch (error) {
+    console.error('AI Stream Controller Error:', error.message);
+    // If headers not yet sent, send JSON error; otherwise send SSE error
+    if (!res.headersSent) {
+      return res.status(500).json({ success: false, message: error.message || 'Internal server error.' });
+    }
+    res.write(`data: ${JSON.stringify({ error: 'Server error. Please try again.' })}\n\n`);
+    res.end();
+  }
+};
+
+module.exports = { chat, chatStream, getSessions, getSessionMessages, deleteSession, updateSession };
+

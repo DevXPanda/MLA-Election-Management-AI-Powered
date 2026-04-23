@@ -455,7 +455,7 @@ export default function AIAssistantPage() {
     );
   }
 
-  // ── Send message ────────────────────────────────────────────
+  // ── Send message (streaming) ─────────────────────────────────────
   const sendMessage = async (text?: string) => {
     const messageText = (text || input).trim();
     if (!messageText || isLoading) return;
@@ -473,44 +473,132 @@ export default function AIAssistantPage() {
     setIsLoading(true);
     if (inputRef.current) inputRef.current.style.height = 'auto';
 
-    try {
-      const history = [...messages, userMsg].slice(-10).map(m => ({ role: m.role, content: m.content }));
-      const res = await aiAPI.chat(messageText, history, activeSessionId || undefined, user?.id);
+    // Chart requests still use the non-streaming JSON path
+    const isChartRequest = /prediction|probability|trend|graph|analytics|chart/i.test(messageText);
 
-      if (res.data.success && res.data.reply) {
-        // Update active session
-        if (!activeSessionId && res.data.session_id) {
-          setActiveSessionId(res.data.session_id);
+    if (isChartRequest) {
+      // ── Non-streaming path (chart) ───────────────────────────────
+      try {
+        const history = [...messages, userMsg].slice(-10).map(m => ({ role: m.role, content: m.content }));
+        const res = await aiAPI.chat(messageText, history, activeSessionId || undefined, user?.id);
+
+        if (res.data.success && res.data.reply) {
+          if (!activeSessionId && res.data.session_id) setActiveSessionId(res.data.session_id);
+          const aiResponse = res.data.ai_response;
+          const predictionCharts: AIChartPayload[] =
+            aiResponse?.type === 'prediction' && Array.isArray(aiResponse?.data)
+              ? [{
+                chartType: aiResponse.chartType === 'pie' ? 'pie' : 'pie',
+                title: aiResponse?.title || 'Prediction Distribution',
+                labels: aiResponse.data.map((d: PredictionDataPoint) => d.label),
+                data: aiResponse.data.map((d: PredictionDataPoint) => Number(d.value) || 0),
+              }]
+              : [];
+          const genericCharts: AIChartPayload[] = Array.isArray(aiResponse?.charts) ? aiResponse.charts : [];
+          const aiMsg: ChatMessage = {
+            id: `ai-${Date.now()}`,
+            role: 'assistant',
+            content: aiResponse?.insight || aiResponse?.text || res.data.reply,
+            charts: predictionCharts.length > 0 ? predictionCharts : genericCharts,
+            timestamp: new Date(),
+          };
+          setMessages(prev => [...prev, aiMsg]);
+          loadSessions();
+        } else {
+          setError(res.data.message || 'Failed to get response.');
         }
+      } catch (err: any) {
+        setError(err.response?.data?.message || 'Failed to connect to AI service.');
+      } finally {
+        setIsLoading(false);
+        inputRef.current?.focus();
+      }
+      return;
+    }
 
-        const aiResponse = res.data.ai_response;
-        const predictionCharts: AIChartPayload[] =
-          aiResponse?.type === 'prediction' && Array.isArray(aiResponse?.data)
-            ? [{
-              chartType: aiResponse.chartType === 'pie' ? 'pie' : 'pie',
-              title: aiResponse?.title || 'Prediction Distribution',
-              labels: aiResponse.data.map((d: PredictionDataPoint) => d.label),
-              data: aiResponse.data.map((d: PredictionDataPoint) => Number(d.value) || 0),
-            }]
-            : [];
+    // ── Streaming path ───────────────────────────────────────────────
+    const streamMsgId = `ai-${Date.now()}`;
+    // Add an empty AI message to start filling in real-time
+    setMessages(prev => [...prev, {
+      id: streamMsgId,
+      role: 'assistant' as const,
+      content: '',
+      timestamp: new Date(),
+    }]);
 
-        const genericCharts: AIChartPayload[] = Array.isArray(aiResponse?.charts) ? aiResponse.charts : [];
-        const aiMsg: ChatMessage = {
-          id: `ai-${Date.now()}`,
-          role: 'assistant',
-          content: aiResponse?.insight || aiResponse?.text || res.data.reply,
-          charts: predictionCharts.length > 0 ? predictionCharts : genericCharts,
-          timestamp: new Date(res.data.timestamp || Date.now()),
-        };
-        setMessages(prev => [...prev, aiMsg]);
+    try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      const history = [...messages, userMsg].slice(-10).map(m => ({ role: m.role, content: m.content }));
+      // Use the backend URL directly to avoid Next.js proxy buffering the SSE stream
+      const backendBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+      const streamUrl = `${backendBase}/api/ai/chat/stream`;
 
-        // Refresh session list
-        loadSessions();
-      } else {
-        setError(res.data.message || 'Failed to get response.');
+      const response = await fetch(streamUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          message: messageText,
+          history,
+          session_id: activeSessionId || undefined,
+          userId: user?.id,
+        }),
+      });
+
+      if (!response.ok || !response.body) {
+        const errData = await response.json().catch(() => ({}));
+        setError((errData as any).message || 'Failed to connect to AI service.');
+        setMessages(prev => prev.filter(m => m.id !== streamMsgId));
+        return;
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let streamedContent = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() ?? ''; // keep incomplete line in buffer
+
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          const jsonStr = line.slice(6).trim();
+          if (!jsonStr) continue;
+          try {
+            const parsed = JSON.parse(jsonStr);
+
+            if (parsed.session_id && !activeSessionId) {
+              setActiveSessionId(parsed.session_id);
+            }
+            if (parsed.error) {
+              setError(parsed.error);
+              break;
+            }
+            if (parsed.token) {
+              streamedContent += parsed.token;
+              // Update the streaming message in-place
+              setMessages(prev => prev.map(m =>
+                m.id === streamMsgId ? { ...m, content: streamedContent } : m
+              ));
+            }
+            if (parsed.done) {
+              loadSessions();
+            }
+          } catch {
+            // ignore malformed chunks
+          }
+        }
       }
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to connect to AI service.');
+      setError(err.message || 'Failed to connect to AI service.');
+      setMessages(prev => prev.filter(m => m.id !== streamMsgId));
     } finally {
       setIsLoading(false);
       inputRef.current?.focus();
