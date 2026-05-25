@@ -29,6 +29,7 @@ const analyticsRoutes = require('./routes/analytics.routes');
 const notificationsRoutes = require('./routes/notifications.routes');
 const workAllocationRoutes = require('./routes/work-allocation.routes');
 const aiRoutes = require('./routes/ai.routes');
+const partyMembersRoutes = require('./routes/party-members.routes');
 
 const app = express();
 const server = http.createServer(app);
@@ -106,6 +107,7 @@ app.use('/api/analytics', analyticsRoutes);
 app.use('/api/notifications', notificationsRoutes);
 app.use('/api/work-allocation', workAllocationRoutes);
 app.use('/api/ai', aiRoutes);
+app.use('/api/party-members', partyMembersRoutes);
 
 // ── Health check ────────────────────────────────────────────────────
 app.get('/api/health', (req, res) => {

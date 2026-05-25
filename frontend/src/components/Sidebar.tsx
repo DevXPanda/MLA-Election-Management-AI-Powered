@@ -101,6 +101,12 @@ const NAV_CONFIG = [
         icon: ClipboardList,
         roles: ['super_admin', 'mla', 'campaign_manager', 'ward_head', 'booth_worker']
       },
+      {
+        href: '/dashboard/party-members',
+        label: 'Party Members',
+        icon: Users,
+        roles: ['super_admin', 'mla', 'campaign_manager', 'ward_head']
+      },
     ],
   },
   {

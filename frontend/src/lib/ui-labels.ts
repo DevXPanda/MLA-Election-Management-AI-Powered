@@ -44,6 +44,7 @@ export const MODULE_HEADER = {
   constituency: { title: 'Constituency', subtitle: 'Geographical hierarchy management' },
   aiAssistant: { title: 'AI Assistant', subtitle: 'Intelligent chat powered by XPanda' },
   aiAssistantRestricted: { title: 'AI Assistant', subtitle: 'Access restricted' },
+  partyMembers: { title: 'Party Members', subtitle: 'Party member database, demographics, and support tracking' },
 } as const;
 
 /** Task type options (value = API key, label = user-facing). */

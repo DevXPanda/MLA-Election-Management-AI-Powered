@@ -507,6 +507,36 @@ const createTables = async () => {
     CREATE INDEX IF NOT EXISTS idx_user_memories_user ON user_memories(user_id);
     CREATE INDEX IF NOT EXISTS idx_chat_sessions_user ON chat_sessions(user_id);
     CREATE INDEX IF NOT EXISTS idx_chat_messages_session ON chat_messages(session_id);
+
+    -- Party Members table
+    CREATE TABLE IF NOT EXISTS party_members (
+      id SERIAL PRIMARY KEY,
+      full_name VARCHAR(200) NOT NULL,
+      phone VARCHAR(15) NOT NULL,
+      email VARCHAR(150),
+      address TEXT,
+      ward_number VARCHAR(50),
+      booth_number VARCHAR(50),
+      qualification TEXT,
+      profession VARCHAR(150),
+      age INTEGER,
+      gender VARCHAR(10),
+      support_preference VARCHAR(50),
+      photo_url TEXT,
+      created_by_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      created_by_role VARCHAR(50),
+      created_by_name VARCHAR(150),
+      ward_id INTEGER REFERENCES wards(id) ON DELETE SET NULL,
+      booth_id INTEGER REFERENCES booths(id) ON DELETE SET NULL,
+      constituency_id INTEGER REFERENCES constituencies(id) ON DELETE SET NULL,
+      organization_id INTEGER REFERENCES organizations(id) DEFAULT 1,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_party_members_org ON party_members(organization_id);
+    CREATE INDEX IF NOT EXISTS idx_party_members_ward ON party_members(ward_id);
+    CREATE INDEX IF NOT EXISTS idx_party_members_creator ON party_members(created_by_user_id);
   `;
 
   try {

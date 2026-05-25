@@ -229,3 +229,16 @@ export const aiAPI = {
   deleteSession: (sessionId: number) =>
     api.delete(`/ai/sessions/${sessionId}`),
 };
+
+export const partyMembersAPI = {
+  getAll: (params?: Record<string, string | number>) =>
+    api.get('/party-members', { params }),
+  getOne: (id: number) => api.get(`/party-members/${id}`),
+  create: (data: Record<string, unknown>) => api.post('/party-members', data),
+  update: (id: number, data: Record<string, unknown>) => api.put(`/party-members/${id}`, data),
+  delete: (id: number) => api.delete(`/party-members/${id}`),
+  getSummary: () => api.get('/party-members/analytics/summary'),
+  getTopPerformers: (params?: Record<string, string | number>) => api.get('/party-members/analytics/top-performers', { params }),
+  getWards: () => api.get('/party-members/analytics/wards'),
+  getCreatorDetails: (id: number) => api.get(`/party-members/analytics/creator/${id}`),
+};
