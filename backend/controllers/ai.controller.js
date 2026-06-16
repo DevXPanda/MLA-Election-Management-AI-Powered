@@ -476,12 +476,17 @@ class AIService {
     this.client = new OpenAI({ apiKey });
   }
 
-  async chat(message, history = [], memories = []) {
+  async chat(message, history = [], memories = [], lang = 'en') {
     if (!this.client) {
       throw new Error('AI service not configured. Please set OPENAI_API_KEY in environment.');
     }
 
     let dynamicPrompt = SYSTEM_PROMPT;
+    if (lang === 'hi') {
+      dynamicPrompt += `\n\nCRITICAL: Respond in professional, natural Hindi (हिंदी) suitable for Indian political campaign workflows. Do NOT use Hinglish or English script in your response, use Devanagari script. Keep political terminology natural (e.g., use 'वार्ड प्रमुख' instead of 'Ward Head', 'बूथ कार्यकर्ता' instead of 'Booth Worker'). Ensure the entire response is in Hindi.`;
+    } else {
+      dynamicPrompt += `\n\nRespond in English or natural Hinglish as appropriate.`;
+    }
     if (memories && memories.length > 0) {
       const memoryString = memories.map(m => `${m.memory_key}: ${m.memory_value}`).join('\n');
       dynamicPrompt += `\n\nUser Info:\n${memoryString}`;
@@ -514,21 +519,24 @@ class AIService {
     }
   }
 
-  async chatWithContext(message, history = [], memories = [], contextSnippets = []) {
+  async chatWithContext(message, history = [], memories = [], contextSnippets = [], lang = 'en') {
     let contextBlock = '';
     if (Array.isArray(contextSnippets) && contextSnippets.length > 0) {
       contextBlock = `\n\nExternal Context (real-time search snippets):\n${contextSnippets.map((s, i) => `${i + 1}. ${s}`).join('\n')}`;
     }
     const contextualMessage = `${message}${contextBlock}\n\nUse the external context when relevant and provide concise insights.`;
-    return this.chat(contextualMessage, history, memories);
+    return this.chat(contextualMessage, history, memories, lang);
   }
 
-  async predictionChart(message, history = [], memories = []) {
+  async predictionChart(message, history = [], memories = [], lang = 'en') {
     if (!this.client) {
       throw new Error('AI service not configured. Please set OPENAI_API_KEY in environment.');
     }
 
     let dynamicPrompt = SYSTEM_PROMPT;
+    if (lang === 'hi') {
+      dynamicPrompt += `\n\nCRITICAL: Respond in professional, natural Hindi (हिंदी). Do NOT use Hinglish or English script. Write in Devanagari script. Ensure political terminology is natural (e.g., use 'वार्ड प्रमुख' instead of 'Ward Head', 'बूथ कार्यकर्ता' instead of 'Booth Worker'). Everything must be in Hindi.`;
+    }
     if (memories && memories.length > 0) {
       const memoryString = memories.map(m => `${m.memory_key}: ${m.memory_value}`).join('\n');
       dynamicPrompt += `\n\nUser Info:\n${memoryString}`;
@@ -544,7 +552,8 @@ class AIService {
           `Rules:\n` +
           `- values must be realistic and sum to 100\n` +
           `- do not mention database/internal records\n` +
-          `- do not include any text outside JSON`,
+          `- do not include any text outside JSON\n` +
+          (lang === 'hi' ? `- Ensure the JSON structure and keys remain unchanged, but values like labels, titles, and insights MUST be translated into natural Hindi.\n` : ''),
       },
       ...normalizeHistory(history),
       { role: 'user', content: message.substring(0, 4000) },
@@ -573,7 +582,7 @@ class AIService {
   }
 
   // ── Streaming chat — pipes token chunks directly to res ──────────
-  async chatStream(message, history = [], memories = [], res) {
+  async chatStream(message, history = [], memories = [], res, lang = 'en') {
     if (!this.client) {
       res.write(`data: ${JSON.stringify({ error: 'AI service not configured.' })}\n\n`);
       res.end();
@@ -581,6 +590,11 @@ class AIService {
     }
 
     let dynamicPrompt = SYSTEM_PROMPT;
+    if (lang === 'hi') {
+      dynamicPrompt += `\n\nCRITICAL: Respond in professional, natural Hindi (हिंदी) suitable for Indian political campaign workflows. Do NOT use Hinglish or English script in your response, use Devanagari script. Keep political terminology natural (e.g., use 'वार्ड प्रमुख' instead of 'Ward Head', 'बूथ कार्यकर्ता' instead of 'Booth Worker'). Ensure the entire response is in Hindi.`;
+    } else {
+      dynamicPrompt += `\n\nRespond in English or natural Hinglish as appropriate.`;
+    }
     if (memories && memories.length > 0) {
       const memoryString = memories.map(m => `${m.memory_key}: ${m.memory_value}`).join('\n');
       dynamicPrompt += `\n\nUser Info:\n${memoryString}`;
@@ -715,7 +729,7 @@ function generateTitle(msg) {
  */
 const chat = async (req, res) => {
   try {
-    const { message, session_id, history, userId: bodyUserId } = req.body || {};
+    const { message, session_id, history, userId: bodyUserId, lang } = req.body || {};
     const userId = req.user.id;
     const orgId = req.user.organization_id;
 
@@ -786,14 +800,14 @@ const chat = async (req, res) => {
     try {
       if (queryType === 'data' && !chartRequested) {
         const snippets = await fetchExternalContext(message);
-        reply = await aiService.chatWithContext(message, effectiveHistory, memories, snippets);
+        reply = await aiService.chatWithContext(message, effectiveHistory, memories, snippets, lang);
         aiResponse = { type: 'text', text: reply, queryType };
       } else if (chartRequested) {
-        const predictionPayload = await aiService.predictionChart(message, effectiveHistory, memories);
+        const predictionPayload = await aiService.predictionChart(message, effectiveHistory, memories, lang);
         reply = predictionPayload.insight;
         aiResponse = predictionPayload;
       } else {
-        reply = await aiService.chat(message, effectiveHistory, memories);
+        reply = await aiService.chat(message, effectiveHistory, memories, lang);
         aiResponse = { type: 'text', text: reply, queryType };
       }
     } catch (e) {
@@ -952,7 +966,7 @@ const updateSession = async (req, res) => {
  */
 const chatStream = async (req, res) => {
   try {
-    const { message, session_id, history, userId: bodyUserId } = req.body || {};
+    const { message, session_id, history, userId: bodyUserId, lang } = req.body || {};
     const userId = req.user.id;
     const orgId = req.user.organization_id;
 
@@ -1020,7 +1034,7 @@ const chatStream = async (req, res) => {
     res.write(`data: ${JSON.stringify({ session_id: sessionId })}\n\n`);
 
     // ── Stream from OpenAI ───────────────────────────────────────────
-    const fullReply = await aiService.chatStream(message, effectiveHistory, memories, res);
+    const fullReply = await aiService.chatStream(message, effectiveHistory, memories, res, lang);
 
     // ── Persist full reply + background tasks (after stream ends) ────
     if (fullReply) {

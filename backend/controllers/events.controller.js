@@ -46,8 +46,18 @@ const getEvents = async (req, res) => {
 // Create event
 const createEvent = async (req, res) => {
   try {
-    const { title, type, description, event_date, location, constituency_id, ward_id, expected_attendance } = req.body;
+    let { title, type, description, event_date, location, constituency_id, ward_id, expected_attendance } = req.body;
     if (!title || !type || !event_date) return res.status(400).json(formatResponse(false, 'Title, type, and date are required.'));
+
+    if (req.userRole === 'mla' && req.scope?.constituency_id) {
+      constituency_id = req.scope.constituency_id;
+      if (ward_id) {
+        const wardCheck = await pool.query('SELECT constituency_id FROM wards WHERE id = $1', [ward_id]);
+        if (!wardCheck.rows.length || wardCheck.rows[0].constituency_id !== req.scope.constituency_id) {
+          return res.status(400).json(formatResponse(false, 'Ward does not belong to your constituency.'));
+        }
+      }
+    }
 
     const result = await pool.query(
       `INSERT INTO events (title, type, description, event_date, location, constituency_id, ward_id, expected_attendance, created_by, organization_id)
@@ -63,7 +73,23 @@ const createEvent = async (req, res) => {
 // Update event
 const updateEvent = async (req, res) => {
   try {
-    const { title, type, description, event_date, location, constituency_id, ward_id, expected_attendance, actual_attendance, status } = req.body;
+    let { title, type, description, event_date, location, constituency_id, ward_id, expected_attendance, actual_attendance, status } = req.body;
+
+    let scopeClause = '';
+    const scopeParams = [title, type, description, event_date, location, constituency_id || null, ward_id || null, expected_attendance, actual_attendance, status, req.params.id, req.tenant];
+    
+    if (req.userRole === 'mla' && req.scope?.constituency_id) {
+      constituency_id = req.scope.constituency_id;
+      if (ward_id) {
+        const wardCheck = await pool.query('SELECT constituency_id FROM wards WHERE id = $1', [ward_id]);
+        if (!wardCheck.rows.length || wardCheck.rows[0].constituency_id !== req.scope.constituency_id) {
+          return res.status(400).json(formatResponse(false, 'Ward does not belong to your constituency.'));
+        }
+      }
+      scopeClause = ' AND constituency_id = $13';
+      scopeParams[5] = constituency_id;
+      scopeParams.push(req.scope.constituency_id);
+    }
 
     const result = await pool.query(
       `UPDATE events SET title = COALESCE($1, title), type = COALESCE($2, type),
@@ -72,8 +98,8 @@ const updateEvent = async (req, res) => {
        expected_attendance = COALESCE($8, expected_attendance),
        actual_attendance = COALESCE($9, actual_attendance),
        status = COALESCE($10, status), updated_at = CURRENT_TIMESTAMP
-       WHERE id = $11 AND organization_id = $12 RETURNING *`,
-      [title, type, description, event_date, location, constituency_id || null, ward_id || null, expected_attendance, actual_attendance, status, req.params.id, req.tenant]
+       WHERE id = $11 AND organization_id = $12${scopeClause} RETURNING *`,
+      scopeParams
     );
 
     if (!result.rows.length) return res.status(404).json(formatResponse(false, 'Event not found.'));
@@ -84,7 +110,13 @@ const updateEvent = async (req, res) => {
 // Delete event
 const deleteEvent = async (req, res) => {
   try {
-    const result = await pool.query('DELETE FROM events WHERE id = $1 AND organization_id = $2 RETURNING id', [req.params.id, req.tenant]);
+    let scopeClause = '';
+    const scopeParams = [req.params.id, req.tenant];
+    if (req.userRole === 'mla' && req.scope?.constituency_id) {
+      scopeClause = ' AND constituency_id = $3';
+      scopeParams.push(req.scope.constituency_id);
+    }
+    const result = await pool.query(`DELETE FROM events WHERE id = $1 AND organization_id = $2${scopeClause} RETURNING id`, scopeParams);
     if (!result.rows.length) return res.status(404).json(formatResponse(false, 'Event not found.'));
     await logActivity(req.user.id, 'EVENT_DELETED', 'events', { id: req.params.id }, req.ip, req.tenant);
     res.json(formatResponse(true, 'Event deleted.'));
@@ -96,6 +128,14 @@ const addParticipants = async (req, res) => {
   try {
     const { participants } = req.body;
     const eventId = req.params.id;
+
+    if (req.userRole === 'mla' && req.scope?.constituency_id) {
+      const check = await pool.query('SELECT constituency_id FROM events WHERE id = $1 AND organization_id = $2', [eventId, req.tenant]);
+      if (!check.rows.length || check.rows[0].constituency_id !== req.scope.constituency_id) {
+        return res.status(403).json(formatResponse(false, 'Access denied. Event outside constituency.'));
+      }
+    }
+
     for (const p of participants) {
       await pool.query(
         `INSERT INTO event_participants (event_id, user_id, role_in_event) VALUES ($1, $2, $3)
@@ -110,12 +150,21 @@ const addParticipants = async (req, res) => {
 // Get participants
 const getParticipants = async (req, res) => {
   try {
+    const eventId = req.params.id;
+
+    if (req.userRole === 'mla' && req.scope?.constituency_id) {
+      const check = await pool.query('SELECT constituency_id FROM events WHERE id = $1 AND organization_id = $2', [eventId, req.tenant]);
+      if (!check.rows.length || check.rows[0].constituency_id !== req.scope.constituency_id) {
+        return res.status(403).json(formatResponse(false, 'Access denied. Event outside constituency.'));
+      }
+    }
+
     const result = await pool.query(
       `SELECT ep.*, u.name, u.phone, u.email, r.display_name as role_name
        FROM event_participants ep
        JOIN users u ON ep.user_id = u.id
        LEFT JOIN roles r ON u.role_id = r.id
-       WHERE ep.event_id = $1 ORDER BY ep.created_at`, [req.params.id]
+       WHERE ep.event_id = $1 ORDER BY ep.created_at`, [eventId]
     );
     res.json(formatResponse(true, 'Participants fetched.', result.rows));
   } catch (error) { res.status(500).json(formatResponse(false, 'Internal server error.')); }
@@ -125,7 +174,16 @@ const getParticipants = async (req, res) => {
 const markAttendance = async (req, res) => {
   try {
     const { user_id, attended } = req.body;
-    await pool.query('UPDATE event_participants SET attended = $1 WHERE event_id = $2 AND user_id = $3', [attended, req.params.id, user_id]);
+    const eventId = req.params.id;
+
+    if (req.userRole === 'mla' && req.scope?.constituency_id) {
+      const check = await pool.query('SELECT constituency_id FROM events WHERE id = $1 AND organization_id = $2', [eventId, req.tenant]);
+      if (!check.rows.length || check.rows[0].constituency_id !== req.scope.constituency_id) {
+        return res.status(403).json(formatResponse(false, 'Access denied. Event outside constituency.'));
+      }
+    }
+
+    await pool.query('UPDATE event_participants SET attended = $1 WHERE event_id = $2 AND user_id = $3', [attended, eventId, user_id]);
     res.json(formatResponse(true, 'Attendance marked.'));
   } catch (error) { res.status(500).json(formatResponse(false, 'Internal server error.')); }
 };
@@ -134,6 +192,14 @@ const markAttendance = async (req, res) => {
 const getEventExecutionLog = async (req, res) => {
   try {
     const eventId = parseInt(req.params.id, 10);
+
+    if (req.userRole === 'mla' && req.scope?.constituency_id) {
+      const check = await pool.query('SELECT constituency_id FROM events WHERE id = $1 AND organization_id = $2', [eventId, req.tenant]);
+      if (!check.rows.length || check.rows[0].constituency_id !== req.scope.constituency_id) {
+        return res.status(403).json(formatResponse(false, 'Access denied. Event outside constituency.'));
+      }
+    }
+
     const evCheck = await pool.query(
       'SELECT id, title, event_date, location, status, organization_id FROM events WHERE id = $1 AND organization_id = $2',
       [eventId, req.tenant]

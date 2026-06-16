@@ -55,9 +55,32 @@ const getVoters = async (req, res) => {
 // Create voter
 const createVoter = async (req, res) => {
   try {
-    const { voter_id_number, name, phone, address, age, gender, booth_id, ward_id, constituency_id, caste, scheme_beneficiary, scheme_details, support_status, remarks } = req.body;
+    let { voter_id_number, name, phone, address, age, gender, booth_id, ward_id, constituency_id, caste, scheme_beneficiary, scheme_details, support_status, remarks } = req.body;
 
     if (!name) return res.status(400).json(formatResponse(false, 'Voter name is required.'));
+    if (!ward_id || !booth_id) {
+      return res.status(400).json(formatResponse(false, 'Ward and Booth assignments are mandatory.'));
+    }
+
+    if (!req.scope?.unrestricted && req.scope?.constituency_id) {
+      constituency_id = req.scope.constituency_id;
+    }
+
+    if (!constituency_id) {
+      return res.status(400).json(formatResponse(false, 'Constituency assignment is mandatory.'));
+    }
+
+    // Verify relations: Ward belongs to Constituency
+    const wardCheck = await pool.query('SELECT constituency_id FROM wards WHERE id = $1', [ward_id]);
+    if (!wardCheck.rows.length || wardCheck.rows[0].constituency_id !== parseInt(constituency_id)) {
+      return res.status(400).json(formatResponse(false, 'Selected Ward does not belong to the selected Constituency.'));
+    }
+
+    // Verify relations: Booth belongs to Ward
+    const boothCheck = await pool.query('SELECT ward_id FROM booths WHERE id = $1', [booth_id]);
+    if (!boothCheck.rows.length || boothCheck.rows[0].ward_id !== parseInt(ward_id)) {
+      return res.status(400).json(formatResponse(false, 'Selected Booth does not belong to the selected Ward.'));
+    }
 
     const result = await pool.query(
       `INSERT INTO voters (voter_id_number, name, phone, address, age, gender, booth_id, ward_id, constituency_id, caste, scheme_beneficiary, scheme_details, support_status, remarks, created_by, organization_id)
@@ -76,7 +99,42 @@ const createVoter = async (req, res) => {
 // Update voter
 const updateVoter = async (req, res) => {
   try {
-    const { voter_id_number, name, phone, address, age, gender, booth_id, ward_id, constituency_id, caste, scheme_beneficiary, scheme_details, support_status, remarks } = req.body;
+    let { voter_id_number, name, phone, address, age, gender, booth_id, ward_id, constituency_id, caste, scheme_beneficiary, scheme_details, support_status, remarks } = req.body;
+
+    if (!ward_id || !booth_id) {
+      return res.status(400).json(formatResponse(false, 'Ward and Booth assignments are mandatory.'));
+    }
+
+    if (!req.scope?.unrestricted && req.scope?.constituency_id) {
+      constituency_id = req.scope.constituency_id;
+    }
+
+    if (!constituency_id) {
+      return res.status(400).json(formatResponse(false, 'Constituency assignment is mandatory.'));
+    }
+
+    // Verify relations: Ward belongs to Constituency
+    const wardCheck = await pool.query('SELECT constituency_id FROM wards WHERE id = $1', [ward_id]);
+    if (!wardCheck.rows.length || wardCheck.rows[0].constituency_id !== parseInt(constituency_id)) {
+      return res.status(400).json(formatResponse(false, 'Selected Ward does not belong to the selected Constituency.'));
+    }
+
+    // Verify relations: Booth belongs to Ward
+    const boothCheck = await pool.query('SELECT ward_id FROM booths WHERE id = $1', [booth_id]);
+    if (!boothCheck.rows.length || boothCheck.rows[0].ward_id !== parseInt(ward_id)) {
+      return res.status(400).json(formatResponse(false, 'Selected Booth does not belong to the selected Ward.'));
+    }
+
+    // MLA: verify the voter belongs to their constituency before update
+    let scopeClause = '';
+    if (req.userRole === 'mla' && req.scope?.constituency_id) {
+      scopeClause = ' AND constituency_id = $17';
+    }
+
+    const scopeParams = [voter_id_number, name, phone, address, age, gender, booth_id || null, ward_id || null, constituency_id || null, caste, scheme_beneficiary, scheme_details, support_status, remarks, req.params.id, req.tenant];
+    if (req.userRole === 'mla' && req.scope?.constituency_id) {
+      scopeParams.push(req.scope.constituency_id);
+    }
 
     const result = await pool.query(
       `UPDATE voters SET voter_id_number = COALESCE($1, voter_id_number), name = COALESCE($2, name),
@@ -85,8 +143,8 @@ const updateVoter = async (req, res) => {
        caste = COALESCE($10, caste), scheme_beneficiary = COALESCE($11, scheme_beneficiary),
        scheme_details = COALESCE($12, scheme_details), support_status = COALESCE($13, support_status),
        remarks = COALESCE($14, remarks), updated_at = CURRENT_TIMESTAMP
-       WHERE id = $15 AND organization_id = $16 RETURNING *`,
-      [voter_id_number, name, phone, address, age, gender, booth_id || null, ward_id || null, constituency_id || null, caste, scheme_beneficiary, scheme_details, support_status, remarks, req.params.id, req.tenant]
+       WHERE id = $15 AND organization_id = $16${scopeClause} RETURNING *`,
+      scopeParams
     );
 
     if (!result.rows.length) return res.status(404).json(formatResponse(false, 'Voter not found.'));
@@ -100,7 +158,14 @@ const updateVoter = async (req, res) => {
 // Delete voter
 const deleteVoter = async (req, res) => {
   try {
-    const result = await pool.query('DELETE FROM voters WHERE id = $1 AND organization_id = $2 RETURNING id', [req.params.id, req.tenant]);
+    // MLA: verify the voter belongs to their constituency before delete
+    let scopeClause = '';
+    const scopeParams = [req.params.id, req.tenant];
+    if (req.userRole === 'mla' && req.scope?.constituency_id) {
+      scopeClause = ' AND constituency_id = $3';
+      scopeParams.push(req.scope.constituency_id);
+    }
+    const result = await pool.query(`DELETE FROM voters WHERE id = $1 AND organization_id = $2${scopeClause} RETURNING id`, scopeParams);
     if (!result.rows.length) return res.status(404).json(formatResponse(false, 'Voter not found.'));
 
     await logActivity(req.user.id, 'VOTER_DELETED', 'voters', { id: req.params.id }, req.ip, req.tenant);
@@ -110,26 +175,35 @@ const deleteVoter = async (req, res) => {
   }
 };
 
-// Voter stats (org-scoped)
+// Voter stats (scope-filtered)
 const getVoterStats = async (req, res) => {
   try {
-    const orgFilter = req.scope?.unrestricted ? '' : ` WHERE organization_id = ${req.tenant}`;
-    const orgAnd = req.scope?.unrestricted ? '' : ` AND v.organization_id = ${req.tenant}`;
+    const { clause, params } = buildScopeFilter(req, 'v');
+    const { clause: baseClause, params: baseParams } = buildScopeFilter(req);
 
-    const total = await pool.query(`SELECT COUNT(*) FROM voters${orgFilter}`);
+    const total = await pool.query(`SELECT COUNT(*) FROM voters WHERE 1=1 ${baseClause}`, baseParams);
     const supportBreakdown = await pool.query(`
       SELECT support_status, COUNT(*) as count,
-             ROUND(COUNT(*)::numeric / NULLIF((SELECT COUNT(*) FROM voters${orgFilter}), 0) * 100, 1) as percentage
-      FROM voters${orgFilter} GROUP BY support_status ORDER BY count DESC
-    `);
+             ROUND(COUNT(*)::numeric / NULLIF((SELECT COUNT(*) FROM voters WHERE 1=1 ${baseClause}), 0) * 100, 1) as percentage
+      FROM voters
+      WHERE 1=1 ${baseClause} GROUP BY support_status ORDER BY count DESC
+    `, baseParams);
     const byWard = await pool.query(`
       SELECT w.name as ward_name, COUNT(v.id) as count
-      FROM voters v JOIN wards w ON v.ward_id = w.id WHERE 1=1${orgAnd}
+      FROM voters v JOIN wards w ON v.ward_id = w.id WHERE 1=1${clause}
       GROUP BY w.name ORDER BY count DESC
-    `);
-    const genderBreakdown = await pool.query(`SELECT gender, COUNT(*) as count FROM voters${orgFilter.replace('WHERE', 'WHERE gender IS NOT NULL AND')} GROUP BY gender`);
-    const casteBreakdown = await pool.query(`SELECT caste, COUNT(*) as count FROM voters${orgFilter.replace('WHERE', 'WHERE caste IS NOT NULL AND')} GROUP BY caste ORDER BY count DESC`);
-    const beneficiaries = await pool.query(`SELECT COUNT(*) FROM voters WHERE scheme_beneficiary = true${req.scope?.unrestricted ? '' : ' AND organization_id = ' + req.tenant}`);
+    `, params);
+    const genderBreakdown = await pool.query(`
+      SELECT gender, COUNT(*) as count FROM voters
+      WHERE gender IS NOT NULL ${baseClause} GROUP BY gender
+    `, baseParams);
+    const casteBreakdown = await pool.query(`
+      SELECT caste, COUNT(*) as count FROM voters
+      WHERE caste IS NOT NULL ${baseClause} GROUP BY caste ORDER BY count DESC
+    `, baseParams);
+    const beneficiaries = await pool.query(`
+      SELECT COUNT(*) FROM voters WHERE scheme_beneficiary = true ${baseClause}
+    `, baseParams);
 
     res.json(formatResponse(true, 'Voter stats fetched.', {
       total: parseInt(total.rows[0].count),

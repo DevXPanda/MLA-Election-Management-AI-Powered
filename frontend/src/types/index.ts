@@ -141,6 +141,23 @@ export interface SurveyIssue {
   description: string;
 }
 
+export interface SurveyQuestion {
+  id: number;
+  question_text: string;
+  answer_type: 'single_choice' | 'yes_no' | 'rating' | 'text';
+  options: string[] | null;
+  order_index: number;
+  is_active: boolean;
+  organization_id: number;
+}
+
+export interface SurveyAnswer {
+  question_id: number;
+  question_text?: string;
+  answer_type?: 'single_choice' | 'yes_no' | 'rating' | 'text';
+  answer_text: string;
+}
+
 export interface Survey {
   id: number;
   voter_id: number | null;
@@ -157,6 +174,7 @@ export interface Survey {
   ward_name?: string;
   area_name?: string;
   issues?: Array<{ issue_id: number; issue_name: string; severity: number; notes: string }>;
+  answers?: SurveyAnswer[];
   created_at: string;
 }
 

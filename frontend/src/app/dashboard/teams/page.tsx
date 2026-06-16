@@ -11,8 +11,10 @@ import Modal from '@/components/Modal';
 import StatsSummary from '@/components/dashboard/StatsSummary';
 import DetailsModal from '@/components/DetailsModal';
 import { MODULE_HEADER, SHARED_UI, TEAMS_UI } from '@/lib/ui-labels';
+import { useLanguage } from '@/context/LanguageContext';
 
 export default function TeamsPage() {
+  const { t, language } = useLanguage();
   const [members, setMembers] = useState<TeamMember[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
@@ -50,25 +52,25 @@ export default function TeamsPage() {
       loadMembers();
       loadStats();
     } catch (err: any) { 
-      showToast.error(err.response?.data?.message || 'Error adding team member'); 
+      showToast.error(err.response?.data?.message || t('toast.error_save', 'Failed to save details')); 
     }
   };
 
   const handleRemove = async (id: number) => {
     showToast.confirm(
-      'Remove Member',
-      'Are you sure you want to remove this member from the team? This will not delete their user account.',
+      t('teams.remove_member', 'Remove Member'),
+      t('teams.remove_confirm_msg', 'Are you sure you want to remove this member from the team? This will not delete their user account.'),
       async () => {
         try { 
           await teamsAPI.remove(id); 
           loadMembers(); 
           loadStats(); 
-          toast.success('Member removed from team');
+          toast.success(t('teams.remove_success', 'Member removed from team'));
         } catch (err) {
-          showToast.error('Failed to remove team member');
+          showToast.error(t('teams.remove_failed', 'Failed to remove team member'));
         }
       },
-      'Remove'
+      t('action.delete', 'Remove')
     );
   };
 
@@ -80,10 +82,10 @@ export default function TeamsPage() {
         <StatsSummary 
           loading={loading && !stats}
           stats={[
-            { label: 'Total Active', value: stats?.total_active || 0, icon: Users, color: 'text-blue-500', bgIcon: 'bg-blue-500/10' },
-            { label: 'Ward Heads', value: stats?.by_designation?.find((d: any) => d.designation === 'Ward Head')?.count || 0, icon: ShieldAlert, color: 'text-saffron-500', bgIcon: 'bg-saffron-500/10' },
-            { label: 'Leaders', value: members.filter(m => m.designation?.toLowerCase().includes('leader')).length || 0, icon: Award, color: 'text-emerald-500', bgIcon: 'bg-emerald-500/10' },
-            { label: 'Areas Covered', value: stats?.by_constituency?.length || 0, icon: Grid, color: 'text-purple-500', bgIcon: 'bg-purple-500/10' },
+            { label: t('teams.total_active', 'Total Active'), value: stats?.total_active || 0, icon: Users, color: 'text-blue-500', bgIcon: 'bg-blue-500/10' },
+            { label: t('teams.ward_heads', 'Ward Heads'), value: stats?.by_designation?.find((d: any) => d.designation === 'Ward Head')?.count || 0, icon: ShieldAlert, color: 'text-saffron-500', bgIcon: 'bg-saffron-500/10' },
+            { label: t('teams.leaders', 'Leaders'), value: members.filter(m => m.designation?.toLowerCase().includes('leader')).length || 0, icon: Award, color: 'text-emerald-500', bgIcon: 'bg-emerald-500/10' },
+            { label: t('teams.areas_covered', 'Areas Covered'), value: stats?.by_constituency?.length || 0, icon: Grid, color: 'text-purple-500', bgIcon: 'bg-purple-500/10' },
           ]}
         />
 
@@ -96,13 +98,13 @@ export default function TeamsPage() {
         <div className="glass-card table-responsive">
           <table className="data-table">
             <thead>
-                <tr><th>Member</th><th>Role</th><th>Designation</th><th>Leader</th><th>Ward / Booth</th><th>Status</th><th className="text-right">Actions</th></tr>
+                <tr><th>{t('teams.table_member', 'Member')}</th><th>{t('teams.table_role', 'Role')}</th><th>{t('teams.table_designation', 'Designation')}</th><th>{t('teams.table_leader', 'Leader')}</th><th>{t('teams.table_ward_booth', 'Ward / Booth')}</th><th>{t('teams.table_status', 'Status')}</th><th className="text-right">{t('label.actions', 'Actions')}</th></tr>
               </thead>
               <tbody>
                 {loading ? (
                   <tr><td colSpan={7} className="text-center py-12"><Loader2 className="w-6 h-6 animate-spin mx-auto text-saffron-400" /></td></tr>
                 ) : members.length === 0 ? (
-                  <tr><td colSpan={7} className="text-center py-12 text-dark-500">No team members</td></tr>
+                  <tr><td colSpan={7} className="text-center py-12 text-dark-500">{t('teams.no_team_members', 'No team members')}</td></tr>
                 ) : (
                   members.map(m => (
                     <tr key={m.id}>
@@ -124,7 +126,7 @@ export default function TeamsPage() {
                         <div className="text-sm font-medium text-dark-900 dark:text-dark-300">{m.ward_name || '—'}</div>
                         <div className="text-[11px] font-normal text-dark-600 dark:text-dark-500">{m.booth_name || ''}</div>
                       </td>
-                      <td><span className={`badge ${m.status === 'active' ? 'badge-success' : 'badge-neutral'} font-medium`}>{m.status}</span></td>
+                      <td><span className={`badge ${m.status === 'active' ? 'badge-success' : 'badge-neutral'} font-medium`}>{t('label.' + m.status, m.status)}</span></td>
                       <td className="text-right">
                         <div className="flex items-center gap-2 justify-end">
                           <button onClick={() => setSelectedMember(m)} className="btn-icon btn-secondary" title="View details">
@@ -144,22 +146,22 @@ export default function TeamsPage() {
       <Modal
         isOpen={showModal}
         onClose={() => setShowModal(false)}
-        title="Add Team Member"
-        subtitle="Onboard new field workers and assign tactical roles"
+        title={t('teams.add_team_member', 'Add Team Member')}
+        subtitle={t('teams.add_member_subtitle', 'Onboard new field workers and assign tactical roles')}
         footer={(
           <>
-            <button type="button" onClick={() => setShowModal(false)} className="btn-secondary min-w-[120px]">Cancel</button>
+            <button type="button" onClick={() => setShowModal(false)} className="btn-secondary min-w-[120px]">{t('action.cancel', 'Cancel')}</button>
             <button type="submit" form="add-member-form" className="btn-primary min-w-[160px]">
-              Add to Team
+              {t('teams.add_to_team_btn', 'Add to Team')}
             </button>
           </>
         )}
       >
         <form id="add-member-form" onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-2">
-            <label className="block text-xs font-black text-dark-400 uppercase tracking-widest px-1">Select User Profile *</label>
+            <label className="block text-xs font-black text-dark-400 uppercase tracking-widest px-1">{t('teams.select_user_profile', 'Select User Profile *')}</label>
             <select value={form.user_id} onChange={e => setForm({...form, user_id: e.target.value})} className="form-input" required>
-              <option value="">Search and choose a user...</option>
+              <option value="">{t('teams.search_choose_user', 'Search and choose a user...')}</option>
               {users.map(u => <option key={u.id} value={u.id}>{u.name} ({u.email})</option>)}
             </select>
           </div>
@@ -170,9 +172,9 @@ export default function TeamsPage() {
           </div>
           
           <div className="space-y-2">
-            <label className="block text-xs font-black text-dark-400 uppercase tracking-widest px-1">Reporting Officer / Team Leader</label>
+            <label className="block text-xs font-black text-dark-400 uppercase tracking-widest px-1">{t('teams.reporting_officer', 'Reporting Officer / Team Leader')}</label>
             <select value={form.team_leader_id} onChange={e => setForm({...form, team_leader_id: e.target.value})} className="form-input">
-              <option value="">No Reporting Officer</option>
+              <option value="">{t('teams.no_reporting_officer', 'No Reporting Officer')}</option>
               {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
             </select>
           </div>
@@ -182,20 +184,20 @@ export default function TeamsPage() {
       <DetailsModal
         isOpen={!!selectedMember}
         onClose={() => setSelectedMember(null)}
-        title="Team Member Details"
-        subtitle="Operational profile and assignment details"
+        title={t('teams.details_title', 'Team Member Details')}
+        subtitle={t('teams.details_subtitle', 'Operational profile and assignment details')}
         items={[
-          { label: 'Name', value: selectedMember?.name },
-          { label: 'Role', value: selectedMember?.role_name || '—' },
-          { label: 'Designation', value: selectedMember?.designation || '—' },
-          { label: 'Assigned Leader', value: selectedMember?.leader_name || '—' },
-          { label: 'Ward', value: selectedMember?.ward_name || '—' },
-          { label: 'Booth', value: selectedMember?.booth_name || '—' },
-          { label: 'Constituency', value: selectedMember?.constituency_name || '—' },
-          { label: 'Phone', value: selectedMember?.phone || '—' },
-          { label: 'Email', value: selectedMember?.email || '—' },
-          { label: 'Status', value: selectedMember?.status || '—' },
-          { label: 'Joined At', value: selectedMember?.joined_at ? new Date(selectedMember.joined_at).toLocaleString() : '—' },
+          { label: t('label.name', 'Name'), value: selectedMember?.name },
+          { label: t('label.role', 'Role'), value: selectedMember?.role_name || '—' },
+          { label: t('teams.table_designation', 'Designation'), value: selectedMember?.designation || '—' },
+          { label: t('voters.assigned_leader', 'Assigned Leader'), value: selectedMember?.leader_name || '—' },
+          { label: t('label.ward', 'Ward'), value: selectedMember?.ward_name || '—' },
+          { label: t('label.booth', 'Booth'), value: selectedMember?.booth_name || '—' },
+          { label: t('label.constituency', 'Constituency'), value: selectedMember?.constituency_name || '—' },
+          { label: t('label.phone', 'Phone'), value: selectedMember?.phone || '—' },
+          { label: t('label.email', 'Email'), value: selectedMember?.email || '—' },
+          { label: t('label.status', 'Status'), value: selectedMember?.status ? t('label.' + selectedMember.status, selectedMember.status) : '—' },
+          { label: t('teams.joined_at', 'Joined At'), value: selectedMember?.joined_at ? new Date(selectedMember.joined_at).toLocaleString(language === 'hi' ? 'hi-IN' : 'en-US') : '—' },
         ]}
       />
     </>

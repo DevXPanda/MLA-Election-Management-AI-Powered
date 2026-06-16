@@ -4,6 +4,17 @@ const { logActivity, formatResponse } = require('../utils/helpers');
 // --- States ---
 const getStates = async (req, res) => {
   try {
+    // MLA: only see the state containing their constituency
+    if (req.userRole === 'mla' && req.scope?.constituency_id) {
+      const result = await pool.query(
+        `SELECT DISTINCT s.* FROM states s
+         JOIN districts d ON d.state_id = s.id
+         JOIN constituencies c ON c.district_id = d.id
+         WHERE c.id = $1 ORDER BY s.name`,
+        [req.scope.constituency_id]
+      );
+      return res.json(formatResponse(true, 'States fetched.', result.rows));
+    }
     const result = await pool.query('SELECT * FROM states ORDER BY name');
     res.json(formatResponse(true, 'States fetched.', result.rows));
   } catch (error) {
@@ -57,6 +68,17 @@ const deleteState = async (req, res) => {
 const getDistricts = async (req, res) => {
   try {
     const { state_id } = req.query;
+    // MLA: only see the district containing their constituency
+    if (req.userRole === 'mla' && req.scope?.constituency_id) {
+      const result = await pool.query(
+        `SELECT DISTINCT d.*, s.name as state_name FROM districts d
+         LEFT JOIN states s ON d.state_id = s.id
+         JOIN constituencies c ON c.district_id = d.id
+         WHERE c.id = $1 ORDER BY d.name`,
+        [req.scope.constituency_id]
+      );
+      return res.json(formatResponse(true, 'Districts fetched.', result.rows));
+    }
     let query = 'SELECT d.*, s.name as state_name FROM districts d LEFT JOIN states s ON d.state_id = s.id';
     const params = [];
     if (state_id) {
@@ -117,6 +139,18 @@ const deleteDistrict = async (req, res) => {
 const getConstituencies = async (req, res) => {
   try {
     const { district_id } = req.query;
+    // MLA: only see their own constituency
+    if (req.userRole === 'mla' && req.scope?.constituency_id) {
+      const result = await pool.query(
+        `SELECT c.*, d.name as district_name, s.name as state_name
+         FROM constituencies c
+         LEFT JOIN districts d ON c.district_id = d.id
+         LEFT JOIN states s ON d.state_id = s.id
+         WHERE c.id = $1 ORDER BY c.name`,
+        [req.scope.constituency_id]
+      );
+      return res.json(formatResponse(true, 'Constituencies fetched.', result.rows));
+    }
     let query = `SELECT c.*, d.name as district_name, s.name as state_name 
                  FROM constituencies c 
                  LEFT JOIN districts d ON c.district_id = d.id 
@@ -182,7 +216,11 @@ const deleteConstituency = async (req, res) => {
 // --- Areas ---
 const getAreas = async (req, res) => {
   try {
-    const { constituency_id } = req.query;
+    let { constituency_id } = req.query;
+    // MLA: force constituency_id to their own
+    if (req.userRole === 'mla' && req.scope?.constituency_id) {
+      constituency_id = req.scope.constituency_id;
+    }
     let query = `SELECT a.*, c.name as constituency_name, u.name as manager_name 
                  FROM areas a 
                  LEFT JOIN constituencies c ON a.constituency_id = c.id
@@ -245,7 +283,11 @@ const deleteArea = async (req, res) => {
 // --- Wards ---
 const getWards = async (req, res) => {
   try {
-    const { constituency_id, area_id } = req.query;
+    let { constituency_id, area_id } = req.query;
+    // MLA: force constituency_id to their own
+    if (req.userRole === 'mla' && req.scope?.constituency_id) {
+      constituency_id = req.scope.constituency_id;
+    }
     let query = `SELECT w.*, c.name as constituency_name, a.name as area_name, u.name as ward_head_name 
                  FROM wards w 
                  LEFT JOIN constituencies c ON w.constituency_id = c.id
@@ -333,9 +375,18 @@ const getBooths = async (req, res) => {
                  LEFT JOIN wards w ON b.ward_id = w.id
                  LEFT JOIN constituencies c ON w.constituency_id = c.id`;
     const params = [];
+    const conditions = [];
     if (ward_id) {
-      query += ' WHERE b.ward_id = $1';
       params.push(ward_id);
+      conditions.push(`b.ward_id = $${params.length}`);
+    }
+    // MLA: restrict booths to their constituency's wards
+    if (req.userRole === 'mla' && req.scope?.constituency_id) {
+      params.push(req.scope.constituency_id);
+      conditions.push(`w.constituency_id = $${params.length}`);
+    }
+    if (conditions.length > 0) {
+      query += ' WHERE ' + conditions.join(' AND ');
     }
     query += ' ORDER BY b.number, b.name';
     const result = await pool.query(query, params);
@@ -393,6 +444,19 @@ const deleteBooth = async (req, res) => {
 // Get full hierarchy
 const getHierarchy = async (req, res) => {
   try {
+    // MLA: only see hierarchy for their constituency's state
+    if (req.userRole === 'mla' && req.scope?.constituency_id) {
+      const states = await pool.query(`
+        SELECT s.*,
+          (SELECT COUNT(*) FROM districts WHERE state_id = s.id) as district_count,
+          1 as constituency_count
+        FROM states s
+        JOIN districts d ON d.state_id = s.id
+        JOIN constituencies c ON c.district_id = d.id
+        WHERE c.id = $1 ORDER BY s.name
+      `, [req.scope.constituency_id]);
+      return res.json(formatResponse(true, 'Hierarchy fetched.', states.rows));
+    }
     const states = await pool.query(`
       SELECT s.*, 
         (SELECT COUNT(*) FROM districts WHERE state_id = s.id) as district_count,

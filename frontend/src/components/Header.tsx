@@ -2,8 +2,9 @@
 
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
+import { useLanguage } from '@/context/LanguageContext';
 import NotificationDropdown from './NotificationDropdown';
-import { Bell, Search, Sun, Moon, Command, LogOut, ChevronRight, Sparkles, Shield, User, Menu } from 'lucide-react';
+import { Bell, Search, Sun, Moon, Command, LogOut, ChevronRight, Sparkles, Shield, User, Menu, Globe } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import { useSidebar } from './Sidebar';
 
@@ -15,16 +16,23 @@ interface HeaderProps {
 export default function Header({ title, subtitle }: HeaderProps) {
   const { theme, toggleTheme } = useTheme();
   const { user, logout } = useAuth();
+  const { language, setLanguage, t } = useLanguage();
   const { setMobileOpen } = useSidebar();
   const [searchFocused, setSearchFocused] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [langOpen, setLangOpen] = useState(false);
+  
   const profileRef = useRef<HTMLDivElement>(null);
+  const langRef = useRef<HTMLDivElement>(null);
 
-  // Close profile dropdown on outside click
+  // Close dropdowns on outside click
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (profileRef.current && !profileRef.current.contains(e.target as Node)) {
         setProfileOpen(false);
+      }
+      if (langRef.current && !langRef.current.contains(e.target as Node)) {
+        setLangOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -77,7 +85,7 @@ export default function Header({ title, subtitle }: HeaderProps) {
             ) : (
               <div className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-gradient-to-r ${getRoleBadgeColor(user?.role_name)} border border-dark-100 dark:border-white/10 text-[7px] sm:text-[8px] font-medium uppercase tracking-[1px] text-dark-700 dark:text-dark-100`}>
                 <Shield className="w-2 h-2 sm:w-2.5 sm:h-2.5" />
-                {formatRole(user?.role_name)}
+                {t(`role.${user?.role_name}`, formatRole(user?.role_name))}
               </div>
             )}
           </div>
@@ -92,7 +100,7 @@ export default function Header({ title, subtitle }: HeaderProps) {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-dark-400 dark:text-dark-500 pointer-events-none z-10" />
           <input
             type="text"
-            placeholder="Search..."
+            placeholder={t('action.search_placeholder', 'Search...')}
             onFocus={() => setSearchFocused(true)}
             onBlur={() => setSearchFocused(false)}
             className="w-full pl-9 pr-10 py-2 bg-dark-50/80 dark:bg-dark-800/30 border border-dark-200/50 dark:border-white/[0.06] rounded-lg text-sm text-dark-900 dark:text-dark-100 outline-none transition-all duration-300 focus:border-saffron-500/40 dark:focus:border-saffron-500/30 focus:ring-2 focus:ring-saffron-500/10 focus:bg-white dark:focus:bg-dark-800/50 placeholder:text-dark-400 dark:placeholder:text-dark-500 font-medium"
@@ -106,6 +114,51 @@ export default function Header({ title, subtitle }: HeaderProps) {
 
         {/* Divider */}
         <div className="hidden sm:block w-px h-6 bg-dark-200/50 dark:bg-white/[0.06] mx-0.5" />
+
+        {/* Language Switcher Dropdown */}
+        <div className="relative" ref={langRef}>
+          <button
+            onClick={() => setLangOpen(!langOpen)}
+            className="w-10 h-8 rounded-lg bg-dark-50/80 dark:bg-dark-800/30 border border-dark-200/50 dark:border-white/[0.06] text-dark-500 dark:text-dark-400 flex items-center justify-center gap-1 hover:bg-dark-100 dark:hover:bg-dark-700/50 transition-all duration-200 text-xs font-bold"
+            title="Switch Language / भाषा बदलें"
+          >
+            <Globe size={14} className="text-dark-400 dark:text-dark-500" />
+            <span className="uppercase">{language}</span>
+          </button>
+
+          {langOpen && (
+            <div className="absolute right-0 top-full mt-2 w-36 bg-white dark:bg-dark-900 rounded-lg border border-dark-200/60 dark:border-white/[0.06] shadow-2xl shadow-black/10 dark:shadow-black/40 p-1 animate-fade-in z-50">
+              <button
+                onClick={() => {
+                  setLanguage('en');
+                  setLangOpen(false);
+                }}
+                className={`w-full flex items-center justify-between px-3 py-2 rounded-md transition-all duration-200 text-xs font-semibold ${
+                  language === 'en'
+                    ? 'bg-saffron-500/10 text-saffron-600 dark:text-saffron-400'
+                    : 'text-dark-700 dark:text-dark-300 hover:bg-dark-50 dark:hover:bg-white/[0.03]'
+                }`}
+              >
+                <span>English</span>
+                {language === 'en' && <span className="w-1.5 h-1.5 rounded-full bg-saffron-500" />}
+              </button>
+              <button
+                onClick={() => {
+                  setLanguage('hi');
+                  setLangOpen(false);
+                }}
+                className={`w-full flex items-center justify-between px-3 py-2 rounded-md transition-all duration-200 text-xs font-semibold ${
+                  language === 'hi'
+                    ? 'bg-saffron-500/10 text-saffron-600 dark:text-saffron-400'
+                    : 'text-dark-700 dark:text-dark-300 hover:bg-dark-50 dark:hover:bg-white/[0.03]'
+                }`}
+              >
+                <span>हिन्दी</span>
+                {language === 'hi' && <span className="w-1.5 h-1.5 rounded-full bg-saffron-500" />}
+              </button>
+            </div>
+          )}
+        </div>
 
         {/* Theme Toggle */}
         <button 
@@ -143,7 +196,7 @@ export default function Header({ title, subtitle }: HeaderProps) {
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="text-sm font-medium text-dark-900 dark:text-white truncate">{user?.name}</div>
-                    <div className="text-[10px] font-medium text-dark-600 dark:text-dark-500 uppercase tracking-[1px]">{formatRole(user?.role_name)}</div>
+                    <div className="text-[10px] font-medium text-dark-600 dark:text-dark-500 uppercase tracking-[1px]">{t(`role.${user?.role_name}`, formatRole(user?.role_name))}</div>
                   </div>
                 </div>
               </div>
@@ -153,7 +206,7 @@ export default function Header({ title, subtitle }: HeaderProps) {
                 className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-dark-500 dark:text-dark-400 hover:bg-red-500/10 hover:text-red-500 dark:hover:text-red-400 transition-all duration-200 text-sm font-semibold group"
               >
                 <LogOut className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
-                Sign Out
+                {t('action.sign_out', 'Sign Out')}
               </button>
             </div>
           )}

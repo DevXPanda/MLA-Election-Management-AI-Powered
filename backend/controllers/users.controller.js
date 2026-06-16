@@ -10,7 +10,7 @@ const getUsers = async (req, res) => {
 
     let query = `
       SELECT u.id, u.name, u.email, u.phone, u.status, u.last_login, u.created_at,
-             u.organization_id,
+             u.organization_id, u.role_id, u.constituency_id, u.ward_id, u.booth_id,
              r.name as role_name, r.display_name as role_display_name,
              c.name as constituency_name, w.name as ward_name, b.name as booth_name
       FROM users u
@@ -26,6 +26,10 @@ const getUsers = async (req, res) => {
     // Tenant filter (super_admin sees all, others see their org)
     if (!req.scope?.unrestricted) {
       paramCount++; query += ` AND u.organization_id = $${paramCount}`; params.push(req.tenant);
+    }
+    // MLA: restrict to users in their constituency
+    if (req.userRole === 'mla' && req.scope?.constituency_id) {
+      paramCount++; query += ` AND u.constituency_id = $${paramCount}`; params.push(req.scope.constituency_id);
     }
 
     if (role) { paramCount++; query += ` AND r.name = $${paramCount}`; params.push(role); }
@@ -68,6 +72,11 @@ const getUser = async (req, res) => {
     );
     if (!result.rows.length) return res.status(404).json(formatResponse(false, 'User not found.'));
     const user = result.rows[0];
+    if (req.userRole === 'mla' && req.scope?.constituency_id) {
+      if (user.constituency_id !== req.scope.constituency_id) {
+        return res.status(403).json(formatResponse(false, 'Access denied. User outside constituency.'));
+      }
+    }
     delete user.password_hash;
     res.json(formatResponse(true, 'User fetched.', user));
   } catch (error) { console.error(error); res.status(500).json(formatResponse(false, 'Internal server error.')); }
@@ -76,8 +85,31 @@ const getUser = async (req, res) => {
 // Create user (auto-assign to caller's org)
 const createUser = async (req, res) => {
   try {
-    const { name, email, phone, password, role_id, constituency_id, ward_id, booth_id } = req.body;
+    let { name, email, phone, password, role_id, constituency_id, ward_id, booth_id } = req.body;
     if (!name || !email || !password || !role_id) return res.status(400).json(formatResponse(false, 'Name, email, password, and role are required.'));
+
+    // Check if MLA role
+    const roleCheck = await pool.query('SELECT name FROM roles WHERE id = $1', [role_id]);
+    const isMlaRole = roleCheck.rows.length && roleCheck.rows[0].name === 'mla';
+    if (isMlaRole && !constituency_id) {
+      return res.status(400).json(formatResponse(false, 'Constituency assignment is mandatory for MLA role.'));
+    }
+
+    if (req.userRole === 'mla' && req.scope?.constituency_id) {
+      constituency_id = req.scope.constituency_id;
+      if (ward_id) {
+        const wardCheck = await pool.query('SELECT constituency_id FROM wards WHERE id = $1', [ward_id]);
+        if (!wardCheck.rows.length || wardCheck.rows[0].constituency_id !== req.scope.constituency_id) {
+          return res.status(400).json(formatResponse(false, 'Ward does not belong to your constituency.'));
+        }
+      }
+      if (booth_id) {
+        const boothCheck = await pool.query('SELECT w.constituency_id FROM booths b JOIN wards w ON b.ward_id = w.id WHERE b.id = $1', [booth_id]);
+        if (!boothCheck.rows.length || boothCheck.rows[0].constituency_id !== req.scope.constituency_id) {
+          return res.status(400).json(formatResponse(false, 'Booth does not belong to your constituency.'));
+        }
+      }
+    }
 
     const existing = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
     if (existing.rows.length) return res.status(400).json(formatResponse(false, 'Email already registered.'));
@@ -87,7 +119,7 @@ const createUser = async (req, res) => {
 
     const result = await pool.query(
       `INSERT INTO users (name, email, phone, password_hash, role_id, constituency_id, ward_id, booth_id, organization_id)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id, name, email, phone, role_id, status, created_at`,
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id, name, email, phone, role_id, constituency_id, ward_id, booth_id, status, created_at`,
       [name, email, phone, hash, role_id, constituency_id || null, ward_id || null, booth_id || null, req.tenant]
     );
 
@@ -99,13 +131,46 @@ const createUser = async (req, res) => {
 // Update user
 const updateUser = async (req, res) => {
   try {
-    const { name, email, phone, role_id, constituency_id, ward_id, booth_id, status } = req.body;
+    let { name, email, phone, role_id, constituency_id, ward_id, booth_id, status } = req.body;
+
+    const existing = await pool.query('SELECT constituency_id, role_id FROM users WHERE id = $1 AND organization_id = $2', [req.params.id, req.tenant]);
+    if (!existing.rows.length) return res.status(404).json(formatResponse(false, 'User not found.'));
+
+    const targetRoleId = role_id !== undefined ? parseInt(role_id) : existing.rows[0].role_id;
+    const roleCheck = await pool.query('SELECT name FROM roles WHERE id = $1', [targetRoleId]);
+    const isTargetMla = roleCheck.rows.length && roleCheck.rows[0].name === 'mla';
+
+    if (isTargetMla) {
+      const finalConstId = constituency_id !== undefined ? constituency_id : existing.rows[0].constituency_id;
+      if (!finalConstId) {
+        return res.status(400).json(formatResponse(false, 'Constituency assignment is mandatory for MLA role.'));
+      }
+    }
+
+    if (req.userRole === 'mla' && req.scope?.constituency_id) {
+      if (existing.rows[0].constituency_id !== req.scope.constituency_id) {
+        return res.status(403).json(formatResponse(false, 'Access denied. User outside constituency.'));
+      }
+      constituency_id = req.scope.constituency_id;
+      if (ward_id) {
+        const wardCheck = await pool.query('SELECT constituency_id FROM wards WHERE id = $1', [ward_id]);
+        if (!wardCheck.rows.length || wardCheck.rows[0].constituency_id !== req.scope.constituency_id) {
+          return res.status(400).json(formatResponse(false, 'Ward does not belong to your constituency.'));
+        }
+      }
+      if (booth_id) {
+        const boothCheck = await pool.query('SELECT w.constituency_id FROM booths b JOIN wards w ON b.ward_id = w.id WHERE b.id = $1', [booth_id]);
+        if (!boothCheck.rows.length || boothCheck.rows[0].constituency_id !== req.scope.constituency_id) {
+          return res.status(400).json(formatResponse(false, 'Booth does not belong to your constituency.'));
+        }
+      }
+    }
 
     const result = await pool.query(
       `UPDATE users SET name = COALESCE($1, name), email = COALESCE($2, email), phone = COALESCE($3, phone),
        role_id = COALESCE($4, role_id), constituency_id = $5, ward_id = $6, booth_id = $7,
        status = COALESCE($8, status), updated_at = CURRENT_TIMESTAMP
-       WHERE id = $9 AND organization_id = $10 RETURNING id, name, email, phone, role_id, status`,
+       WHERE id = $9 AND organization_id = $10 RETURNING id, name, email, phone, role_id, constituency_id, ward_id, booth_id, status`,
       [name, email, phone, role_id, constituency_id || null, ward_id || null, booth_id || null, status, req.params.id, req.tenant]
     );
 
@@ -118,7 +183,13 @@ const updateUser = async (req, res) => {
 // Delete user
 const deleteUser = async (req, res) => {
   try {
-    const result = await pool.query('DELETE FROM users WHERE id = $1 AND organization_id = $2 RETURNING id, name', [req.params.id, req.tenant]);
+    let scopeClause = '';
+    const scopeParams = [req.params.id, req.tenant];
+    if (req.userRole === 'mla' && req.scope?.constituency_id) {
+      scopeClause = ' AND constituency_id = $3';
+      scopeParams.push(req.scope.constituency_id);
+    }
+    const result = await pool.query(`DELETE FROM users WHERE id = $1 AND organization_id = $2${scopeClause} RETURNING id, name`, scopeParams);
     if (!result.rows.length) return res.status(404).json(formatResponse(false, 'User not found.'));
     await logActivity(req.user.id, 'USER_DELETED', 'users', { deleted_user: result.rows[0] }, req.ip, req.tenant);
     res.json(formatResponse(true, 'User deleted successfully.'));

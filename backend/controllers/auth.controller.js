@@ -74,7 +74,7 @@ const getProfile = async (req, res) => {
   try {
     const result = await pool.query(
       `SELECT u.id, u.name, u.email, u.phone, u.avatar_url, u.status, u.last_login, u.created_at,
-              u.organization_id,
+              u.organization_id, u.constituency_id, u.ward_id, u.booth_id,
               r.name as role_name, r.display_name as role_display_name, r.permissions,
               c.name as constituency_name, w.name as ward_name, b.name as booth_name,
               o.name as organization_name

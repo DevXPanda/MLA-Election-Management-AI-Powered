@@ -3,6 +3,7 @@ import { Inter } from 'next/font/google';
 import './globals.css';
 import { AuthProvider } from '@/context/AuthContext';
 import { ThemeProvider } from '@/context/ThemeContext';
+import { LanguageProvider } from '@/context/LanguageContext';
 
 const inter = Inter({ 
   subsets: ['latin'], 
@@ -43,40 +44,42 @@ export default function RootLayout({
       </head>
       <body className={`${inter.variable} font-inter antialiased tracking-tight bg-white dark:bg-dark-950 transition-colors duration-300`}>
         <AuthProvider>
-          <ThemeProvider>
-            {children}
-            <Toaster 
-              position="top-right"
-              reverseOrder={false}
-              toastOptions={{
-                duration: 4000,
-                style: {
-                  background: 'var(--toast-bg)',
-                  color: 'var(--toast-color)',
-                  fontSize: '13px',
-                  fontWeight: '600',
-                  borderRadius: '16px',
-                  padding: '12px 20px',
-                  border: '1px solid var(--toast-border)',
-                  boxShadow: 'var(--toast-shadow)',
-                  fontFamily: 'var(--font-inter)',
-                  maxWidth: '400px',
-                },
-                success: {
-                  iconTheme: {
-                    primary: '#f97316',
-                    secondary: '#fff',
+          <LanguageProvider>
+            <ThemeProvider>
+              {children}
+              <Toaster 
+                position="top-right"
+                reverseOrder={false}
+                toastOptions={{
+                  duration: 4000,
+                  style: {
+                    background: 'var(--toast-bg)',
+                    color: 'var(--toast-color)',
+                    fontSize: '13px',
+                    fontWeight: '600',
+                    borderRadius: '16px',
+                    padding: '12px 20px',
+                    border: '1px solid var(--toast-border)',
+                    boxShadow: 'var(--toast-shadow)',
+                    fontFamily: 'var(--font-inter)',
+                    maxWidth: '400px',
                   },
-                },
-                error: {
-                  iconTheme: {
-                    primary: '#ef4444',
-                    secondary: '#fff',
+                  success: {
+                    iconTheme: {
+                      primary: '#f97316',
+                      secondary: '#fff',
+                    },
                   },
-                },
-              }}
-            />
-          </ThemeProvider>
+                  error: {
+                    iconTheme: {
+                      primary: '#ef4444',
+                      secondary: '#fff',
+                    },
+                  },
+                }}
+              />
+            </ThemeProvider>
+          </LanguageProvider>
         </AuthProvider>
       </body>
     </html>

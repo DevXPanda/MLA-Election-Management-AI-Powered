@@ -9,8 +9,10 @@ import { mediaAPI } from '@/lib/api';
 import { Plus, X, Loader2, Image as ImageIcon, Film, FileText, Download, Trash2 } from 'lucide-react';
 import Modal from '@/components/Modal';
 import { MODULE_HEADER, SHARED_UI, MEDIA_UI } from '@/lib/ui-labels';
+import { useLanguage } from '@/context/LanguageContext';
 
 export default function MediaPage() {
+  const { t } = useLanguage();
   const [media, setMedia] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -39,7 +41,7 @@ export default function MediaPage() {
       setShowModal(false);
       loadMedia();
     } catch (err: any) { 
-      showToast.error(err.response?.data?.message || 'Error saving media'); 
+      showToast.error(err.response?.data?.message || t('media.error.save')); 
     }
   };
 
@@ -49,18 +51,18 @@ export default function MediaPage() {
 
   const handleDelete = async (id: number) => {
     showToast.confirm(
-      'Delete Media',
-      'Are you sure you want to delete this media asset? This will remove it for all users.',
+      t('media.delete_title'),
+      t('media.delete_confirm'),
       async () => {
         try { 
           await mediaAPI.delete(id); 
           loadMedia(); 
-          toast.success('Media deleted successfully');
+          toast.success(t('media.success.delete'));
         } catch (err) {
-          showToast.error('Failed to delete media');
+          showToast.error(t('media.error.delete'));
         }
       },
-      'Delete'
+      t('action.delete')
     );
   };
 
@@ -86,15 +88,15 @@ export default function MediaPage() {
       <div className="p-8">
         <div className="flex items-center justify-between mb-6">
           <div className="flex gap-3">
-            {['', 'image', 'video', 'pdf'].map(t => (
-              <button key={t} onClick={() => setTypeFilter(t)}
-                className={`filter-tab ${typeFilter === t ? 'filter-tab-active' : 'filter-tab-inactive'}`}>
-                {t ? typeIcon(t) : null}
-                {t ? t : 'All'}
+            {['', 'image', 'video', 'pdf'].map(typeVal => (
+              <button key={typeVal} onClick={() => setTypeFilter(typeVal)}
+                className={`filter-tab ${typeFilter === typeVal ? 'filter-tab-active' : 'filter-tab-inactive'}`}>
+                {typeVal ? typeIcon(typeVal) : null}
+                {typeVal ? (typeVal === 'image' ? t('shared.ui.mediaTypeImage') : typeVal === 'video' ? t('shared.ui.mediaTypeVideo') : t('media.ui.typePdf')) : t('label.all')}
               </button>
             ))}
           </div>
-          <button onClick={() => setShowModal(true)} className="btn-primary"><Plus className="w-4 h-4" /> Add Media</button>
+          <button onClick={() => setShowModal(true)} className="btn-primary"><Plus className="w-4 h-4" /> {t('shared.ui.mediaAddTitle')}</button>
         </div>
 
         {loading ? (
@@ -102,7 +104,7 @@ export default function MediaPage() {
         ) : media.length === 0 ? (
           <div className="text-center py-16 glass-card">
             <ImageIcon className="w-12 h-12 text-dark-700 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-dark-300">No media found</h3>
+            <h3 className="text-lg font-semibold text-dark-300">{t('media.no_media')}</h3>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
@@ -129,14 +131,14 @@ export default function MediaPage() {
                 </div>
                 {/* Info */}
                 <div className="p-4">
-                  <h3 className="font-bold text-dark-900 dark:text-dark-100 truncate group-hover:text-saffron-600 transition-colors">{item.title || 'Untitled'}</h3>
+                  <h3 className="font-bold text-dark-900 dark:text-dark-100 truncate group-hover:text-saffron-600 transition-colors">{item.title || t('label.untitled')}</h3>
                   <div className="flex items-center justify-between mt-2 text-[11px] font-bold uppercase tracking-wider text-dark-600 dark:text-dark-500">
                     <span className="flex items-center gap-1">👤 {item.uploaded_by_name}</span>
-                    <span className="flex items-center gap-1">📊 {item.download_count || 0} hits</span>
+                    <span className="flex items-center gap-1">📊 {item.download_count || 0} {t('label.hits')}</span>
                   </div>
                   <div className="flex gap-2 mt-3 pt-3 border-t border-white/5">
                     <a href={item.file_url} target="_blank" rel="noopener" onClick={() => handleDownload(item.id)}
-                      className="btn-secondary btn-sm flex-1 text-center"><Download className="w-3 h-3" /> Open</a>
+                      className="btn-secondary btn-sm flex-1 text-center"><Download className="w-3 h-3" /> {t('label.open')}</a>
                     <button onClick={() => handleDelete(item.id)}
                       className="btn-icon btn-sm bg-red-500/10 border border-red-500/20 text-red-400"><Trash2 className="w-3 h-3" /></button>
                   </div>
@@ -155,7 +157,7 @@ export default function MediaPage() {
         maxWidth="max-w-[650px]"
         footer={(
           <>
-            <button type="button" onClick={() => setShowModal(false)} className="btn-secondary min-w-[120px]">Cancel</button>
+            <button type="button" onClick={() => setShowModal(false)} className="btn-secondary min-w-[120px]">{t('action.cancel')}</button>
             <button type="submit" form="media-form" className="btn-primary min-w-[160px]">
               {MEDIA_UI.addToLibrary}
             </button>
@@ -164,16 +166,16 @@ export default function MediaPage() {
       >
         <form id="media-form" onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-2">
-            <label className="block text-xs font-black text-dark-400 uppercase tracking-widest px-1">Media Title</label>
-            <input value={form.title} onChange={e => setForm({...form, title: e.target.value})} className="form-input" placeholder="e.g. Campaign Poster V1" />
+            <label className="block text-xs font-black text-dark-400 uppercase tracking-widest px-1">{t('label.title')}</label>
+            <input value={form.title} onChange={e => setForm({...form, title: e.target.value})} className="form-input" placeholder={t('label.poster_placeholder')} />
           </div>
           <div className="space-y-2">
-            <label className="block text-xs font-black text-dark-400 uppercase tracking-widest px-1">Source File URL *</label>
+            <label className="block text-xs font-black text-dark-400 uppercase tracking-widest px-1">{t('label.source_file_url')} *</label>
             <input value={form.file_url} onChange={e => setForm({...form, file_url: e.target.value})} className="form-input" placeholder="https://..." required />
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
-              <label className="block text-xs font-black text-dark-400 uppercase tracking-widest px-1">Media Category</label>
+              <label className="block text-xs font-black text-dark-400 uppercase tracking-widest px-1">{t('label.category')}</label>
               <select value={form.file_type} onChange={e => setForm({...form, file_type: e.target.value})} className="form-input">
                 <option value="image">{SHARED_UI.mediaTypeImage}</option>
                 <option value="video">{SHARED_UI.mediaTypeVideo}</option>
@@ -181,8 +183,8 @@ export default function MediaPage() {
               </select>
             </div>
             <div className="space-y-2">
-              <label className="block text-xs font-black text-dark-400 uppercase tracking-widest px-1">Campaign Tag</label>
-              <input value={form.category} onChange={e => setForm({...form, category: e.target.value})} className="form-input" placeholder="e.g. Rally, Digital" />
+              <label className="block text-xs font-black text-dark-400 uppercase tracking-widest px-1">{t('label.campaign_tag')}</label>
+              <input value={form.category} onChange={e => setForm({...form, category: e.target.value})} className="form-input" placeholder={t('label.tag_placeholder')} />
             </div>
           </div>
         </form>

@@ -10,8 +10,10 @@ import { Plus, X, Loader2, MapPin, ChevronRight, Building2, Home, Edit3, Trash2,
 import { useAuth } from '@/context/AuthContext';
 import Modal from '@/components/Modal';
 import { MODULE_HEADER, CONSTITUENCY_UI } from '@/lib/ui-labels';
+import { useLanguage } from '@/context/LanguageContext';
 
 export default function ConstituencyPage() {
+  const { t, language } = useLanguage();
   const { user: currentUser } = useAuth();
   const [states, setStates] = useState<State[]>([]);
   const [districts, setDistricts] = useState<District[]>([]);
@@ -52,6 +54,34 @@ export default function ConstituencyPage() {
 
   const canManageHierarchy = currentUser?.role_name === 'super_admin' || currentUser?.role_name === 'mla';
   const isSuper = currentUser?.role_name === 'super_admin';
+  const isMLA = currentUser?.role_name === 'mla';
+
+  const getUnitTypeLabel = (type: string) => {
+    const map: Record<string, string> = {
+      state: 'label.state',
+      district: 'label.district',
+      constituency: 'label.constituency',
+      area: 'label.area',
+      ward: 'label.ward',
+      booth: 'label.booth'
+    };
+    return t(map[type] || `label.${type}`);
+  };
+
+  const getModalTitle = () => {
+    const unitLabel = getUnitTypeLabel(modalType || '');
+    if (editingItem) {
+      return language === 'hi' ? `${unitLabel} संशोधित करें` : `Edit ${unitLabel}`;
+    }
+    return language === 'hi' ? `नया ${unitLabel} जोड़ें` : `Add New ${unitLabel}`;
+  };
+
+  const getModalSubtitle = () => {
+    if (editingItem) {
+      return t('const.modal.edit_unit_sub');
+    }
+    return t('const.modal.add_unit_sub');
+  };
 
   useEffect(() => { 
     loadInitial(); 
@@ -66,6 +96,21 @@ export default function ConstituencyPage() {
       ]);
       setStates(statesRes.data.data);
       if (!selectedDistrict) setConstituencies(constituenciesRes.data.data);
+      
+      // MLA: auto-select their constituency and skip to Areas view
+      if (isMLA && currentUser?.constituency_id) {
+        const mlaConst = constituenciesRes.data.data[0]; // API already filtered to MLA's constituency
+        if (mlaConst) {
+          // Auto-navigate to the MLA's constituency hierarchy
+          if (statesRes.data.data.length > 0) {
+            setSelectedState(statesRes.data.data[0].id);
+          }
+          setSelectedConstituency(mlaConst.id);
+          // Load areas immediately
+          const areasRes = await constituencyAPI.getAreas(mlaConst.id);
+          setAreas(areasRes.data.data);
+        }
+      }
     } catch {} finally { setLoading(false); }
   };
 
@@ -166,59 +211,59 @@ export default function ConstituencyPage() {
       }
       setShowModal(false);
     } catch (err: any) { 
-      showToast.error(err.response?.data?.message || 'Error'); 
+      showToast.error(err.response?.data?.message || t('label.unknown', 'Error')); 
     }
   };
 
   const handleDeleteState = async (id: number) => {
     showToast.confirm(
-      'Delete State',
-      'Delete this state and all its districts/constituencies? This is a high-level destructive action.',
+      t('label.delete_state'),
+      t('label.delete_state_msg'),
       async () => {
         try {
           await constituencyAPI.deleteState(id);
           constituencyAPI.getStates().then(res => setStates(res.data.data));
-          toast.success('State deleted');
+          toast.success(t('const.success.state_delete'));
         } catch {
-          showToast.error('Failed to delete state');
+          showToast.error(t('const.error.state_delete'));
         }
       },
-      'Delete'
+      t('action.delete')
     );
   };
 
   const handleDeleteDistrict = async (id: number) => {
     showToast.confirm(
-      'Delete District',
-      'Delete this district and all its constituencies? This action cannot be undone.',
+      t('label.delete_district'),
+      t('label.delete_district_msg'),
       async () => {
         try {
           await constituencyAPI.deleteDistrict(id);
           if (selectedState) constituencyAPI.getDistricts(selectedState).then(res => setDistricts(res.data.data));
-          toast.success('District deleted');
+          toast.success(t('const.success.district_delete'));
         } catch {
-          showToast.error('Failed to delete district');
+          showToast.error(t('const.error.district_delete'));
         }
       },
-      'Delete'
+      t('action.delete')
     );
   };
 
   const handleDeleteConstituency = async (id: number) => {
     showToast.confirm(
-      'Delete Constituency',
-      'Are you sure you want to delete this constituency? This will remove all local campaign data.',
+      t('label.delete_constituency'),
+      t('label.delete_constituency_msg'),
       async () => {
         try {
           await constituencyAPI.deleteConstituency(id);
           if (selectedDistrict) constituencyAPI.getConstituencies(selectedDistrict).then(res => setConstituencies(res.data.data));
           else loadInitial();
-          toast.success('Constituency deleted');
+          toast.success(t('const.success.constituency_delete'));
         } catch {
-          showToast.error('Failed to delete constituency');
+          showToast.error(t('const.error.constituency_delete'));
         }
       },
-      'Delete'
+      t('action.delete')
     );
   };
 
@@ -275,9 +320,9 @@ export default function ConstituencyPage() {
       setShowStructureModal(false);
       setCurrentStep(1);
       loadInitial();
-      toast.success('Campaign structure created successfully!');
+      toast.success(t('label.structure_success'));
     } catch (err: any) {
-      showToast.error(err.response?.data?.message || 'Failed to create structure');
+      showToast.error(err.response?.data?.message || t('label.structure_failed'));
     } finally {
       setLoading(false);
     }
@@ -285,52 +330,52 @@ export default function ConstituencyPage() {
 
   const handleDeleteArea = async (id: number) => {
     showToast.confirm(
-      'Delete Area',
-      'Delete this area and all its wards/booths? This is permanent.',
+      t('label.delete_area'),
+      t('label.delete_area_msg'),
       async () => {
         try {
           await constituencyAPI.deleteArea(id);
           constituencyAPI.getAreas(selectedConstituency!).then(res => setAreas(res.data.data));
-          toast.success('Area deleted');
+          toast.success(t('const.success.area_delete'));
         } catch {
-          showToast.error('Failed to delete area');
+          showToast.error(t('const.error.area_delete'));
         }
       },
-      'Delete'
+      t('action.delete')
     );
   };
 
   const handleDeleteWard = async (id: number) => {
     showToast.confirm(
-      'Delete Ward',
-      'Are you sure you want to delete this ward?',
+      t('label.delete_ward'),
+      t('label.delete_ward_msg'),
       async () => {
         try {
           await constituencyAPI.deleteWard(id);
           constituencyAPI.getWards(undefined, selectedArea!).then(res => setWards(res.data.data));
-          toast.success('Ward deleted');
+          toast.success(t('const.success.ward_delete'));
         } catch {
-          showToast.error('Failed to delete ward');
+          showToast.error(t('const.error.ward_delete'));
         }
       },
-      'Delete'
+      t('action.delete')
     );
   };
 
   const handleDeleteBooth = async (id: number) => {
     showToast.confirm(
-      'Delete Booth',
-      'Are you sure you want to delete this booth?',
+      t('label.delete_booth'),
+      t('label.delete_booth_msg'),
       async () => {
         try {
           await constituencyAPI.deleteBooth(id);
           constituencyAPI.getBooths(selectedWard!).then(res => setBooths(res.data.data));
-          toast.success('Booth deleted');
+          toast.success(t('const.success.booth_delete'));
         } catch {
-          showToast.error('Failed to delete booth');
+          showToast.error(t('const.error.booth_delete'));
         }
       },
-      'Delete'
+      t('action.delete')
     );
   };
 
@@ -347,58 +392,66 @@ export default function ConstituencyPage() {
       <div className="p-8">
         <div className="flex items-center justify-between mb-8">
           <h2 className="text-xl font-bold flex items-center gap-2">{CONSTITUENCY_UI.sectionHeading}</h2>
-          {canManageHierarchy && (
+          {canManageHierarchy && !isMLA && (
             <button 
               onClick={() => setShowStructureModal(true)} 
               className="btn-primary py-2.5 px-6 flex items-center gap-2 shadow-lg shadow-saffron-500/20"
             >
               <Plus className="w-5 h-5" />
-              <span>Create Structure</span>
+              <span>{t('label.create_structure')}</span>
             </button>
           )}
         </div>
 
         {/* Breadcrumb / Selection Flow */}
         <div className="flex items-center gap-2 mb-8 text-sm flex-wrap p-1 rounded-xl bg-dark-50/50 dark:bg-white/[0.02] border border-dark-100 dark:border-white/5">
-          <button 
-            onClick={() => { setSelectedState(null); setSelectedDistrict(null); setSelectedConstituency(null); setSelectedArea(null); setSelectedWard(null); }}
-            className={`filter-tab ${!selectedState ? 'active' : ''}`}
-          >
-            States
-          </button>
+          {/* MLA users skip State/District/Constituency breadcrumbs */}
+          {!isMLA && (
+            <button 
+              onClick={() => { setSelectedState(null); setSelectedDistrict(null); setSelectedConstituency(null); setSelectedArea(null); setSelectedWard(null); }}
+              className={`filter-tab ${!selectedState ? 'active' : ''}`}
+            >
+              {t('label.states')}
+            </button>
+          )}
           
-          {selectedState && (
+          {selectedState && !isMLA && (
             <>
               <ChevronRight className="w-4 h-4 text-dark-300 dark:text-dark-500" />
               <button 
                 onClick={() => { setSelectedDistrict(null); setSelectedConstituency(null); setSelectedArea(null); setSelectedWard(null); }}
                 className={`filter-tab ${selectedState && !selectedDistrict ? 'active' : ''}`}
               >
-                Districts
+                {t('label.districts')}
               </button>
             </>
           )}
           
-          {selectedDistrict && (
+          {selectedDistrict && !isMLA && (
             <>
               <ChevronRight className="w-4 h-4 text-dark-300 dark:text-dark-500" />
               <button 
                 onClick={() => { setSelectedConstituency(null); setSelectedArea(null); setSelectedWard(null); }}
                 className={`filter-tab ${selectedDistrict && !selectedConstituency ? 'active' : ''}`}
               >
-                Constituencies
+                {t('label.constituencies')}
               </button>
             </>
           )}
           
           {selectedConstituency && (
             <>
-              <ChevronRight className="w-4 h-4 text-dark-300 dark:text-dark-500" />
+              {isMLA && constituencies.length > 0 && (
+                <span className="filter-tab text-saffron-600 dark:text-saffron-400 font-bold">
+                  {constituencies[0]?.name}
+                </span>
+              )}
+              {!isMLA && <ChevronRight className="w-4 h-4 text-dark-300 dark:text-dark-500" />}
               <button 
                 onClick={() => { setSelectedArea(null); setSelectedWard(null); }}
                 className={`filter-tab ${selectedConstituency && !selectedArea ? 'active' : ''}`}
               >
-                Areas
+                {t('label.areas')}
               </button>
             </>
           )}
@@ -410,7 +463,7 @@ export default function ConstituencyPage() {
                 onClick={() => setSelectedWard(null)}
                 className={`filter-tab ${selectedArea && !selectedWard ? 'active' : ''}`}
               >
-                Wards
+                {t('label.wards')}
               </button>
             </>
           )}
@@ -418,7 +471,7 @@ export default function ConstituencyPage() {
           {selectedWard && (
             <>
               <ChevronRight className="w-4 h-4 text-dark-300 dark:text-dark-500" />
-              <span className="filter-tab active font-bold">Booths</span>
+              <span className="filter-tab active font-bold">{t('label.booths')}</span>
             </>
           )}
         </div>
@@ -428,7 +481,7 @@ export default function ConstituencyPage() {
           // States
           <div className="space-y-6">
             <div className="flex items-center justify-between">
-              <h2 className="text-xl font-bold flex items-center gap-2">States <span className="text-dark-500 font-normal">({states.length})</span></h2>
+              <h2 className="text-xl font-bold flex items-center gap-2">{t('label.states')} <span className="text-dark-500 font-normal">({states.length})</span></h2>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
               {states.map(state => (
@@ -439,7 +492,7 @@ export default function ConstituencyPage() {
                     </div>
                     <div>
                       <h3 className="text-lg font-bold text-dark-900 dark:text-dark-100 group-hover:text-saffron-500 transition-colors mb-0">{state.name}</h3>
-                      <p className="text-sm text-dark-500 mt-0.5">Code: {state.code}</p>
+                      <p className="text-sm text-dark-500 mt-0.5">{t('label.state_code')}: {state.code}</p>
                     </div>
                   </div>
                   <div className="absolute top-4 right-4 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -456,8 +509,8 @@ export default function ConstituencyPage() {
               {states.length === 0 && (
                 <div className="col-span-full text-center py-16 glass-card">
                   <MapPin className="w-12 h-12 text-dark-700 mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold text-dark-300">No states added</h3>
-                  <p className="text-dark-500 text-sm mt-1">Admin needs to add states to start</p>
+                  <h3 className="text-lg font-semibold text-dark-300">{t('const.no_states')}</h3>
+                  <p className="text-dark-500 text-sm mt-1">{t('const.no_states_desc')}</p>
                 </div>
               )}
             </div>
@@ -466,10 +519,10 @@ export default function ConstituencyPage() {
           // Districts
           <div className="space-y-6">
             <div className="flex items-center justify-between">
-              <h2 className="text-xl font-bold flex items-center gap-2">Districts <span className="text-dark-500 font-normal">({districts.length})</span></h2>
+              <h2 className="text-xl font-bold flex items-center gap-2">{t('label.districts')} <span className="text-dark-500 font-normal">({districts.length})</span></h2>
               {isSuper && (
                 <button onClick={() => openCreate('district')} className="btn-primary py-2 px-4 text-xs">
-                  <Plus className="w-4 h-4" /> Add District
+                  <Plus className="w-4 h-4" /> {t('label.add_district')}
                 </button>
               )}
             </div>
@@ -494,7 +547,7 @@ export default function ConstituencyPage() {
                 </div>
               ))}
               {districts.length === 0 && (
-                <div className="col-span-full text-center py-12 text-dark-500 glass-card">No districts in this state</div>
+                <div className="col-span-full text-center py-12 text-dark-500 glass-card">{t('const.no_districts')}</div>
               )}
             </div>
           </div>
@@ -502,10 +555,10 @@ export default function ConstituencyPage() {
           // Constituencies
           <div className="space-y-6">
             <div className="flex items-center justify-between">
-              <h2 className="text-xl font-bold flex items-center gap-2">Constituencies <span className="text-dark-500 font-normal">({constituencies.length})</span></h2>
+              <h2 className="text-xl font-bold flex items-center gap-2">{t('label.constituencies')} <span className="text-dark-500 font-normal">({constituencies.length})</span></h2>
               {isSuper && (
                 <button onClick={() => openCreate('constituency')} className="btn-primary py-2 px-4 text-xs">
-                  <Plus className="w-4 h-4" /> Add Constituency
+                  <Plus className="w-4 h-4" /> {t('label.add_constituency')}
                 </button>
               )}
             </div>
@@ -515,7 +568,7 @@ export default function ConstituencyPage() {
                   <div onClick={() => setSelectedConstituency(c.id)} className="flex items-center justify-between">
                     <div>
                       <h3 className="text-base font-black text-dark-900 dark:text-dark-100 group-hover:text-saffron-500 transition-colors mb-0">{c.name}</h3>
-                      <p className="text-[10px] font-bold uppercase tracking-widest text-dark-500 mt-1">No. {c.number} • MLA: {c.mla_name || 'N/A'}</p>
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-dark-500 mt-1">{t('label.id')}: {c.number} • {t('label.mla_name')}: {c.mla_name || 'N/A'}</p>
                     </div>
                   </div>
                   <div className="absolute top-1/2 -translate-y-1/2 right-4 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -530,7 +583,7 @@ export default function ConstituencyPage() {
                 </div>
               ))}
               {constituencies.length === 0 && (
-                <div className="col-span-full text-center py-12 text-dark-500 glass-card">No constituencies in this district</div>
+                <div className="col-span-full text-center py-12 text-dark-500 glass-card">{t('const.no_constituencies')}</div>
               )}
             </div>
           </div>
@@ -538,10 +591,10 @@ export default function ConstituencyPage() {
           // Areas
           <div className="space-y-6">
             <div className="flex items-center justify-between">
-              <h2 className="text-xl font-bold flex items-center gap-2">Areas <span className="text-dark-500 font-normal">({areas.length})</span></h2>
+              <h2 className="text-xl font-bold flex items-center gap-2">{t('label.areas')} <span className="text-dark-500 font-normal">({areas.length})</span></h2>
               {canManageHierarchy && (
                 <button onClick={() => openCreate('area')} className="btn-primary py-2 px-4 text-xs">
-                  <Plus className="w-4 h-4" /> Add Area
+                  <Plus className="w-4 h-4" /> {t('label.add_area')}
                 </button>
               )}
             </div>
@@ -552,7 +605,7 @@ export default function ConstituencyPage() {
                     <h3 className="text-base font-black text-dark-900 dark:text-dark-100 group-hover:text-saffron-500 transition-colors mb-0">{a.name}</h3>
                     <div className="mt-2 flex items-center gap-2 text-dark-500">
                       <Users className="w-3.5 h-3.5" />
-                      <span className="text-[11px] font-bold uppercase tracking-wider">{a.manager_name || 'Unassigned Manager'}</span>
+                      <span className="text-[11px] font-bold uppercase tracking-wider">{a.manager_name || t('const.unassigned_manager')}</span>
                     </div>
                   </div>
                   <div className="absolute top-4 right-4 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -567,7 +620,7 @@ export default function ConstituencyPage() {
                 </div>
               ))}
               {areas.length === 0 && (
-                <div className="col-span-full text-center py-12 text-dark-500 glass-card">No areas in this constituency</div>
+                <div className="col-span-full text-center py-12 text-dark-500 glass-card">{t('const.no_areas')}</div>
               )}
             </div>
           </div>
@@ -575,10 +628,10 @@ export default function ConstituencyPage() {
           // Wards
           <div className="space-y-6">
             <div className="flex items-center justify-between">
-              <h2 className="text-xl font-bold flex items-center gap-2">Wards <span className="text-dark-500 font-normal">({wards.length})</span></h2>
+              <h2 className="text-xl font-bold flex items-center gap-2">{t('label.wards')} <span className="text-dark-500 font-normal">({wards.length})</span></h2>
               {canManageHierarchy && (
                 <button onClick={() => openCreate('ward')} className="btn-primary py-2 px-4 text-xs">
-                  <Plus className="w-4 h-4" /> Add Ward
+                  <Plus className="w-4 h-4" /> {t('label.add_ward')}
                 </button>
               )}
             </div>
@@ -591,7 +644,7 @@ export default function ConstituencyPage() {
                     </div>
                     <div className="flex flex-col">
                       <span className="text-[14px] font-bold text-dark-900 dark:text-dark-100 group-hover:text-saffron-600 dark:group-hover:text-saffron-400 transition-colors uppercase tracking-tight">{w.name}</span>
-                      <span className="text-[10px] text-dark-500 font-bold uppercase tracking-widest mt-0.5">Head: {w.ward_head_name || 'Unassigned'}</span>
+                      <span className="text-[10px] text-dark-500 font-bold uppercase tracking-widest mt-0.5">{t('role.ward_head')}: {w.ward_head_name || t('const.unassigned')}</span>
                     </div>
                   </div>
                   <div className="absolute top-1/2 -translate-y-1/2 right-4 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -606,7 +659,7 @@ export default function ConstituencyPage() {
                 </div>
               ))}
               {wards.length === 0 && (
-                <div className="col-span-full text-center py-12 text-dark-500 glass-card">No wards in this area</div>
+                <div className="col-span-full text-center py-12 text-dark-500 glass-card">{t('const.no_wards')}</div>
               )}
             </div>
           </div>
@@ -614,10 +667,10 @@ export default function ConstituencyPage() {
           // Booths
           <div className="space-y-6">
             <div className="flex items-center justify-between">
-              <h2 className="text-xl font-bold flex items-center gap-2">Booths <span className="text-dark-500 font-normal">({booths.length})</span></h2>
+              <h2 className="text-xl font-bold flex items-center gap-2">{t('label.booths')} <span className="text-dark-500 font-normal">({booths.length})</span></h2>
               {canManageHierarchy && (
                 <button onClick={() => openCreate('booth')} className="btn-primary py-2 px-4 text-xs">
-                  <Plus className="w-4 h-4" /> Add Booth
+                  <Plus className="w-4 h-4" /> {t('label.add_booth')}
                 </button>
               )}
             </div>
@@ -641,7 +694,7 @@ export default function ConstituencyPage() {
                 </div>
               ))}
               {booths.length === 0 && (
-                <div className="col-span-full text-center py-12 text-dark-500 glass-card">No booths in this ward</div>
+                <div className="col-span-full text-center py-12 text-dark-500 glass-card">{t('const.no_booths')}</div>
               )}
             </div>
           </div>
@@ -651,8 +704,8 @@ export default function ConstituencyPage() {
       <Modal
         isOpen={showStructureModal}
         onClose={() => setShowStructureModal(false)}
-        title="Create Campaign Structure"
-        subtitle="Complete the 6-step setup to establish your campaign's geographical foundation"
+        title={t('const.modal.create_structure')}
+        subtitle={t('const.modal.create_structure_sub')}
         maxWidth="max-w-[700px]"
         footer={(
           <div className="flex justify-between w-full">
@@ -662,17 +715,17 @@ export default function ConstituencyPage() {
               disabled={currentStep === 1}
               className="btn-secondary px-8"
             >
-              Back
+              {t('action.back')}
             </button>
             <div className="flex gap-3">
-              <button type="button" onClick={() => setShowStructureModal(false)} className="px-6 text-sm font-bold text-dark-500">Cancel</button>
+              <button type="button" onClick={() => setShowStructureModal(false)} className="px-6 text-sm font-bold text-dark-500">{t('action.cancel')}</button>
               {currentStep < 6 ? (
                 <button 
                   type="button" 
                   onClick={() => setCurrentStep(v => v + 1)} 
                   className="btn-primary px-10"
                 >
-                  Next Step
+                  {t('label.next_step')}
                 </button>
               ) : (
                 <button 
@@ -680,7 +733,7 @@ export default function ConstituencyPage() {
                   form="structure-form" 
                   className="btn-primary px-10 bg-green-600 hover:bg-green-700 shadow-xl shadow-green-500/20"
                 >
-                  {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Finish & Create'}
+                  {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : t('label.finish_create')}
                 </button>
               )}
             </div>
@@ -707,12 +760,12 @@ export default function ConstituencyPage() {
             ))}
           </div>
           <div className="flex justify-between px-1">
-            <span className="text-[10px] font-bold text-dark-400 uppercase tracking-widest">State</span>
-            <span className="text-[10px] font-bold text-dark-400 uppercase tracking-widest">District</span>
-            <span className="text-[10px] font-bold text-dark-400 uppercase tracking-widest">Constituency</span>
-            <span className="text-[10px] font-bold text-dark-400 uppercase tracking-widest">Area</span>
-            <span className="text-[10px] font-bold text-dark-400 uppercase tracking-widest">Ward</span>
-            <span className="text-[10px] font-bold text-dark-400 uppercase tracking-widest">Booth</span>
+            <span className="text-[10px] font-bold text-dark-400 uppercase tracking-widest">{t('label.state')}</span>
+            <span className="text-[10px] font-bold text-dark-400 uppercase tracking-widest">{t('label.district')}</span>
+            <span className="text-[10px] font-bold text-dark-400 uppercase tracking-widest">{t('label.constituency')}</span>
+            <span className="text-[10px] font-bold text-dark-400 uppercase tracking-widest">{t('label.area')}</span>
+            <span className="text-[10px] font-bold text-dark-400 uppercase tracking-widest">{t('label.ward')}</span>
+            <span className="text-[10px] font-bold text-dark-400 uppercase tracking-widest">{t('label.booth')}</span>
           </div>
         </div>
 
@@ -722,18 +775,18 @@ export default function ConstituencyPage() {
               <div className="bg-saffron-500/5 p-4 rounded-xl border border-saffron-500/10 flex items-center gap-4 mb-2">
                 <MapPin className="text-saffron-500 w-8 h-8" />
                 <div>
-                  <h4 className="text-sm font-bold text-dark-900 dark:text-dark-100">Step 1: State Selection</h4>
-                  <p className="text-xs text-dark-500 italic">Select an existing state or add a new one to your database.</p>
+                  <h4 className="text-sm font-bold text-dark-900 dark:text-dark-100">{t('const.step_title').replace('{step}', '1').replace('{name}', t('label.state'))}</h4>
+                  <p className="text-xs text-dark-500 italic">{t('const.step1_sub')}</p>
                 </div>
               </div>
               <div className="flex gap-2">
                 <button type="button" onClick={() => setStructureForm({...structureForm, state: {...structureForm.state, mode: 'select'}})} 
                   className={`flex-1 py-3 px-4 rounded-xl border-2 transition-all ${structureForm.state.mode === 'select' ? 'border-saffron-500 bg-saffron-500/10' : 'border-dark-100 dark:border-white/5 bg-transparent'}`}>
-                  Select Existing
+                  {t('label.select_existing')}
                 </button>
                 <button type="button" onClick={() => setStructureForm({...structureForm, state: {...structureForm.state, mode: 'create'}})} 
                   className={`flex-1 py-3 px-4 rounded-xl border-2 transition-all ${structureForm.state.mode === 'create' ? 'border-saffron-500 bg-saffron-500/10' : 'border-dark-100 dark:border-white/5 bg-transparent'}`}>
-                  Create New
+                  {t('label.create_new')}
                 </button>
               </div>
               {structureForm.state.mode === 'select' ? (
@@ -746,17 +799,17 @@ export default function ConstituencyPage() {
                   }} 
                   className="form-input text-base py-3" required
                 >
-                  <option value="">Choose State...</option>
+                  <option value="">{t('label.choose_state')}</option>
                   {states.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                 </select>
               ) : (
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <label className="text-[10px] font-bold uppercase text-dark-400 px-1">State Name</label>
+                    <label className="text-[10px] font-bold uppercase text-dark-400 px-1">{t('label.state_name')}</label>
                     <input value={structureForm.state.name} onChange={e => setStructureForm({...structureForm, state: {...structureForm.state, name: e.target.value}})} className="form-input" placeholder="Maharashtra" required />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-[10px] font-bold uppercase text-dark-400 px-1">Code</label>
+                    <label className="text-[10px] font-bold uppercase text-dark-400 px-1">{t('label.state_code')}</label>
                     <input value={structureForm.state.code} onChange={e => setStructureForm({...structureForm, state: {...structureForm.state, code: e.target.value.toUpperCase()}})} className="form-input uppercase" placeholder="MH" required />
                   </div>
                 </div>
@@ -769,18 +822,18 @@ export default function ConstituencyPage() {
               <div className="bg-blue-500/5 p-4 rounded-xl border border-blue-500/10 flex items-center gap-4 mb-2">
                 <Building2 className="text-blue-500 w-8 h-8" />
                 <div>
-                  <h4 className="text-sm font-bold text-dark-900 dark:text-dark-100">Step 2: District Selection</h4>
-                  <p className="text-xs text-dark-500">Define the district under {structureForm.state.name || 'selected state'}.</p>
+                  <h4 className="text-sm font-bold text-dark-900 dark:text-dark-100">{t('const.step_title').replace('{step}', '2').replace('{name}', t('label.district'))}</h4>
+                  <p className="text-xs text-dark-500">{t('const.step2_sub').replace('{state}', structureForm.state.name || '')}</p>
                 </div>
               </div>
               <div className="flex gap-2">
                 <button type="button" onClick={() => setStructureForm({...structureForm, district: {...structureForm.district, mode: 'select'}})} 
                   className={`flex-1 py-3 px-4 rounded-xl border-2 transition-all ${structureForm.district.mode === 'select' ? 'border-saffron-500 bg-saffron-500/10' : 'border-dark-100 dark:border-white/5 bg-transparent'}`}>
-                  Select Existing
+                  {t('label.select_existing')}
                 </button>
                 <button type="button" onClick={() => setStructureForm({...structureForm, district: {...structureForm.district, mode: 'create'}})} 
                   className={`flex-1 py-3 px-4 rounded-xl border-2 transition-all ${structureForm.district.mode === 'create' ? 'border-saffron-500 bg-saffron-500/10' : 'border-dark-100 dark:border-white/5 bg-transparent'}`}>
-                  Create New
+                  {t('label.create_new')}
                 </button>
               </div>
               {structureForm.district.mode === 'select' ? (
@@ -793,12 +846,12 @@ export default function ConstituencyPage() {
                   }} 
                   className="form-input text-base py-3" required
                 >
-                  <option value="">Choose District...</option>
+                  <option value="">{t('label.choose_district')}</option>
                   {districts.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
                 </select>
               ) : (
                 <div className="space-y-2">
-                  <label className="text-[10px] font-bold uppercase text-dark-400 px-1">District Name</label>
+                  <label className="text-[10px] font-bold uppercase text-dark-400 px-1">{t('label.district_name')}</label>
                   <input value={structureForm.district.name} onChange={e => setStructureForm({...structureForm, district: {...structureForm.district, name: e.target.value}})} className="form-input" placeholder="Pune" required />
                 </div>
               )}
@@ -810,18 +863,18 @@ export default function ConstituencyPage() {
               <div className="bg-indigo-500/5 p-4 rounded-xl border border-indigo-500/10 flex items-center gap-4 mb-2">
                 <MapPin className="text-indigo-500 w-8 h-8" />
                 <div>
-                  <h4 className="text-sm font-bold text-dark-900 dark:text-dark-100">Step 3: Constituency</h4>
-                  <p className="text-xs text-dark-500">Define the core target constituency.</p>
+                  <h4 className="text-sm font-bold text-dark-900 dark:text-dark-100">{t('const.step_title').replace('{step}', '3').replace('{name}', t('label.constituency'))}</h4>
+                  <p className="text-xs text-dark-500">{t('const.step3_sub')}</p>
                 </div>
               </div>
               <div className="flex gap-2">
                 <button type="button" onClick={() => setStructureForm({...structureForm, constituency: {...structureForm.constituency, mode: 'select'}})} 
                   className={`flex-1 py-3 px-4 rounded-xl border-2 transition-all ${structureForm.constituency.mode === 'select' ? 'border-saffron-500 bg-saffron-500/10' : 'border-dark-100 dark:border-white/5 bg-transparent'}`}>
-                  Select Existing
+                  {t('label.select_existing')}
                 </button>
                 <button type="button" onClick={() => setStructureForm({...structureForm, constituency: {...structureForm.constituency, mode: 'create'}})} 
                   className={`flex-1 py-3 px-4 rounded-xl border-2 transition-all ${structureForm.constituency.mode === 'create' ? 'border-saffron-500 bg-saffron-500/10' : 'border-dark-100 dark:border-white/5 bg-transparent'}`}>
-                  Create New
+                  {t('label.create_new')}
                 </button>
               </div>
               {structureForm.constituency.mode === 'select' ? (
@@ -833,22 +886,22 @@ export default function ConstituencyPage() {
                   }} 
                   className="form-input text-base py-3" required
                 >
-                  <option value="">Choose Constituency...</option>
+                  <option value="">{t('label.choose_constituency')}</option>
                   {constituencies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
               ) : (
                 <div className="space-y-4">
                   <div className="space-y-2">
-                    <label className="text-[10px] font-bold uppercase text-dark-400 px-1">Constituency Name</label>
+                    <label className="text-[10px] font-bold uppercase text-dark-400 px-1">{t('label.constituency_name')}</label>
                     <input value={structureForm.constituency.name} onChange={e => setStructureForm({...structureForm, constituency: {...structureForm.constituency, name: e.target.value}})} className="form-input" placeholder="Baramati" required />
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <label className="text-[10px] font-bold uppercase text-dark-400 px-1">Number</label>
+                      <label className="text-[10px] font-bold uppercase text-dark-400 px-1">{t('label.id')}</label>
                       <input value={structureForm.constituency.number} onChange={e => setStructureForm({...structureForm, constituency: {...structureForm.constituency, number: e.target.value}})} className="form-input" placeholder="201" />
                     </div>
                     <div className="space-y-2">
-                      <label className="text-[10px] font-bold uppercase text-dark-400 px-1">Sitting MLA</label>
+                      <label className="text-[10px] font-bold uppercase text-dark-400 px-1">{t('label.mla_name')}</label>
                       <input value={structureForm.constituency.mla_name} onChange={e => setStructureForm({...structureForm, constituency: {...structureForm.constituency, mla_name: e.target.value}})} className="form-input" placeholder="Name..." />
                     </div>
                   </div>
@@ -862,19 +915,19 @@ export default function ConstituencyPage() {
               <div className="bg-purple-500/5 p-4 rounded-xl border border-purple-500/10 flex items-center gap-4 mb-2">
                 <Users className="text-purple-500 w-8 h-8" />
                 <div>
-                  <h4 className="text-sm font-bold text-dark-900 dark:text-dark-100">Step 4: Area & Manager</h4>
-                  <p className="text-xs text-dark-500">Define the tactical area and its primary manager.</p>
+                  <h4 className="text-sm font-bold text-dark-900 dark:text-dark-100">{t('const.step_title').replace('{step}', '4').replace('{name}', t('label.area'))}</h4>
+                  <p className="text-xs text-dark-500">{t('const.step4_sub')}</p>
                 </div>
               </div>
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <label className="text-[10px] font-bold uppercase text-dark-400 px-1">Area Name</label>
+                  <label className="text-[10px] font-bold uppercase text-dark-400 px-1">{t('label.area_name')}</label>
                   <input value={structureForm.area.name} onChange={e => setStructureForm({...structureForm, area: {...structureForm.area, name: e.target.value}})} className="form-input" placeholder="Civil Lines" required />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[10px] font-bold uppercase text-dark-400 px-1">Campaign Manager</label>
+                  <label className="text-[10px] font-bold uppercase text-dark-400 px-1">{t('role.campaign_manager')}</label>
                   <select value={structureForm.area.manager_id} onChange={e => setStructureForm({...structureForm, area: {...structureForm.area, manager_id: e.target.value}})} className="form-input">
-                    <option value="">Unassigned</option>
+                    <option value="">{t('const.unassigned')}</option>
                     {managers.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
                   </select>
                 </div>
@@ -887,25 +940,25 @@ export default function ConstituencyPage() {
               <div className="bg-green-500/5 p-4 rounded-xl border border-green-500/10 flex items-center gap-4 mb-2">
                 <Building2 className="text-green-500 w-8 h-8" />
                 <div>
-                  <h4 className="text-sm font-bold text-dark-900 dark:text-dark-100">Step 5: Ward & Head</h4>
-                  <p className="text-xs text-dark-500">Define the ward and its dedicated ward head.</p>
+                  <h4 className="text-sm font-bold text-dark-900 dark:text-dark-100">{t('const.step_title').replace('{step}', '5').replace('{name}', t('label.ward'))}</h4>
+                  <p className="text-xs text-dark-500">{t('const.step5_sub')}</p>
                 </div>
               </div>
               <div className="space-y-4">
                 <div className="grid grid-cols-3 gap-4">
                   <div className="col-span-2 space-y-2">
-                    <label className="text-[10px] font-bold uppercase text-dark-400 px-1">Ward Name</label>
+                    <label className="text-[10px] font-bold uppercase text-dark-400 px-1">{t('label.ward_name')}</label>
                     <input value={structureForm.ward.name} onChange={e => setStructureForm({...structureForm, ward: {...structureForm.ward, name: e.target.value}})} className="form-input" placeholder="Ward No. 1" required />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-[10px] font-bold uppercase text-dark-400 px-1">No.</label>
+                    <label className="text-[10px] font-bold uppercase text-dark-400 px-1">{t('label.ward_number')}</label>
                     <input value={structureForm.ward.number} onChange={e => setStructureForm({...structureForm, ward: {...structureForm.ward, number: e.target.value}})} className="form-input" placeholder="01" required />
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[10px] font-bold uppercase text-dark-400 px-1">Ward Head</label>
+                  <label className="text-[10px] font-bold uppercase text-dark-400 px-1">{t('role.ward_head')}</label>
                   <select value={structureForm.ward.ward_head_id} onChange={e => setStructureForm({...structureForm, ward: {...structureForm.ward, ward_head_id: e.target.value}})} className="form-input">
-                    <option value="">Unassigned</option>
+                    <option value="">{t('const.unassigned')}</option>
                     {wardHeads.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
                   </select>
                 </div>
@@ -918,23 +971,23 @@ export default function ConstituencyPage() {
               <div className="bg-orange-500/5 p-4 rounded-xl border border-orange-500/10 flex items-center gap-4 mb-2">
                 <Home className="text-orange-500 w-8 h-8" />
                 <div>
-                  <h4 className="text-sm font-bold text-dark-900 dark:text-dark-100">Step 6: Booth Details</h4>
-                  <p className="text-xs text-dark-500">Finally, add the specific voting booth.</p>
+                  <h4 className="text-sm font-bold text-dark-900 dark:text-dark-100">{t('const.step_title').replace('{step}', '6').replace('{name}', t('label.booth'))}</h4>
+                  <p className="text-xs text-dark-500">{t('const.step6_sub')}</p>
                 </div>
               </div>
               <div className="space-y-4">
                 <div className="grid grid-cols-3 gap-4">
                   <div className="col-span-2 space-y-2">
-                    <label className="text-[10px] font-bold uppercase text-dark-400 px-1">Booth Name</label>
+                    <label className="text-[10px] font-bold uppercase text-dark-400 px-1">{t('label.booth_name')}</label>
                     <input value={structureForm.booth.name} onChange={e => setStructureForm({...structureForm, booth: {...structureForm.booth, name: e.target.value}})} className="form-input" placeholder="Local High School" required />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-[10px] font-bold uppercase text-dark-400 px-1">No.</label>
+                    <label className="text-[10px] font-bold uppercase text-dark-400 px-1">{t('label.booth_number')}</label>
                     <input value={structureForm.booth.number} onChange={e => setStructureForm({...structureForm, booth: {...structureForm.booth, number: e.target.value}})} className="form-input" placeholder="102" required />
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[10px] font-bold uppercase text-dark-400 px-1">Physical Address</label>
+                  <label className="text-[10px] font-bold uppercase text-dark-400 px-1">{t('label.address')}</label>
                   <textarea value={structureForm.booth.address} onChange={e => setStructureForm({...structureForm, booth: {...structureForm.booth, address: e.target.value}})} className="form-input h-24 resize-none" placeholder="Detailed location..." />
                 </div>
               </div>
@@ -947,50 +1000,50 @@ export default function ConstituencyPage() {
       <Modal
         isOpen={showModal}
         onClose={() => setShowModal(false)}
-        title={editingItem ? `Edit ${modalType}` : `Add New ${modalType}`}
-        subtitle={`Fill in details to ${editingItem ? 'update' : 'create'} this tactical unit`}
+        title={getModalTitle()}
+        subtitle={getModalSubtitle()}
         maxWidth="max-w-[500px]"
         footer={(
           <>
-            <button type="button" onClick={() => setShowModal(false)} className="btn-secondary">Cancel</button>
+            <button type="button" onClick={() => setShowModal(false)} className="btn-secondary">{t('action.cancel')}</button>
             <button type="submit" form="geo-form" className="btn-primary min-w-[120px]">
-              {editingItem ? 'Save Changes' : 'Create Unit'}
+              {editingItem ? t('action.save') : t('const.modal.create_unit')}
             </button>
           </>
         )}
       >
         <form id="geo-form" onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <label className="block text-xs font-black text-dark-400 uppercase tracking-widest px-1">Name</label>
-            <input value={form.name} onChange={e => setForm({...form, name: e.target.value})} className="form-input" placeholder={`${modalType} name...`} required />
+            <label className="block text-xs font-black text-dark-400 uppercase tracking-widest px-1">{t('label.name')}</label>
+            <input value={form.name} onChange={e => setForm({...form, name: e.target.value})} className="form-input" placeholder="" required />
           </div>
 
           {modalType === 'state' && (
             <div className="space-y-2">
-              <label className="block text-xs font-black text-dark-400 uppercase tracking-widest px-1">State Code</label>
+              <label className="block text-xs font-black text-dark-400 uppercase tracking-widest px-1">{t('label.state_code')}</label>
               <input value={form.code} onChange={e => setForm({...form, code: e.target.value.toUpperCase()})} className="form-input" placeholder="e.g. MH, UP, KA" required maxLength={5} />
             </div>
           )}
 
           {(modalType === 'constituency' || modalType === 'ward' || modalType === 'booth') && (
             <div className="space-y-2">
-              <label className="block text-xs font-black text-dark-400 uppercase tracking-widest px-1">Number / ID</label>
+              <label className="block text-xs font-black text-dark-400 uppercase tracking-widest px-1">{t('label.id')}</label>
               <input value={form.number} onChange={e => setForm({...form, number: e.target.value})} className="form-input" placeholder="e.g. 05" required />
             </div>
           )}
 
           {modalType === 'constituency' && (
             <div className="space-y-2">
-              <label className="block text-xs font-black text-dark-400 uppercase tracking-widest px-1">MLA Name</label>
-              <input value={form.mla_name} onChange={e => setForm({...form, mla_name: e.target.value})} className="form-input" placeholder="Name of sitting MLA..." />
+              <label className="block text-xs font-black text-dark-400 uppercase tracking-widest px-1">{t('label.mla_name_label')}</label>
+              <input value={form.mla_name} onChange={e => setForm({...form, mla_name: e.target.value})} className="form-input" placeholder="" />
             </div>
           )}
 
           {modalType === 'area' && (
             <div className="space-y-2">
-              <label className="block text-xs font-black text-dark-400 uppercase tracking-widest px-1">Campaign Manager</label>
+              <label className="block text-xs font-black text-dark-400 uppercase tracking-widest px-1">{t('role.campaign_manager')}</label>
               <select value={form.manager_id} onChange={e => setForm({...form, manager_id: e.target.value})} className="form-input">
-                <option value="">Unassigned</option>
+                <option value="">{t('const.unassigned')}</option>
                 {managers.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
               </select>
             </div>
@@ -998,9 +1051,9 @@ export default function ConstituencyPage() {
 
           {modalType === 'ward' && (
             <div className="space-y-2">
-              <label className="block text-xs font-black text-dark-400 uppercase tracking-widest px-1">Ward Head</label>
+              <label className="block text-xs font-black text-dark-400 uppercase tracking-widest px-1">{t('role.ward_head')}</label>
               <select value={form.ward_head_id} onChange={e => setForm({...form, ward_head_id: e.target.value})} className="form-input">
-                <option value="">Unassigned</option>
+                <option value="">{t('const.unassigned')}</option>
                 {wardHeads.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
               </select>
             </div>
@@ -1008,8 +1061,8 @@ export default function ConstituencyPage() {
 
           {modalType === 'booth' && (
             <div className="space-y-2">
-              <label className="block text-xs font-black text-dark-400 uppercase tracking-widest px-1">Full Address</label>
-              <textarea value={form.address} onChange={e => setForm({...form, address: e.target.value})} className="form-input h-20 resize-none" placeholder="Physical location of the booth..." />
+              <label className="block text-xs font-black text-dark-400 uppercase tracking-widest px-1">{t('label.address')}</label>
+              <textarea value={form.address} onChange={e => setForm({...form, address: e.target.value})} className="form-input h-20 resize-none" placeholder="" />
             </div>
           )}
         </form>

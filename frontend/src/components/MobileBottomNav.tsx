@@ -4,16 +4,18 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { LayoutDashboard, ListTodo, ClipboardCheck, Users, Menu } from 'lucide-react';
 import { useSidebar } from '@/components/Sidebar';
+import { useLanguage } from '@/context/LanguageContext';
 
 export default function MobileBottomNav() {
   const pathname = usePathname();
   const { setMobileOpen } = useSidebar();
+  const { t } = useLanguage();
 
   const navItems = [
-    { label: 'Dash', icon: LayoutDashboard, href: '/dashboard' },
-    { label: 'Tasks', icon: ListTodo, href: '/dashboard/tasks' },
-    { label: 'Surveys', icon: ClipboardCheck, href: '/dashboard/surveys' },
-    { label: 'Voters', icon: Users, href: '/dashboard/voters' },
+    { label: t('sidebar.dashboard', 'Dash'), icon: LayoutDashboard, href: '/dashboard' },
+    { label: t('sidebar.tasks', 'Tasks'), icon: ListTodo, href: '/dashboard/tasks' },
+    { label: t('sidebar.surveys', 'Surveys'), icon: ClipboardCheck, href: '/dashboard/surveys' },
+    { label: t('sidebar.voters', 'Voters'), icon: Users, href: '/dashboard/voters' },
   ];
 
   return (
@@ -43,7 +45,7 @@ export default function MobileBottomNav() {
           className="flex flex-col items-center justify-center gap-1 p-2 rounded-xl text-dark-400 dark:text-dark-500 hover:text-saffron-500 transition-all"
         >
           <Menu className="w-5 h-5" />
-          <span className="text-[9px] font-medium uppercase tracking-tighter">More</span>
+          <span className="text-[9px] font-medium uppercase tracking-tighter">{t('label.more', 'More')}</span>
         </button>
       </div>
     </div>

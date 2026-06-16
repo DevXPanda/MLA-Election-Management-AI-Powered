@@ -14,7 +14,18 @@ const getSurveys = async (req, res) => {
              COALESCE(
                (SELECT json_agg(json_build_object('issue_id', sr.issue_id, 'issue_name', si.name, 'severity', sr.severity, 'notes', sr.notes))
                 FROM survey_responses sr JOIN survey_issues si ON sr.issue_id = si.id WHERE sr.survey_id = s.id), '[]'
-             ) as issues
+             ) as issues,
+             COALESCE(
+               (SELECT json_agg(json_build_object(
+                  'question_id', sa.question_id, 
+                  'question_text', sq.question_text, 
+                  'answer_type', sq.answer_type,
+                  'answer_text', sa.answer_text
+                ) ORDER BY sq.order_index)
+                FROM survey_answers sa 
+                JOIN survey_questions sq ON sa.question_id = sq.id 
+                WHERE sa.survey_id = s.id), '[]'
+             ) as answers
       FROM surveys s
       LEFT JOIN voters v ON s.voter_id = v.id
       LEFT JOIN users surveyor ON s.surveyor_id = surveyor.id
@@ -55,9 +66,55 @@ const createSurvey = async (req, res) => {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-    const { voter_id, booth_id, ward_id, support_status, satisfaction_level, remarks, latitude, longitude, issues } = req.body;
+    const { voter_id, booth_id, ward_id, support_status, satisfaction_level, remarks, latitude, longitude, issues, answers } = req.body;
 
     if (!support_status) return res.status(400).json(formatResponse(false, 'Support status is required.'));
+
+    // Validate custom answers
+    const questionsRes = await client.query(
+      'SELECT id, question_text, answer_type FROM survey_questions WHERE is_active = true AND organization_id = $1 ORDER BY order_index',
+      [req.tenant]
+    );
+    const activeQuestions = questionsRes.rows;
+
+    if (activeQuestions.length > 0) {
+      if (!answers || !Array.isArray(answers)) {
+        await client.query('ROLLBACK');
+        return res.status(400).json(formatResponse(false, 'Answers to all survey questions are required.'));
+      }
+      
+      for (const q of activeQuestions) {
+        const providedAns = answers.find(a => a.question_id === q.id);
+        if (!providedAns || providedAns.answer_text === undefined || providedAns.answer_text === null || String(providedAns.answer_text).trim() === '') {
+          await client.query('ROLLBACK');
+          return res.status(400).json(formatResponse(false, `Answer to question "${q.question_text}" is required.`));
+        }
+      }
+    }
+
+    if (req.userRole === 'mla' && req.scope?.constituency_id) {
+      if (ward_id) {
+        const wardCheck = await client.query('SELECT constituency_id FROM wards WHERE id = $1', [ward_id]);
+        if (!wardCheck.rows.length || wardCheck.rows[0].constituency_id !== req.scope.constituency_id) {
+          await client.query('ROLLBACK');
+          return res.status(400).json(formatResponse(false, 'Ward does not belong to your constituency.'));
+        }
+      }
+      if (booth_id) {
+        const boothCheck = await client.query('SELECT w.constituency_id FROM booths b JOIN wards w ON b.ward_id = w.id WHERE b.id = $1', [booth_id]);
+        if (!boothCheck.rows.length || boothCheck.rows[0].constituency_id !== req.scope.constituency_id) {
+          await client.query('ROLLBACK');
+          return res.status(400).json(formatResponse(false, 'Booth does not belong to your constituency.'));
+        }
+      }
+      if (voter_id) {
+        const voterCheck = await client.query('SELECT constituency_id FROM voters WHERE id = $1', [voter_id]);
+        if (!voterCheck.rows.length || voterCheck.rows[0].constituency_id !== req.scope.constituency_id) {
+          await client.query('ROLLBACK');
+          return res.status(400).json(formatResponse(false, 'Voter does not belong to your constituency.'));
+        }
+      }
+    }
 
     const surveyResult = await client.query(
       `INSERT INTO surveys (voter_id, booth_id, ward_id, surveyor_id, support_status, satisfaction_level, remarks, latitude, longitude, organization_id)
@@ -66,6 +123,21 @@ const createSurvey = async (req, res) => {
     );
 
     const surveyId = surveyResult.rows[0].id;
+
+    // Save custom answers
+    if (answers && Array.isArray(answers) && answers.length > 0) {
+      for (const ans of answers) {
+        const isValidQuestion = activeQuestions.some(q => q.id === parseInt(ans.question_id));
+        if (isValidQuestion) {
+          await client.query(
+            `INSERT INTO survey_answers (survey_id, question_id, answer_text) 
+             VALUES ($1, $2, $3)
+             ON CONFLICT (survey_id, question_id) DO UPDATE SET answer_text = EXCLUDED.answer_text`, 
+            [surveyId, parseInt(ans.question_id), String(ans.answer_text)]
+          );
+        }
+      }
+    }
 
     if (issues && Array.isArray(issues) && issues.length > 0) {
       for (const issue of issues) {
@@ -108,7 +180,13 @@ const createSurvey = async (req, res) => {
 // Delete survey
 const deleteSurvey = async (req, res) => {
   try {
-    const result = await pool.query('DELETE FROM surveys WHERE id = $1 AND organization_id = $2 RETURNING id', [req.params.id, req.tenant]);
+    let scopeClause = '';
+    const scopeParams = [req.params.id, req.tenant];
+    if (req.userRole === 'mla' && req.scope?.constituency_id) {
+      scopeClause = ' AND EXISTS (SELECT 1 FROM wards w WHERE w.id = surveys.ward_id AND w.constituency_id = $3)';
+      scopeParams.push(req.scope.constituency_id);
+    }
+    const result = await pool.query(`DELETE FROM surveys WHERE id = $1 AND organization_id = $2${scopeClause} RETURNING id`, scopeParams);
     if (!result.rows.length) return res.status(404).json(formatResponse(false, 'Not found.'));
     res.json(formatResponse(true, 'Survey deleted.'));
   } catch (error) {
@@ -120,7 +198,6 @@ const deleteSurvey = async (req, res) => {
 const getSurveyStats = async (req, res) => {
   try {
     const { clause, params } = buildScopeFilter(req, 's');
-    // For queries on 'surveys' table without 's' alias, we need a separate filter
     const { clause: baseClause, params: baseParams } = buildScopeFilter(req);
 
     const totalSurveys = await pool.query(`SELECT COUNT(*) FROM surveys WHERE 1=1 ${baseClause}`, baseParams);
@@ -158,12 +235,40 @@ const getSurveyStats = async (req, res) => {
       GROUP BY DATE(s.created_at), s.support_status ORDER BY date
     `, params);
 
+    // Dynamic survey questions stats breakdown
+    const questionStatsResult = await pool.query(`
+      SELECT sq.id as question_id, sq.question_text, sq.answer_type, sa.answer_text, COUNT(*) as count
+      FROM survey_answers sa
+      JOIN survey_questions sq ON sa.question_id = sq.id
+      JOIN surveys s ON sa.survey_id = s.id
+      WHERE 1=1 ${clause}
+      GROUP BY sq.id, sq.question_text, sq.answer_type, sa.answer_text
+      ORDER BY sq.id, count DESC
+    `, params);
+
+    const questionsBreakdown = {};
+    questionStatsResult.rows.forEach(row => {
+      if (!questionsBreakdown[row.question_id]) {
+        questionsBreakdown[row.question_id] = {
+          question_id: row.question_id,
+          question_text: row.question_text,
+          answer_type: row.answer_type,
+          responses: []
+        };
+      }
+      questionsBreakdown[row.question_id].responses.push({
+        answer: row.answer_text,
+        count: parseInt(row.count)
+      });
+    });
+
     res.json(formatResponse(true, 'Survey stats fetched.', {
       total: parseInt(totalSurveys.rows[0].count),
       support_breakdown: supportBreakdown.rows,
       top_issues: topIssues.rows,
       booth_wise: boothWise.rows,
-      daily_trend: dailyTrend.rows
+      daily_trend: dailyTrend.rows,
+      questions_breakdown: Object.values(questionsBreakdown)
     }));
   } catch (error) {
     console.error('Survey stats error:', error);
@@ -186,4 +291,26 @@ const createSurveyIssue = async (req, res) => {
   } catch (error) { console.error(error); res.status(500).json(formatResponse(false, 'Internal server error.')); }
 };
 
-module.exports = { getSurveys, createSurvey, deleteSurvey, getSurveyStats, getSurveyIssues, createSurveyIssue };
+// Get active survey questions
+const getSurveyQuestions = async (req, res) => {
+  try {
+    const result = await pool.query(
+      'SELECT * FROM survey_questions WHERE is_active = true AND organization_id = $1 ORDER BY order_index',
+      [req.tenant]
+    );
+    res.json(formatResponse(true, 'Questions fetched.', result.rows));
+  } catch (error) {
+    console.error('Error fetching survey questions:', error);
+    res.status(500).json(formatResponse(false, 'Internal server error.'));
+  }
+};
+
+module.exports = { 
+  getSurveys, 
+  createSurvey, 
+  deleteSurvey, 
+  getSurveyStats, 
+  getSurveyIssues, 
+  createSurveyIssue,
+  getSurveyQuestions
+};

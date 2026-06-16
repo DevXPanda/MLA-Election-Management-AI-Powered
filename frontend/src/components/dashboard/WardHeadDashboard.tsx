@@ -5,6 +5,7 @@ import { LayoutDashboard, Users, ClipboardList, ListTodo, Map as MapIcon, Chevro
 import { DashboardStats } from '@/types';
 import Link from 'next/link';
 import { SHARED_UI, WARD_DASHBOARD_UI, wardDashboardSubtitle } from '@/lib/ui-labels';
+import { useLanguage } from '@/context/LanguageContext';
 
 interface DashboardProps {
   stats: DashboardStats;
@@ -12,14 +13,15 @@ interface DashboardProps {
 }
 
 export default function WardHeadDashboard({ stats }: DashboardProps) {
+  const { t } = useLanguage();
   const { total_voters, total_surveys, total_tasks, active_workers } = stats.stats;
   const boothProgress = stats.lists.booth_progress || [];
 
   const statCards = [
-    { label: 'Ward Voters', value: total_voters, icon: Users, color: 'text-blue-400', bgIcon: 'bg-blue-500/12' },
-    { label: 'Ward Surveys', value: total_surveys, icon: ClipboardList, color: 'text-purple-400', bgIcon: 'bg-purple-500/12' },
-    { label: 'Open Tasks', value: total_tasks, icon: ListTodo, color: 'text-amber-400', bgIcon: 'bg-amber-500/12' },
-    { label: 'Active Staff', value: active_workers, icon: Activity, color: 'text-emerald-400', bgIcon: 'bg-emerald-500/12' },
+    { label: t('ward.ward_voters', 'Ward Voters'), value: total_voters, icon: Users, color: 'text-blue-400', bgIcon: 'bg-blue-500/12' },
+    { label: t('ward.ward_surveys', 'Ward Surveys'), value: total_surveys, icon: ClipboardList, color: 'text-purple-400', bgIcon: 'bg-purple-500/12' },
+    { label: t('ward.open_tasks', 'Open Tasks'), value: total_tasks, icon: ListTodo, color: 'text-amber-400', bgIcon: 'bg-amber-500/12' },
+    { label: t('ward.active_staff', 'Active Staff'), value: active_workers, icon: Activity, color: 'text-emerald-400', bgIcon: 'bg-emerald-500/12' },
   ];
 
   return (
@@ -56,37 +58,37 @@ export default function WardHeadDashboard({ stats }: DashboardProps) {
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-white/[0.02]">
-                  <th className="px-6 py-4 text-[10px] font-medium text-dark-600 uppercase tracking-widest">Booth Name</th>
-                  <th className="px-6 py-4 text-[10px] font-medium text-dark-600 uppercase tracking-widest">Total Voters</th>
-                  <th className="px-6 py-4 text-[10px] font-medium text-dark-600 uppercase tracking-widest">Surveys</th>
-                  <th className="px-6 py-4 text-[10px] font-medium text-dark-600 uppercase tracking-widest">Coverage %</th>
-                  <th className="px-6 py-4 text-[10px] font-medium text-dark-600 uppercase tracking-widest">Action</th>
+                  <th className="px-6 py-4 text-[10px] font-medium text-dark-600 uppercase tracking-widest">{t('ward.booth_name', 'Booth Name')}</th>
+                  <th className="px-6 py-4 text-[10px] font-medium text-dark-600 uppercase tracking-widest">{t('ward.total_voters', 'Total Voters')}</th>
+                  <th className="px-6 py-4 text-[10px] font-medium text-dark-600 uppercase tracking-widest">{t('ward.surveys', 'Surveys')}</th>
+                  <th className="px-6 py-4 text-[10px] font-medium text-dark-600 uppercase tracking-widest">{t('ward.coverage_pct', 'Coverage %')}</th>
+                  <th className="px-6 py-4 text-[10px] font-medium text-dark-600 uppercase tracking-widest">{t('ward.action', 'Action')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5">
                 {boothProgress.map((booth: any) => (
                   <tr key={booth.id} className="hover:bg-white/[0.02] transition-colors group">
                     <td className="px-6 py-5">
-                      <div className="text-sm font-medium text-dark-900 dark:text-white group-hover:text-saffron-500 transition-colors">{booth.name}</div>
-                      <div className="text-[10px] text-dark-500 font-medium uppercase mt-0.5 tracking-tight">ID: {booth.id}</div>
+                       <div className="text-sm font-medium text-dark-900 dark:text-white group-hover:text-saffron-500 transition-colors">{booth.name}</div>
+                       <div className="text-[10px] text-dark-500 font-medium uppercase mt-0.5 tracking-tight">ID: {booth.id}</div>
                     </td>
                     <td className="px-6 py-5 text-sm font-medium text-dark-100">{booth.voter_count}</td>
                     <td className="px-6 py-5 text-sm font-medium text-dark-100">{booth.survey_count}</td>
                     <td className="px-6 py-5">
-                      <div className="flex items-center gap-3">
-                         <div className="flex-1 h-2 bg-dark-800 rounded-full overflow-hidden max-w-[120px] relative">
-                            <div 
-                              className={`h-full rounded-full transition-all duration-1000 ${parseFloat(booth.coverage) >= 60 ? 'bg-emerald-500' : parseFloat(booth.coverage) >= 30 ? 'bg-amber-500' : 'bg-red-500'}`}
-                              style={{ width: `${booth.coverage}%` }}
-                            />
-                         </div>
-                         <span className="text-[11px] font-medium text-dark-100">{Math.round(booth.coverage)}%</span>
-                      </div>
+                       <div className="flex items-center gap-3">
+                          <div className="flex-1 h-2 bg-dark-800 rounded-full overflow-hidden max-w-[120px] relative">
+                             <div 
+                               className={`h-full rounded-full transition-all duration-1000 ${parseFloat(booth.coverage) >= 60 ? 'bg-emerald-500' : parseFloat(booth.coverage) >= 30 ? 'bg-amber-500' : 'bg-red-500'}`}
+                               style={{ width: `${booth.coverage}%` }}
+                             />
+                          </div>
+                          <span className="text-[11px] font-medium text-dark-100">{Math.round(booth.coverage)}%</span>
+                       </div>
                     </td>
                     <td className="px-6 py-5">
-                      <Link href={`/dashboard/voters?booth_id=${booth.id}`} className="p-2 rounded-lg bg-dark-800 text-dark-400 hover:bg-saffron-500/10 hover:text-saffron-400 transition-all inline-flex items-center justify-center border border-white/5 group-hover:border-saffron-500/20">
-                        <ChevronRight className="w-4 h-4" />
-                      </Link>
+                       <Link href={`/dashboard/voters?booth_id=${booth.id}`} className="p-2 rounded-lg bg-dark-800 text-dark-400 hover:bg-saffron-500/10 hover:text-saffron-400 transition-all inline-flex items-center justify-center border border-white/5 group-hover:border-saffron-500/20">
+                         <ChevronRight className="w-4 h-4" />
+                       </Link>
                     </td>
                   </tr>
                 ))}

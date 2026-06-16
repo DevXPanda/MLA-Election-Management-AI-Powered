@@ -189,7 +189,7 @@ const resolveAssigneeIds = async (client, { assigned_to, assigned_user_ids, expa
 const createTask = async (req, res) => {
   const client = await pool.connect();
   try {
-    const {
+    let {
       title, description, type, assigned_to, assigned_user_ids, expand_team_leader_id,
       booth_id, ward_id, constituency_id, priority, due_date, assigner_remarks
     } = req.body;
@@ -199,6 +199,25 @@ const createTask = async (req, res) => {
     }
 
     await client.query('BEGIN');
+
+    let finalConstituencyId = constituency_id;
+    if (req.userRole === 'mla' && req.scope?.constituency_id) {
+      finalConstituencyId = req.scope.constituency_id;
+      if (ward_id) {
+        const wardCheck = await client.query('SELECT constituency_id FROM wards WHERE id = $1', [ward_id]);
+        if (!wardCheck.rows.length || wardCheck.rows[0].constituency_id !== req.scope.constituency_id) {
+          await client.query('ROLLBACK');
+          return res.status(400).json(formatResponse(false, 'Ward does not belong to your constituency.'));
+        }
+      }
+      if (booth_id) {
+        const boothCheck = await client.query('SELECT w.constituency_id FROM booths b JOIN wards w ON b.ward_id = w.id WHERE b.id = $1', [booth_id]);
+        if (!boothCheck.rows.length || boothCheck.rows[0].constituency_id !== req.scope.constituency_id) {
+          await client.query('ROLLBACK');
+          return res.status(400).json(formatResponse(false, 'Booth does not belong to your constituency.'));
+        }
+      }
+    }
 
     const assigneeIds = await resolveAssigneeIds(client, {
       assigned_to, assigned_user_ids, expand_team_leader_id, tenant: req.tenant
@@ -212,7 +231,7 @@ const createTask = async (req, res) => {
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *`,
       [
         title, description, type, primaryAssignee, req.user.id,
-        booth_id || null, ward_id || null, constituency_id || null,
+        booth_id || null, ward_id || null, finalConstituencyId || null,
         priority || 'medium', due_date || null, assigner_remarks || null, req.tenant
       ]
     );
@@ -263,7 +282,7 @@ const createTask = async (req, res) => {
 const updateTask = async (req, res) => {
   const client = await pool.connect();
   try {
-    const {
+    let {
       title, description, type, assigned_to, assigned_user_ids, expand_team_leader_id,
       booth_id, ward_id, constituency_id, priority, status, due_date, remarks,
       assigner_remarks, assignee_remarks
@@ -276,6 +295,11 @@ const updateTask = async (req, res) => {
     if (!exists.rows.length) return res.status(404).json(formatResponse(false, 'Task not found.'));
 
     const task = exists.rows[0];
+    if (req.userRole === 'mla' && req.scope?.constituency_id) {
+      if (task.constituency_id !== req.scope.constituency_id) {
+        return res.status(403).json(formatResponse(false, 'Access denied. Task outside constituency.'));
+      }
+    }
     const assigneeRows = await client.query(
       'SELECT user_id FROM task_assignees WHERE task_id = $1',
       [req.params.id]
@@ -380,6 +404,25 @@ const updateTask = async (req, res) => {
 
     const mergedRemarks = remarks !== undefined ? remarks : task.remarks;
 
+    let finalConstituencyId = constituency_id;
+    if (req.userRole === 'mla' && req.scope?.constituency_id) {
+      finalConstituencyId = req.scope.constituency_id;
+      if (ward_id) {
+        const wardCheck = await client.query('SELECT constituency_id FROM wards WHERE id = $1', [ward_id]);
+        if (!wardCheck.rows.length || wardCheck.rows[0].constituency_id !== req.scope.constituency_id) {
+          await client.query('ROLLBACK');
+          return res.status(400).json(formatResponse(false, 'Ward does not belong to your constituency.'));
+        }
+      }
+      if (booth_id) {
+        const boothCheck = await client.query('SELECT w.constituency_id FROM booths b JOIN wards w ON b.ward_id = w.id WHERE b.id = $1', [booth_id]);
+        if (!boothCheck.rows.length || boothCheck.rows[0].constituency_id !== req.scope.constituency_id) {
+          await client.query('ROLLBACK');
+          return res.status(400).json(formatResponse(false, 'Booth does not belong to your constituency.'));
+        }
+      }
+    }
+
     const result = await client.query(
       `UPDATE tasks SET
          title = COALESCE($1, title), description = COALESCE($2, description),
@@ -397,7 +440,7 @@ const updateTask = async (req, res) => {
        WHERE id = $17 AND organization_id = $18 RETURNING *`,
       [
         title, description, type, assigned_to, booth_id || null, ward_id || null,
-        constituency_id || null, priority, status, due_date,
+        finalConstituencyId || null, priority, status, due_date,
         completedAtUpdate,
         completedByUpdate,
         isLateUpdate,
@@ -487,9 +530,15 @@ const updateTask = async (req, res) => {
 // ── Delete task ─────────────────────────────────────────────────────
 const deleteTask = async (req, res) => {
   try {
+    let scopeClause = '';
+    const scopeParams = [req.params.id, req.tenant];
+    if (req.userRole === 'mla' && req.scope?.constituency_id) {
+      scopeClause = ' AND constituency_id = $3';
+      scopeParams.push(req.scope.constituency_id);
+    }
     const result = await pool.query(
-      'DELETE FROM tasks WHERE id = $1 AND organization_id = $2 RETURNING id',
-      [req.params.id, req.tenant]
+      `DELETE FROM tasks WHERE id = $1 AND organization_id = $2${scopeClause} RETURNING id`,
+      scopeParams
     );
     if (!result.rows.length) return res.status(404).json(formatResponse(false, 'Task not found.'));
 

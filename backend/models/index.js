@@ -177,6 +177,28 @@ const createTables = async () => {
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
 
+    -- Survey Questions
+    CREATE TABLE IF NOT EXISTS survey_questions (
+      id SERIAL PRIMARY KEY,
+      question_text TEXT NOT NULL,
+      answer_type VARCHAR(50) NOT NULL, -- 'text', 'single_choice', 'multiple_choice', 'rating', 'yes_no'
+      options JSONB,
+      order_index INTEGER NOT NULL,
+      is_active BOOLEAN DEFAULT true,
+      organization_id INTEGER REFERENCES organizations(id) DEFAULT 1,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+
+    -- Survey Answers
+    CREATE TABLE IF NOT EXISTS survey_answers (
+      id SERIAL PRIMARY KEY,
+      survey_id INTEGER REFERENCES surveys(id) ON DELETE CASCADE,
+      question_id INTEGER REFERENCES survey_questions(id) ON DELETE CASCADE,
+      answer_text TEXT NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(survey_id, question_id)
+    );
+
     -- Events table
     CREATE TABLE IF NOT EXISTS events (
       id SERIAL PRIMARY KEY,

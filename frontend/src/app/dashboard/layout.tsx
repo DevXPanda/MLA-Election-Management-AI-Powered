@@ -6,6 +6,7 @@ import { useAuth } from '@/context/AuthContext';
 import Sidebar, { SidebarProvider, useSidebar } from '@/components/Sidebar';
 
 import MobileBottomNav from '@/components/MobileBottomNav';
+import { useLanguage } from '@/context/LanguageContext';
 
 function DashboardContent({ children }: { children: React.ReactNode }) {
   const { collapsed } = useSidebar();
@@ -55,6 +56,7 @@ export default function DashboardLayout({
 }) {
   const { user, loading } = useAuth();
   const router = useRouter();
+  const { t } = useLanguage();
 
   useEffect(() => {
     // Only redirect if we are sure initialization is done and no session exists
@@ -80,7 +82,7 @@ export default function DashboardLayout({
             <div className="w-14 h-14 border-[3px] border-dark-100 dark:border-white/[0.05] border-t-saffron-500 rounded-full animate-spin" />
             <div className="absolute inset-0 w-14 h-14 border border-saffron-500/20 rounded-full animate-pulse" />
           </div>
-          <p className="text-xs font-black text-dark-400 dark:text-dark-500 uppercase tracking-[3px] animate-pulse">Initializing System</p>
+          <p className="text-xs font-black text-dark-400 dark:text-dark-500 uppercase tracking-[3px] animate-pulse">{t('action.initializing', 'Initializing System')}</p>
         </div>
       </div>
     );

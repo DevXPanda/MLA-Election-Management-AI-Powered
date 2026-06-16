@@ -8,10 +8,13 @@ import { messagesAPI } from '@/lib/api';
 import { Message } from '@/types';
 import { Plus, X, Loader2, MessageSquare, Send, Mail, MailOpen } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import { hi } from 'date-fns/locale';
 import Modal from '@/components/Modal';
 import { MODULE_HEADER } from '@/lib/ui-labels';
+import { useLanguage } from '@/context/LanguageContext';
 
 export default function MessagesPage() {
+  const { t, language } = useLanguage();
   const [messages, setMessages] = useState<Message[]>([]);
   const [inbox, setInbox] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -44,7 +47,7 @@ export default function MessagesPage() {
       loadMessages();
       setForm({ title: '', content: '', target_type: 'all', channel: 'push' });
     } catch (err: any) { 
-      showToast.error(err.response?.data?.message || 'Error sending message'); 
+      showToast.error(err.response?.data?.message || t('msg.error.send', 'Error sending message')); 
     }
   };
 
@@ -54,19 +57,38 @@ export default function MessagesPage() {
 
   const handleDelete = async (id: number) => {
     showToast.confirm(
-      'Delete Message',
-      'Are you sure you want to delete this message? This record will be removed from your sent history.',
+      t('label.delete_message_title', 'Delete Message'),
+      t('label.delete_message_msg', 'Are you sure you want to delete this message? This record will be removed from your sent history.'),
       async () => {
         try { 
           await messagesAPI.delete(id); 
           loadMessages(); 
-          toast.success('Message deleted');
+          toast.success(t('msg.success.delete', 'Message deleted'));
         } catch (err) {
-          showToast.error('Failed to delete message');
+          showToast.error(t('msg.error.delete', 'Failed to delete message'));
         }
       },
-      'Delete'
+      t('action.delete', 'Delete')
     );
+  };
+
+  const getTargetLabel = (type: string) => {
+    const map: Record<string, string> = {
+      all: 'msg.target.all_users',
+      booth: 'msg.target.booth_specific',
+      ward: 'msg.target.ward_specific',
+      constituency: 'msg.target.const_specific'
+    };
+    return t(map[type] || 'msg.target.all_users');
+  };
+
+  const getChannelLabel = (channel: string) => {
+    const map: Record<string, string> = {
+      push: 'msg.channel.push',
+      sms: 'msg.channel.sms',
+      whatsapp: 'msg.channel.whatsapp'
+    };
+    return t(map[channel] || 'msg.channel.push');
   };
 
   const currentList = view === 'sent' ? messages : inbox;
@@ -78,13 +100,13 @@ export default function MessagesPage() {
         <div className="flex items-center justify-between mb-6">
           <div className="tabs-toggle">
             <button onClick={() => setView('sent')} className={`tabs-toggle-item ${view === 'sent' ? 'tabs-toggle-item-active' : 'tabs-toggle-item-inactive'}`}>
-              <Send className="w-4 h-4" />Sent ({meta.total})
+              <Send className="w-4 h-4" />{t('msg.sent', 'Sent')} ({meta.total})
             </button>
             <button onClick={() => setView('inbox')} className={`tabs-toggle-item ${view === 'inbox' ? 'tabs-toggle-item-active' : 'tabs-toggle-item-inactive'}`}>
-              <Mail className="w-4 h-4" />Inbox ({inbox.length})
+              <Mail className="w-4 h-4" />{t('msg.inbox', 'Inbox')} ({inbox.length})
             </button>
           </div>
-          <button onClick={() => setShowModal(true)} className="btn-primary"><MessageSquare className="w-4 h-4" /> New Message</button>
+          <button onClick={() => setShowModal(true)} className="btn-primary"><MessageSquare className="w-4 h-4" /> {t('msg.new_message', 'New Message')}</button>
         </div>
 
         {/* Messages List */}
@@ -93,7 +115,7 @@ export default function MessagesPage() {
         ) : currentList.length === 0 ? (
           <div className="text-center py-16 glass-card">
             <MessageSquare className="w-12 h-12 text-dark-700 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-dark-300">No messages</h3>
+            <h3 className="text-lg font-semibold text-dark-300">{t('msg.no_messages', 'No messages')}</h3>
           </div>
         ) : (
           <div className="space-y-3">
@@ -106,18 +128,18 @@ export default function MessagesPage() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-3 mb-1">
                       <h4 className="font-bold text-dark-900 dark:text-dark-100 group-hover:text-saffron-600 transition-colors uppercase tracking-tight">{msg.title}</h4>
-                      <span className="badge badge-neutral text-[10px]">{msg.target_type || msg.channel}</span>
+                      <span className="badge badge-neutral text-[10px]">{getTargetLabel(msg.target_type)} | {getChannelLabel(msg.channel)}</span>
                     </div>
                     <p className="text-sm text-dark-700 dark:text-dark-400 line-clamp-2 mb-2 leading-relaxed">{msg.content}</p>
                     <div className="flex items-center gap-4 text-[11px] font-bold uppercase tracking-wider text-dark-600 dark:text-dark-500">
                       {msg.sender_name && <span className="flex items-center gap-1">👤 {msg.sender_name}</span>}
                       {msg.recipient_count && <span className="flex items-center gap-1">👥 {msg.recipient_count}</span>}
-                      <span>{formatDistanceToNow(new Date(msg.created_at), { addSuffix: true })}</span>
+                      <span>{formatDistanceToNow(new Date(msg.created_at), { addSuffix: true, locale: language === 'hi' ? hi : undefined })}</span>
                     </div>
                   </div>
                   <div className="flex gap-2">
                     {view === 'inbox' && !msg.read_at && (
-                      <button onClick={() => markRead(msg.id)} className="btn-sm btn-secondary">Mark Read</button>
+                      <button onClick={() => markRead(msg.id)} className="btn-sm btn-secondary">{t('msg.mark_read', 'Mark Read')}</button>
                     )}
                     {view === 'sent' && (
                       <button onClick={() => handleDelete(msg.id)} className="btn-icon bg-red-500/10 border border-red-500/20 text-red-400"><X className="w-3.5 h-3.5" /></button>
@@ -133,43 +155,43 @@ export default function MessagesPage() {
       <Modal
         isOpen={showModal}
         onClose={() => setShowModal(false)}
-        title="Send New Message"
-        subtitle="Broadcast tactical updates to your field teams"
+        title={t('msg.send_new_message', 'Send New Message')}
+        subtitle={t('msg.broadcast_subtitle', 'Broadcast tactical updates to your field teams')}
         maxWidth="max-w-[650px]"
         footer={(
           <>
-            <button type="button" onClick={() => setShowModal(false)} className="btn-secondary min-w-[120px]">Cancel</button>
+            <button type="button" onClick={() => setShowModal(false)} className="btn-secondary min-w-[120px]">{t('action.cancel', 'Cancel')}</button>
             <button type="submit" form="message-form" className="btn-primary min-w-[160px]" disabled={submitting}>
-              {submitting ? 'Sending...' : 'Send Message'}
+              {submitting ? t('action.loading', 'Sending...') : t('msg.send_btn', 'Send Message')}
             </button>
           </>
         )}
       >
         <form id="message-form" onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-2">
-            <label className="block text-xs font-black text-dark-400 uppercase tracking-widest px-1">Message Title *</label>
-            <input value={form.title} onChange={e => setForm({...form, title: e.target.value})} className="form-input" placeholder="e.g. Critical Update: Ward 5" required />
+            <label className="block text-xs font-black text-dark-400 uppercase tracking-widest px-1">{t('msg.title_label', 'Message Title *')}</label>
+            <input value={form.title} onChange={e => setForm({...form, title: e.target.value})} className="form-input" placeholder={t('msg.title_placeholder', 'e.g. Critical Update: Ward 5')} required />
           </div>
           <div className="space-y-2">
-            <label className="block text-xs font-black text-dark-400 uppercase tracking-widest px-1">Message Content *</label>
-            <textarea value={form.content} onChange={e => setForm({...form, content: e.target.value})} className="form-input h-32 resize-none" placeholder="Enter your strategic message here..." required />
+            <label className="block text-xs font-black text-dark-400 uppercase tracking-widest px-1">{t('msg.content_label', 'Message Content *')}</label>
+            <textarea value={form.content} onChange={e => setForm({...form, content: e.target.value})} className="form-input h-32 resize-none" placeholder={t('msg.content_placeholder', 'Enter your strategic message here...')} required />
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
-              <label className="block text-xs font-black text-dark-400 uppercase tracking-widest px-1">Target Audience</label>
+              <label className="block text-xs font-black text-dark-400 uppercase tracking-widest px-1">{t('msg.target_audience', 'Target Audience')}</label>
               <select value={form.target_type} onChange={e => setForm({...form, target_type: e.target.value})} className="form-input">
-                <option value="all">All Users</option>
-                <option value="booth">Booth Specific</option>
-                <option value="ward">Ward Specific</option>
-                <option value="constituency">Constituency Specific</option>
+                <option value="all">{t('msg.target.all_users', 'All Users')}</option>
+                <option value="booth">{t('msg.target.booth_specific', 'Booth Specific')}</option>
+                <option value="ward">{t('msg.target.ward_specific', 'Ward Specific')}</option>
+                <option value="constituency">{t('msg.target.const_specific', 'Constituency Specific')}</option>
               </select>
             </div>
             <div className="space-y-2">
-              <label className="block text-xs font-black text-dark-400 uppercase tracking-widest px-1">Priority Channel</label>
+              <label className="block text-xs font-black text-dark-400 uppercase tracking-widest px-1">{t('msg.priority_channel', 'Priority Channel')}</label>
               <select value={form.channel} onChange={e => setForm({...form, channel: e.target.value})} className="form-input">
-                <option value="push">Push Notification</option>
-                <option value="sms">High Priority SMS</option>
-                <option value="whatsapp">WhatsApp Direct</option>
+                <option value="push">{t('msg.channel.push', 'Push Notification')}</option>
+                <option value="sms">{t('msg.channel.sms', 'High Priority SMS')}</option>
+                <option value="whatsapp">{t('msg.channel.whatsapp', 'WhatsApp Direct')}</option>
               </select>
             </div>
           </div>

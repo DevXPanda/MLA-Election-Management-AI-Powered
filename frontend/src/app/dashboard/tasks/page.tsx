@@ -13,9 +13,11 @@ import StatsSummary from '@/components/dashboard/StatsSummary';
 import { useCallback } from 'react';
 import DetailsModal from '@/components/DetailsModal';
 import { MODULE_HEADER, TASKS_UI, TASK_TYPE_OPTIONS, taskTypeLabel } from '@/lib/ui-labels';
+import { useLanguage } from '@/context/LanguageContext';
 
 export default function TasksPage() {
   const { user } = useAuth();
+  const { t } = useLanguage();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
@@ -216,18 +218,18 @@ export default function TasksPage() {
 
   const handleDelete = async (id: number) => {
     showToast.confirm(
-      'Delete Task',
-      'Are you sure you want to delete this task? This action cannot be undone.',
+      t('tasks.delete_task_title', 'Delete Task'),
+      t('tasks.delete_task_confirm', 'Are you sure you want to delete this task? This action cannot be undone.'),
       async () => {
         try { 
           await tasksAPI.delete(id); 
           loadTasks(); 
-          toast.success('Task deleted');
+          toast.success(t('tasks.deleted_success', 'Task deleted'));
         } catch (err) {
-          showToast.error('Failed to delete task');
+          showToast.error(t('tasks.delete_failed', 'Failed to delete task'));
         }
       },
-      'Delete'
+      t('action.delete', 'Delete')
     );
   };
 
@@ -254,9 +256,9 @@ export default function TasksPage() {
           loading={statsLoading}
           stats={[
             { label: TASKS_UI.statsTotal, value: tasksStats?.total_tasks || 0, icon: ListTodo, color: 'text-blue-500', bgIcon: 'bg-blue-500/10' },
-            { label: 'Completed', value: tasksStats?.status_breakdown?.find((s: any) => s.status === 'completed')?.count || 0, icon: CheckCircle2, color: 'text-emerald-500', bgIcon: 'bg-emerald-500/10' },
-            { label: 'In Progress', value: tasksStats?.status_breakdown?.find((s: any) => s.status === 'in_progress')?.count || 0, icon: Clock, color: 'text-amber-500', bgIcon: 'bg-amber-500/10' },
-            { label: 'Pending', value: tasksStats?.status_breakdown?.find((s: any) => s.status === 'pending')?.count || 0, icon: Layout, color: 'text-purple-500', bgIcon: 'bg-purple-500/10' },
+            { label: t('label.completed', 'Completed'), value: tasksStats?.status_breakdown?.find((s: any) => s.status === 'completed')?.count || 0, icon: CheckCircle2, color: 'text-emerald-500', bgIcon: 'bg-emerald-500/10' },
+            { label: t('label.processing', 'In Progress'), value: tasksStats?.status_breakdown?.find((s: any) => s.status === 'in_progress')?.count || 0, icon: Clock, color: 'text-amber-500', bgIcon: 'bg-amber-500/10' },
+            { label: t('label.pending', 'Pending'), value: tasksStats?.status_breakdown?.find((s: any) => s.status === 'pending')?.count || 0, icon: Layout, color: 'text-purple-500', bgIcon: 'bg-purple-500/10' },
           ]}
         />
 
@@ -272,14 +274,14 @@ export default function TasksPage() {
           {['', 'pending', 'in_progress', 'completed'].map(s => (
             <button key={s} onClick={() => setStatusFilter(s)}
               className={`filter-tab ${statusFilter === s ? 'filter-tab-active' : 'filter-tab-inactive'}`}>
-              {s ? s.replace('_', ' ') : 'All'}
+              {s ? t('label.' + (s === 'in_progress' ? 'processing' : s), s) : t('label.all', 'All')}
             </button>
           ))}
           <select value={priorityFilter} onChange={e => setPriorityFilter(e.target.value)} className="form-input max-w-[150px]">
-            <option value="">All Priority</option>
-            <option value="high">High</option>
-            <option value="medium">Medium</option>
-            <option value="low">Low</option>
+            <option value="">{t('tasks.all_priority', 'All Priority')}</option>
+            <option value="high">{t('priority.high', 'High')}</option>
+            <option value="medium">{t('priority.medium', 'Medium')}</option>
+            <option value="low">{t('priority.low', 'Low')}</option>
           </select>
         </div>
 
@@ -289,8 +291,8 @@ export default function TasksPage() {
         ) : tasks.length === 0 ? (
           <div className="text-center py-16 glass-card">
             <ListTaskIcon className="w-12 h-12 text-dark-700 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-dark-300">No tasks found</h3>
-            <p className="text-dark-500 text-sm mt-1">Create your first task to get started</p>
+            <h3 className="text-lg font-semibold text-dark-300">{t('tasks.no_tasks_found', 'No tasks found')}</h3>
+            <p className="text-dark-500 text-sm mt-1">{t('tasks.no_tasks_subtitle', 'Create your first task to get started')}</p>
           </div>
         ) : (
           <div className="space-y-3">
@@ -302,7 +304,7 @@ export default function TasksPage() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-3 mb-1">
                     <h4 className={`font-bold ${task.status === 'completed' ? 'line-through text-dark-400' : 'text-dark-900 dark:text-dark-100'}`}>{task.title}</h4>
-                    <span className={`badge ${priorityBadge(task.priority)} text-[10px]`}>{task.priority}</span>
+                    <span className={`badge ${priorityBadge(task.priority)} text-[10px]`}>{t('priority.' + task.priority, task.priority)}</span>
                     <span className="badge badge-neutral text-[10px]">{taskTypeLabel(task.type)}</span>
                   </div>
                   <div className="flex items-center gap-4 text-[11px] font-bold uppercase tracking-wider text-dark-600 dark:text-dark-500">
@@ -338,7 +340,7 @@ export default function TasksPage() {
         maxWidth="max-w-[700px]"
         footer={(
           <>
-            <button type="button" onClick={() => setShowModal(false)} className="btn-secondary min-w-[120px]">Cancel</button>
+            <button type="button" onClick={() => setShowModal(false)} className="btn-secondary min-w-[120px]">{t('action.cancel', 'Cancel')}</button>
             <button type="submit" form="task-form" className="btn-primary min-w-[180px]">
               {editingTask ? TASKS_UI.modalFooterSave : TASKS_UI.modalFooterCreate}
             </button>
@@ -349,21 +351,21 @@ export default function TasksPage() {
           {editingTask && !canManage ? (
             <>
               <div className="space-y-2">
-                <label className="block text-xs font-black text-dark-400 uppercase tracking-widest px-1">Task Status</label>
+                <label className="block text-xs font-black text-dark-400 uppercase tracking-widest px-1">{t('tasks.task_status', 'Task Status')}</label>
                 <select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })} className="form-input">
-                  <option value="pending">Pending</option>
-                  <option value="in_progress">In Progress</option>
-                  <option value="completed">Completed</option>
-                  <option value="cancelled">Cancelled</option>
+                  <option value="pending">{t('label.pending', 'Pending')}</option>
+                  <option value="in_progress">{t('label.processing', 'In Progress')}</option>
+                  <option value="completed">{t('label.completed', 'Completed')}</option>
+                  <option value="cancelled">{t('label.cancelled', 'Cancelled')}</option>
                 </select>
               </div>
               <div className="space-y-2">
-                <label className="block text-xs font-black text-dark-400 uppercase tracking-widest px-1">Your remarks</label>
+                <label className="block text-xs font-black text-dark-400 uppercase tracking-widest px-1">{t('tasks.assignee_remarks', 'Your remarks')}</label>
                 <textarea
                   value={form.assignee_remark_chunk}
                   onChange={(e) => setForm({ ...form, assignee_remark_chunk: e.target.value })}
                   className="form-input h-24 resize-none"
-                  placeholder="Notes or comments for this task..."
+                  placeholder={t('tasks.remarks_placeholder', 'Notes or comments for this task...')}
                 />
               </div>
             </>
@@ -371,11 +373,11 @@ export default function TasksPage() {
             <>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <label className="block text-xs font-black text-dark-400 uppercase tracking-widest px-1">Task Title *</label>
-                  <input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className="form-input" placeholder="e.g. Booth Outreach" required />
+                  <label className="block text-xs font-black text-dark-400 uppercase tracking-widest px-1">{t('tasks.task_title', 'Task Title *')}</label>
+                  <input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className="form-input" placeholder={t('tasks.title_placeholder', 'e.g. Booth Outreach')} required />
                 </div>
                 <div className="space-y-2">
-                  <label className="block text-xs font-black text-dark-400 uppercase tracking-widest px-1">Task Type</label>
+                  <label className="block text-xs font-black text-dark-400 uppercase tracking-widest px-1">{t('tasks.task_type', 'Task Type')}</label>
                   <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })} className="form-input">
                     {TASK_TYPE_OPTIONS.map((t) => (
                       <option key={t.value} value={t.value}>
@@ -387,27 +389,27 @@ export default function TasksPage() {
               </div>
 
               <div className="space-y-2">
-                <label className="block text-xs font-black text-dark-400 uppercase tracking-widest px-1">Task Description</label>
-                <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className="form-input h-24 resize-none" placeholder="Provide detailed instructions for the assignee..." />
+                <label className="block text-xs font-black text-dark-400 uppercase tracking-widest px-1">{t('tasks.task_description', 'Task Description')}</label>
+                <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className="form-input h-24 resize-none" placeholder={t('tasks.description_placeholder', 'Provide detailed instructions for the assignee...')} />
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <label className="block text-xs font-black text-dark-400 uppercase tracking-widest px-1">Priority Level</label>
+                  <label className="block text-xs font-black text-dark-400 uppercase tracking-widest px-1">{t('tasks.priority_level', 'Priority Level')}</label>
                   <select value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value })} className="form-input">
-                    <option value="low">Low Priority</option>
-                    <option value="medium">Medium Priority</option>
-                    <option value="high">High Priority</option>
+                    <option value="low">{t('priority.low', 'Low Priority')}</option>
+                    <option value="medium">{t('priority.medium', 'Medium Priority')}</option>
+                    <option value="high">{t('priority.high', 'High Priority')}</option>
                   </select>
                 </div>
                 <div className="space-y-2">
-                  <label className="block text-xs font-black text-dark-400 uppercase tracking-widest px-1">Add team by leader</label>
+                  <label className="block text-xs font-black text-dark-400 uppercase tracking-widest px-1">{t('tasks.add_team_leader', 'Add team by leader')}</label>
                   <select
                     value={form.expand_team_leader_id}
                     onChange={(e) => setForm({ ...form, expand_team_leader_id: e.target.value })}
                     className="form-input"
                   >
-                    <option value="">None</option>
+                    <option value="">{t('label.none', 'None')}</option>
                     {teamLeaderOptions.map((l) => (
                       <option key={l.id} value={l.id}>
                         {l.name}
@@ -418,7 +420,7 @@ export default function TasksPage() {
               </div>
 
               <div className="space-y-2">
-                <label className="block text-xs font-black text-dark-400 uppercase tracking-widest px-1">Assign to users</label>
+                <label className="block text-xs font-black text-dark-400 uppercase tracking-widest px-1">{t('tasks.assign_to_users', 'Assign to users')}</label>
                 <div className="max-h-[200px] overflow-y-auto pr-1 grid grid-cols-1 gap-2 custom-scrollbar border border-dark-100 dark:border-white/10 rounded-lg p-2">
                   {users.map((u) => (
                     <label
@@ -440,28 +442,28 @@ export default function TasksPage() {
               </div>
 
               <div className="space-y-2">
-                <label className="block text-xs font-black text-dark-400 uppercase tracking-widest px-1">Assigner remarks / notes</label>
+                <label className="block text-xs font-black text-dark-400 uppercase tracking-widest px-1">{t('tasks.assigner_remarks', 'Assigner remarks / notes')}</label>
                 <textarea
                   value={form.assigner_remarks}
                   onChange={(e) => setForm({ ...form, assigner_remarks: e.target.value })}
                   className="form-input h-20 resize-none"
-                  placeholder="Instructions or context for assignees..."
+                  placeholder={t('tasks.assigner_remarks_placeholder', 'Instructions or context for assignees...')}
                 />
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <label className="block text-xs font-black text-dark-400 uppercase tracking-widest px-1">Due Date</label>
+                  <label className="block text-xs font-black text-dark-400 uppercase tracking-widest px-1">{t('tasks.due_date', 'Due Date')}</label>
                   <input type="date" value={form.due_date} onChange={(e) => setForm({ ...form, due_date: e.target.value })} className="form-input" />
                 </div>
                 {editingTask && (
                   <div className="space-y-2">
-                    <label className="block text-xs font-black text-dark-400 uppercase tracking-widest px-1">Task Status</label>
+                    <label className="block text-xs font-black text-dark-400 uppercase tracking-widest px-1">{t('tasks.task_status', 'Task Status')}</label>
                     <select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })} className="form-input">
-                      <option value="pending">Pending</option>
-                      <option value="in_progress">In Progress</option>
-                      <option value="completed">Completed</option>
-                      <option value="cancelled">Cancelled</option>
+                      <option value="pending">{t('label.pending', 'Pending')}</option>
+                      <option value="in_progress">{t('label.processing', 'In Progress')}</option>
+                      <option value="completed">{t('label.completed', 'Completed')}</option>
+                      <option value="cancelled">{t('label.cancelled', 'Cancelled')}</option>
                     </select>
                   </div>
                 )}
@@ -479,24 +481,24 @@ export default function TasksPage() {
         items={(() => {
           const td = selectedTaskDetail || selectedTask;
           const assigneeLine =
-            td?.assignees?.length ? td.assignees.map((a) => a.name).join(', ') : td?.assigned_to_name || 'Unassigned';
+            td?.assignees?.length ? td.assignees.map((a) => a.name).join(', ') : td?.assigned_to_name || t('label.none', 'Unassigned');
           return [
-            { label: 'Name', value: td?.title },
-            { label: 'Assignees', value: assigneeLine },
-            { label: 'Type', value: td?.type ? taskTypeLabel(td.type) : '—' },
-            { label: 'Assigned by', value: td?.assigned_by_name || '—' },
-            { label: 'Ward', value: td?.ward_name || '—' },
-            { label: 'Booth', value: td?.booth_name || '—' },
-            { label: 'Constituency', value: td?.constituency_name || '—' },
-            { label: 'Priority', value: td?.priority || '—' },
-            { label: 'Status', value: td?.status || '—' },
-            { label: 'Late completion', value: td?.is_late_completion ? 'Yes' : 'No' },
-            { label: 'Due Date', value: td?.due_date ? new Date(td.due_date).toLocaleString() : '—' },
-            { label: 'End date (completed)', value: td?.completed_at ? new Date(td.completed_at).toLocaleString() : '—' },
-            { label: 'Completed by', value: td?.completed_by_name || '—' },
-            { label: 'Assigner remarks', value: td?.assigner_remarks || '—' },
-            { label: 'Assignee remarks', value: td?.assignee_remarks || '—' },
-            { label: 'Description', value: td?.description || '—' },
+            { label: t('label.name', 'Name'), value: td?.title },
+            { label: t('tasks.assign_to_users', 'Assignees'), value: assigneeLine },
+            { label: t('tasks.task_type', 'Type'), value: td?.type ? taskTypeLabel(td.type) : '—' },
+            { label: t('voters.assigned_leader', 'Assigned by'), value: td?.assigned_by_name || '—' },
+            { label: t('label.ward', 'Ward'), value: td?.ward_name || '—' },
+            { label: t('label.booth', 'Booth'), value: td?.booth_name || '—' },
+            { label: t('label.constituency', 'Constituency'), value: td?.constituency_name || '—' },
+            { label: t('label.priority', 'Priority'), value: td?.priority ? t('priority.' + td.priority, td.priority) : '—' },
+            { label: t('label.status', 'Status'), value: td?.status ? t('label.' + (td.status === 'in_progress' ? 'processing' : td.status), td.status) : '—' },
+            { label: t('tasks.late_completion', 'Late completion'), value: td?.is_late_completion ? t('label.yes', 'Yes') : t('label.no', 'No') },
+            { label: t('tasks.due_date', 'Due Date'), value: td?.due_date ? new Date(td.due_date).toLocaleString() : '—' },
+            { label: t('tasks.end_date', 'End date (completed)'), value: td?.completed_at ? new Date(td.completed_at).toLocaleString() : '—' },
+            { label: t('tasks.completed_by', 'Completed by'), value: td?.completed_by_name || '—' },
+            { label: t('tasks.assigner_remarks', 'Assigner remarks'), value: td?.assigner_remarks || '—' },
+            { label: t('tasks.assignee_remarks', 'Assignee remarks'), value: td?.assignee_remarks || '—' },
+            { label: t('label.description', 'Description'), value: td?.description || '—' },
           ];
         })()}
         extra={
@@ -508,7 +510,7 @@ export default function TasksPage() {
             )}
             {selectedTaskDetail?.activity && selectedTaskDetail.activity.length > 0 && (
               <div className="rounded-lg border border-dark-100 dark:border-white/10 bg-dark-50/40 dark:bg-white/[0.02] p-3">
-                <p className="text-[10px] uppercase tracking-widest text-dark-500 mb-2">Activity log</p>
+                <p className="text-[10px] uppercase tracking-widest text-dark-500 mb-2">{t('tasks.activity_log', 'Activity log')}</p>
                 <ul className="space-y-2 text-xs text-dark-700 dark:text-dark-300 max-h-48 overflow-y-auto">
                   {selectedTaskDetail.activity.map((row) => (
                     <li key={row.id} className="border-b border-dark-100/80 dark:border-white/5 pb-2 last:border-0">

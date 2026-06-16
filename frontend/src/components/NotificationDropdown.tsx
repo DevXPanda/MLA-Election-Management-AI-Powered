@@ -4,8 +4,10 @@ import { useState, useEffect, useRef } from 'react';
 import { notificationsAPI } from '@/lib/api';
 import { socketService } from '@/lib/socket';
 import { formatDistanceToNow } from 'date-fns';
+import { hi } from 'date-fns/locale';
 import { Bell, Check, Trash2, ExternalLink, Inbox } from 'lucide-react';
 import { SHARED_UI } from '@/lib/ui-labels';
+import { useLanguage } from '@/context/LanguageContext';
 
 interface Notification {
   id: number;
@@ -18,6 +20,7 @@ interface Notification {
 }
 
 export default function NotificationDropdown() {
+  const { t, language } = useLanguage();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [isOpen, setIsOpen] = useState(false);
@@ -133,7 +136,7 @@ export default function NotificationDropdown() {
                 onClick={markAllRead}
                 className="text-xs text-blue-600 dark:text-blue-400 hover:underline font-medium"
               >
-                Clear All
+                {t('notification.clear_all')}
               </button>
             )}
           </div>
@@ -142,12 +145,12 @@ export default function NotificationDropdown() {
             {loading && notifications.length === 0 ? (
               <div className="p-8 text-center text-slate-500 dark:text-slate-400">
                 <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500 mx-auto mb-3"></div>
-                <p className="text-sm">Synchronizing mission data...</p>
+                <p className="text-sm">{t('notification.loading')}</p>
               </div>
             ) : notifications.length === 0 ? (
               <div className="p-12 text-center text-slate-500 dark:text-slate-400">
                 <Bell className="w-8 h-8 mx-auto mb-3 opacity-20" />
-                <p className="text-sm">No tactical updates at this time.</p>
+                <p className="text-sm">{t('notification.no_updates')}</p>
               </div>
             ) : (
               <div className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -170,7 +173,7 @@ export default function NotificationDropdown() {
                             {notification.title}
                           </p>
                           <span className="text-[10px] text-slate-500 whitespace-nowrap ml-2">
-                            {formatDistanceToNow(new Date(notification.created_at), { addSuffix: true })}
+                            {formatDistanceToNow(new Date(notification.created_at), { addSuffix: true, locale: language === 'hi' ? hi : undefined })}
                           </span>
                         </div>
                         <p className={`text-xs leading-relaxed line-clamp-2 ${notification.is_read ? 'text-slate-500 dark:text-slate-500' : 'text-slate-700 dark:text-slate-300'}`}>
@@ -182,7 +185,7 @@ export default function NotificationDropdown() {
                             className="inline-flex items-center gap-1 text-[10px] font-bold text-blue-600 dark:text-blue-400 mt-2 hover:underline"
                             onClick={(e) => e.stopPropagation()}
                           >
-                            GO TO TARGET <ExternalLink className="w-2.5 h-2.5" />
+                            {t('notification.go_to_target')} <ExternalLink className="w-2.5 h-2.5" />
                           </a>
                         )}
                       </div>
@@ -194,7 +197,7 @@ export default function NotificationDropdown() {
           </div>
           <div className="p-3 border-t border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-black/50 text-center">
             <button className="text-xs font-bold text-slate-500 dark:text-slate-400 hover:text-blue-500 transition-colors uppercase tracking-wider">
-              View Strategy Log
+              {t('notification.view_log')}
             </button>
           </div>
         </div>

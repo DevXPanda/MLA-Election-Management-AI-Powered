@@ -20,6 +20,16 @@ const getMessages = async (req, res) => {
     if (!req.scope?.unrestricted) {
       paramCount++; query += ` AND m.organization_id = $${paramCount}`; params.push(req.tenant);
     }
+    // MLA: only see messages targeted to their constituency or sent by them
+    if (req.userRole === 'mla' && req.scope?.constituency_id) {
+      paramCount++;
+      const constId = paramCount;
+      paramCount++;
+      const userId = paramCount;
+      query += ` AND (m.sent_by = $${userId} OR (m.target_type = 'constituency' AND m.target_id = $${constId}) OR m.target_type = 'all')`;
+      params.push(req.scope.constituency_id);
+      params.push(req.user.id);
+    }
     if (target_type) { paramCount++; query += ` AND m.target_type = $${paramCount}`; params.push(target_type); }
     if (channel) { paramCount++; query += ` AND m.channel = $${paramCount}`; params.push(channel); }
 

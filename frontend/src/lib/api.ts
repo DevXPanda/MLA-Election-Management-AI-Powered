@@ -134,6 +134,7 @@ export const surveysAPI = {
   createIssue: (data: Record<string, unknown>) => api.post('/surveys/issues', data),
   create: (data: Record<string, unknown>) => api.post('/surveys', data),
   delete: (id: number) => api.delete(`/surveys/${id}`),
+  getQuestions: () => api.get('/surveys/questions'),
 };
 
 // ─── Events API ───
@@ -218,8 +219,8 @@ export const workAllocationAPI = {
 
 // ─── AI Chat API ───
 export const aiAPI = {
-  chat: (message: string, history: Array<{ role: string; content: string }>, session_id?: number, userId?: number | string) =>
-    api.post('/ai/chat', { message, history, session_id, userId }),
+  chat: (message: string, history: Array<{ role: string; content: string }>, session_id?: number, userId?: number | string, lang?: string) =>
+    api.post('/ai/chat', { message, history, session_id, userId, lang }),
   getSessions: () =>
     api.get('/ai/sessions'),
   getSessionMessages: (sessionId: number) =>

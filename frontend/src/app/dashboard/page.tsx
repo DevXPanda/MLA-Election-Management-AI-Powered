@@ -6,6 +6,7 @@ import { dashboardAPI } from '@/lib/api';
 import { DashboardStats } from '@/types';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
+import { useLanguage } from '@/context/LanguageContext';
 import {
   Chart as ChartJS, CategoryScale, LinearScale, BarElement, PointElement, LineElement,
   ArcElement, Title, Tooltip, Legend, Filler
@@ -26,6 +27,7 @@ ChartJS.register(
 export default function DashboardPage() {
   const { user } = useAuth();
   const { theme } = useTheme();
+  const { t } = useLanguage();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -150,7 +152,7 @@ export default function DashboardPage() {
     <main className="min-h-screen bg-white dark:bg-dark-950 selection:bg-saffron-500/30 transition-colors duration-300">
       <Header 
         title={MODULE_HEADER.dashboard.title} 
-        subtitle={user?.role_name === 'booth_worker' ? 'Field worker overview' : `Signed in as ${user?.role_name?.replace(/_/g, ' ')}`} 
+        subtitle={user?.role_name === 'booth_worker' ? t('dashboard.worker_overview', 'Field worker overview') : `${t('dashboard.signed_in_as', 'Signed in as')} ${t(`role.${user?.role_name}`, user?.role_name?.replace(/_/g, ' '))}`} 
       />
       {renderRoleDashboard()}
     </main>

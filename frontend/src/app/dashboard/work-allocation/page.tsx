@@ -19,8 +19,10 @@ import { useAuth } from '@/context/AuthContext';
 import StatsSummary from '@/components/dashboard/StatsSummary';
 import DetailsModal from '@/components/DetailsModal';
 import { WORK_ALLOCATION_UI as WA, MODULE_HEADER } from '@/lib/ui-labels';
+import { useLanguage } from '@/context/LanguageContext';
 
 export default function WorkAllocationPage() {
+  const { t } = useLanguage();
   const { user } = useAuth();
   const [allocations, setAllocations] = useState<WorkAllocation[]>([]);
   const [events, setEvents] = useState<AppEvent[]>([]);
@@ -87,11 +89,11 @@ export default function WorkAllocationPage() {
       setMeta(res.data.meta);
     } catch (err) {
       console.error(err);
-      toast.error('Failed to load work allocations');
+      toast.error(t('wa.error.load', 'Failed to load work allocations'));
     } finally {
       setLoading(false);
     }
-  }, [statusFilter, eventFilter, typeFilter]);
+  }, [statusFilter, eventFilter, typeFilter, t]);
 
   const loadStats = useCallback(async () => {
     try {
@@ -187,7 +189,7 @@ export default function WorkAllocationPage() {
       loadAllocations();
       loadStats();
     } catch (err: any) {
-      showToast.error(err.response?.data?.message || 'Error saving allocation');
+      showToast.error(err.response?.data?.message || t('wa.error.save', 'Error saving allocation'));
     }
   };
 
@@ -195,7 +197,7 @@ export default function WorkAllocationPage() {
     if (!executingAllocation) return;
 
     if (status === 'not_completed' && !execForm.not_completed_reason) {
-      showToast.info('Please provide a reason for non-completion.');
+      showToast.info(t('wa.info.reason_required', 'Please provide a reason for non-completion.'));
       return;
     }
 
@@ -208,7 +210,7 @@ export default function WorkAllocationPage() {
       loadAllocations();
       loadStats();
     } catch (err: any) {
-      showToast.error(err.response?.data?.message || 'Update failed');
+      showToast.error(err.response?.data?.message || t('wa.error.update_failed', 'Update failed'));
     }
   };
 
@@ -241,7 +243,7 @@ export default function WorkAllocationPage() {
       });
       streamRef.current = stream;
       setIsCameraActive(true);
-      toast.success('Camera activated for scan');
+      toast.success(t('wa.success.camera', 'Camera activated for scan'));
     } catch (err) {
       toast.error(WA.cameraDenied);
       setIsCameraActive(false);
@@ -293,11 +295,11 @@ export default function WorkAllocationPage() {
       await workAllocationAPI.uploadProof(executingAllocation.id, {
         proofs: [{ category, image_url: dataUrl, geo_location: geo }],
       });
-      toast.success(`Proof (${category}) uploaded.`);
+      toast.success(`${t('wa.success.proof_uploaded', 'Proof uploaded')} (${category}).`);
       await loadAllocations();
     } catch (err: unknown) {
       console.error(err);
-      showToast.error('Proof submission failed. Check location permissions.');
+      showToast.error(t('wa.error.proof_failed', 'Proof submission failed. Check location permissions.'));
     } finally {
       setExecForm((prev) => ({ ...prev, isUploading: false }));
     }
@@ -321,12 +323,12 @@ export default function WorkAllocationPage() {
         proofs.push({ category: execForm.proofType, image_url, geo_location: geo });
       }
       await workAllocationAPI.uploadProof(executingAllocation.id, { proofs });
-      toast.success(`${proofs.length} proof image(s) uploaded.`);
+      toast.success(`${proofs.length} ${t('wa.success.proof_images_uploaded', 'proof image(s) uploaded')}.`);
       e.target.value = '';
       await loadAllocations();
     } catch (err) {
       console.error(err);
-      showToast.error('Batch upload failed.');
+      showToast.error(t('wa.error.batch_failed', 'Batch upload failed.'));
     } finally {
       setExecForm((prev) => ({ ...prev, isUploading: false }));
     }
@@ -335,7 +337,7 @@ export default function WorkAllocationPage() {
   // Removed handleCapture to enforce strict camera-only usage via startTacticalCamera
 
   const handleDelete = async (id: number) => {
-    if (!confirm('Are you sure you want to delete this work allocation?')) return;
+    if (!confirm(t('wa.confirm.delete', 'Are you sure you want to delete this work allocation?'))) return;
     try {
       await workAllocationAPI.delete(id);
       loadAllocations();
@@ -375,9 +377,9 @@ export default function WorkAllocationPage() {
           loading={loading && !stats}
           stats={[
             { label: WA.statsTotal, value: stats?.total || 0, icon: ClipboardList, color: 'text-saffron-500', bgIcon: 'bg-saffron-500/10' },
-            { label: 'Completed', value: stats?.by_status?.find((s: any) => s.status === 'completed')?.count || 0, icon: CheckCircle2, color: 'text-emerald-500', bgIcon: 'bg-emerald-500/10' },
-            { label: 'Processing', value: stats?.by_status?.find((s: any) => s.status === 'processing')?.count || 0, icon: Activity, color: 'text-blue-500', bgIcon: 'bg-blue-500/10' },
-            { label: 'Issues/Incomplete', value: stats?.by_status?.find((s: any) => s.status === 'not_completed')?.count || 0, icon: AlertCircle, color: 'text-orange-500', bgIcon: 'bg-orange-500/10' },
+            { label: t('label.completed', 'Completed'), value: stats?.by_status?.find((s: any) => s.status === 'completed')?.count || 0, icon: CheckCircle2, color: 'text-emerald-500', bgIcon: 'bg-emerald-500/10' },
+            { label: t('label.processing', 'Processing'), value: stats?.by_status?.find((s: any) => s.status === 'processing')?.count || 0, icon: Activity, color: 'text-blue-500', bgIcon: 'bg-blue-500/10' },
+            { label: t('label.issues_incomplete', 'Issues/Incomplete'), value: stats?.by_status?.find((s: any) => s.status === 'not_completed')?.count || 0, icon: AlertCircle, color: 'text-orange-500', bgIcon: 'bg-orange-500/10' },
           ]}
         />
 
@@ -403,11 +405,11 @@ export default function WorkAllocationPage() {
               className="form-input !pl-10 h-11 bg-white dark:bg-dark-900 border-dark-200 dark:border-white/10"
             >
               <option value="">{WA.filterStatusAll}</option>
-              <option value="pending">Pending</option>
-              <option value="processing">In Progress</option>
-              <option value="completed">Completed</option>
-              <option value="not_completed">Not Completed</option>
-              <option value="cancelled">Cancelled</option>
+              <option value="pending">{t('label.pending', 'Pending')}</option>
+              <option value="processing">{t('label.processing', 'In Progress')}</option>
+              <option value="completed">{t('label.completed', 'Completed')}</option>
+              <option value="not_completed">{t('label.not_completed_status', 'Not Completed')}</option>
+              <option value="cancelled">{t('label.cancelled', 'Cancelled')}</option>
             </select>
           </div>
 
@@ -418,7 +420,7 @@ export default function WorkAllocationPage() {
               onChange={e => setEventFilter(e.target.value)}
               className="form-input !pl-10 h-11 bg-white dark:bg-dark-900 border-dark-200 dark:border-white/10"
             >
-              <option value="">All Active Events</option>
+              <option value="">{t('label.all_active_events', 'All Active Events')}</option>
               {events.map(e => <option key={e.id} value={e.id}>{e.title}</option>)}
             </select>
           </div>
@@ -464,7 +466,7 @@ export default function WorkAllocationPage() {
                       <h3 className="text-xl font-black text-dark-900 dark:text-white leading-tight mt-1 uppercase tracking-tight">{alloc.event_title}</h3>
                     </div>
                     <span className={`px-2 py-1 rounded text-[10px] font-black uppercase tracking-widest border ${statusBadge(alloc.status)}`}>
-                      {alloc.status.replace('_', ' ')}
+                      {t(`label.${alloc.status}`, alloc.status.replace('_', ' '))}
                     </span>
                   </div>
 
@@ -473,11 +475,11 @@ export default function WorkAllocationPage() {
                   <div className="space-y-3">
                     <div className="flex items-center gap-3 text-xs font-bold text-dark-600 dark:text-dark-500 uppercase tracking-tighter">
                       <Clock className="w-4 h-4 text-blue-500" />
-                      <span>Deadline: {alloc.due_date ? format(new Date(alloc.due_date), 'dd MMM | hh:mm a') : 'Indefinite'}</span>
+                      <span>{t('label.deadline', 'Deadline')}: {alloc.due_date ? format(new Date(alloc.due_date), 'dd MMM | hh:mm a') : t('label.indefinite', 'Indefinite')}</span>
                     </div>
                     <div className="flex items-center gap-3 text-xs font-bold text-dark-600 dark:text-dark-500 uppercase tracking-tighter">
                       <MapPin className="w-4 h-4 text-red-500" />
-                      <span className="truncate">{alloc.event_location || 'Designated Venue'}</span>
+                      <span className="truncate">{alloc.event_location || t('label.designated_venue', 'Designated Venue')}</span>
                     </div>
                   </div>
 
@@ -499,24 +501,24 @@ export default function WorkAllocationPage() {
                   <div className="flex gap-2">
                     <div
                       className={`w-8 h-8 rounded-lg flex items-center justify-center border ${alloc.before_image_url ? 'bg-emerald-500/10 border-emerald-500/50 text-emerald-500' : 'bg-dark-200/10 border-dark-200/50 text-dark-400'}`}
-                      title={`Before proof${alloc.proofs ? ` (${alloc.proofs.filter((p) => p.category === 'before').length})` : ''}`}
+                      title={`${t('label.before_proof', 'Before proof')}${alloc.proofs ? ` (${alloc.proofs.filter((p) => p.category === 'before').length})` : ''}`}
                     >
                       <ImageIcon className="w-4 h-4" />
                     </div>
                     <div
                       className={`w-8 h-8 rounded-lg flex items-center justify-center border ${alloc.after_image_url ? 'bg-emerald-500/10 border-emerald-500/50 text-emerald-500' : 'bg-dark-200/10 border-dark-200/50 text-dark-400'}`}
-                      title={`After proof${alloc.proofs ? ` (${alloc.proofs.filter((p) => p.category === 'after').length})` : ''}`}
+                      title={`${t('label.after_proof', 'After proof')}${alloc.proofs ? ` (${alloc.proofs.filter((p) => p.category === 'after').length})` : ''}`}
                     >
                       <ImageIcon className="w-4 h-4" />
                     </div>
                   </div>
 
                   <div className="flex gap-2">
-                    <button onClick={() => setSelectedAllocation(alloc)} className="btn-icon size-9 bg-white dark:bg-dark-800 border-dark-200 dark:border-white/10" title="View details">
+                    <button onClick={() => setSelectedAllocation(alloc)} className="btn-icon size-9 bg-white dark:bg-dark-800 border-dark-200 dark:border-white/10" title={t('action.view', 'View')}>
                       <Eye className="w-4 h-4" />
                     </button>
                     {(isManagement) && (
-                      <button onClick={() => openEdit(alloc)} className="btn-icon size-9 bg-white dark:bg-dark-800 border-dark-200 dark:border-white/10">
+                      <button onClick={() => openEdit(alloc)} className="btn-icon size-9 bg-white dark:bg-dark-800 border-dark-200 dark:border-white/10" title={t('action.edit', 'Edit')}>
                         <Edit3 className="w-4 h-4" />
                       </button>
                     )}
@@ -554,7 +556,7 @@ export default function WorkAllocationPage() {
                     <span className="text-[9px] sm:text-[10px] font-black text-saffron-600 uppercase tracking-[0.2em] mb-1 block truncate">{executingAllocation.work_type}</span>
                     <h4 className="text-lg sm:text-xl font-black text-dark-900 dark:text-white uppercase leading-none truncate">{executingAllocation.event_title}</h4>
                   </div>
-                  <span className={`text-[8px] sm:text-[10px] font-black uppercase px-2 py-0.5 sm:px-3 sm:py-1 rounded-full border flex-shrink-0 ml-2 ${statusBadge(executingAllocation.status)}`}>{executingAllocation.status}</span>
+                  <span className={`text-[8px] sm:text-[10px] font-black uppercase px-2 py-0.5 sm:px-3 sm:py-1 rounded-full border flex-shrink-0 ml-2 ${statusBadge(executingAllocation.status)}`}>{t(`label.${executingAllocation.status}`, executingAllocation.status)}</span>
                 </div>
                 {executingAllocation.description && (
                   <p className="text-xs sm:text-sm text-dark-500 font-medium leading-relaxed mt-2 border-t border-saffron-500/10 pt-2 line-clamp-2 sm:line-clamp-none">{executingAllocation.description}</p>
@@ -564,7 +566,7 @@ export default function WorkAllocationPage() {
               <div className="grid grid-cols-2 gap-3 sm:gap-4">
                 {/* Inception Proof (Before) */}
                 <div className="space-y-2 sm:space-y-3">
-                  <label className="block text-[9px] sm:text-[10px] font-black text-dark-400 uppercase tracking-widest text-center opacity-70">Inception (Before)</label>
+                  <label className="block text-[9px] sm:text-[10px] font-black text-dark-400 uppercase tracking-widest text-center opacity-70">{t('wa.details.before_proof', 'Inception (Before)')}</label>
                   <div className="relative group aspect-square sm:aspect-video rounded-xl sm:rounded-2xl border-2 border-dashed border-dark-200 dark:border-white/10 overflow-hidden flex flex-col items-center justify-center hover:border-saffron-500/50 transition-all bg-dark-50/50 dark:bg-white/[0.02]">
                     {isCameraActive && activeCameraType === 'before' ? (
                       <div className="absolute inset-0 z-20">
@@ -583,24 +585,24 @@ export default function WorkAllocationPage() {
                         {execForm.isUploading && activeCameraType === 'before' && (
                           <div className="absolute inset-0 bg-dark-900/60 backdrop-blur-sm flex flex-col items-center justify-center z-20">
                             <Loader2 className="w-8 h-8 animate-spin text-saffron-500 mb-2" />
-                            <span className="text-[10px] font-black text-white uppercase tracking-tighter">Uploading...</span>
+                            <span className="text-[10px] font-black text-white uppercase tracking-tighter">{t('action.loading', 'Uploading...')}</span>
                           </div>
                         )}
                         <img src={executingAllocation.before_image_url} className="w-full h-full object-cover" />
                         <div className="absolute top-2 right-2 z-10 flex flex-col gap-1.5 items-end">
                           <button onClick={() => startTacticalCamera('before')} className="bg-saffron-500 text-white p-2 rounded-xl shadow-lg shadow-saffron-500/20 active:scale-90 transition-transform flex items-center gap-2 pr-3">
                             <RefreshCw className="w-4 h-4" />
-                            <span className="text-[10px] font-black uppercase">Recapture</span>
+                            <span className="text-[10px] font-black uppercase">{t('wa.recapture', 'Recapture')}</span>
                           </button>
                           {executingAllocation.geo_location_before && (
-                            <div className="bg-black/60 text-[8px] text-white px-1.5 py-0.5 rounded uppercase font-black tracking-tighter backdrop-blur-md border border-white/10">Geo-Tagged</div>
+                            <div className="bg-black/60 text-[8px] text-white px-1.5 py-0.5 rounded uppercase font-black tracking-tighter backdrop-blur-md border border-white/10">{t('label.geo_tagged', 'Geo-Tagged')}</div>
                           )}
                         </div>
                       </>
                     ) : (
                       <button onClick={() => startTacticalCamera('before')} className="flex flex-col items-center gap-2 p-4 text-center">
                         <Camera className="w-8 h-8 text-dark-400 group-hover:text-saffron-500 transition-colors" />
-                        <span className="text-[10px] font-black text-dark-500 uppercase tracking-widest">Inception</span>
+                        <span className="text-[10px] font-black text-dark-500 uppercase tracking-widest">{t('label.inception', 'Inception')}</span>
                       </button>
                     )}
                   </div>
@@ -608,7 +610,7 @@ export default function WorkAllocationPage() {
 
                 {/* Completion Proof (After) */}
                 <div className="space-y-2">
-                  <label className="block text-[8px] sm:text-[10px] font-black text-dark-400 uppercase tracking-widest text-center opacity-70 truncate">After</label>
+                  <label className="block text-[8px] sm:text-[10px] font-black text-dark-400 uppercase tracking-widest text-center opacity-70 truncate">{t('label.after', 'After')}</label>
                   <div className="relative group aspect-square sm:aspect-video rounded-xl sm:rounded-2xl border-2 border-dashed border-dark-200 dark:border-white/10 overflow-hidden flex flex-col items-center justify-center hover:border-emerald-500/50 transition-all bg-dark-50/50 dark:bg-white/[0.02]">
                     {isCameraActive && activeCameraType === 'after' ? (
                       <div className="absolute inset-0 z-20">
@@ -627,24 +629,24 @@ export default function WorkAllocationPage() {
                         {execForm.isUploading && activeCameraType === 'after' && (
                           <div className="absolute inset-0 bg-dark-900/60 backdrop-blur-sm flex flex-col items-center justify-center z-20">
                             <Loader2 className="w-8 h-8 animate-spin text-emerald-500 mb-2" />
-                            <span className="text-[10px] font-black text-white uppercase tracking-tighter">Uploading...</span>
+                            <span className="text-[10px] font-black text-white uppercase tracking-tighter">{t('action.loading', 'Uploading...')}</span>
                           </div>
                         )}
                         <img src={executingAllocation.after_image_url} className="w-full h-full object-cover" />
                         <div className="absolute top-2 right-2 z-10 flex flex-col gap-1.5 items-end">
                           <button onClick={() => startTacticalCamera('after')} className="bg-emerald-500 text-white p-2 rounded-xl shadow-lg shadow-emerald-500/20 active:scale-90 transition-transform flex items-center gap-2 pr-3">
                             <RefreshCw className="w-4 h-4" />
-                            <span className="text-[10px] font-black uppercase">Recapture</span>
+                            <span className="text-[10px] font-black uppercase">{t('wa.recapture', 'Recapture')}</span>
                           </button>
                           {executingAllocation.geo_location_after && (
-                            <div className="bg-black/60 text-[8px] text-white px-1.5 py-0.5 rounded uppercase font-black tracking-tighter backdrop-blur-md border border-white/10">Geo-Tagged</div>
+                            <div className="bg-black/60 text-[8px] text-white px-1.5 py-0.5 rounded uppercase font-black tracking-tighter backdrop-blur-md border border-white/10">{t('label.geo_tagged', 'Geo-Tagged')}</div>
                           )}
                         </div>
                       </>
                     ) : (
                       <button onClick={() => startTacticalCamera('after')} className="flex flex-col items-center gap-2 p-4 text-center disabled:opacity-50" disabled={executingAllocation.status === 'pending'}>
                         <Camera className="w-8 h-8 text-dark-400 group-hover:text-emerald-500 transition-colors" />
-                        <span className="text-[10px] font-black text-dark-500 uppercase tracking-widest">Completion</span>
+                        <span className="text-[10px] font-black text-dark-500 uppercase tracking-widest">{t('label.completion', 'Completion')}</span>
                       </button>
                     )}
                   </div>
@@ -670,7 +672,7 @@ export default function WorkAllocationPage() {
                     ) : (
                       <button type="button" onClick={() => startTacticalCamera('general')} className="flex flex-col items-center gap-2 p-4 text-center w-full h-full justify-center">
                         <Camera className="w-8 h-8 text-dark-400 group-hover:text-saffron-500 transition-colors" />
-                        <span className="text-[10px] font-black text-dark-500 uppercase tracking-widest">Capture</span>
+                        <span className="text-[10px] font-black text-dark-500 uppercase tracking-widest">{t('label.capture', 'Capture')}</span>
                       </button>
                     )}
                   </div>
@@ -682,9 +684,9 @@ export default function WorkAllocationPage() {
                     onChange={(e) => setExecForm((p) => ({ ...p, proofType: e.target.value as 'before' | 'after' | 'general' }))}
                     className="form-input mb-2"
                   >
-                    <option value="before">Before</option>
-                    <option value="after">After</option>
-                    <option value="general">General</option>
+                    <option value="before">{t('label.before', 'Before')}</option>
+                    <option value="after">{t('label.after', 'After')}</option>
+                    <option value="general">{t('label.general', 'General')}</option>
                   </select>
                   <input
                     ref={batchProofInputRef}
@@ -717,7 +719,7 @@ export default function WorkAllocationPage() {
                         className="relative w-14 h-14 sm:w-16 sm:h-16 rounded-lg border border-dark-200 dark:border-white/10 overflow-hidden"
                       >
                         <img src={p.image_url} alt="" className="w-full h-full object-cover" />
-                        <span className="absolute bottom-0 inset-x-0 bg-black/60 text-[7px] text-white text-center uppercase font-black py-0.5">{p.category}</span>
+                        <span className="absolute bottom-0 inset-x-0 bg-black/60 text-[7px] text-white text-center uppercase font-black py-0.5">{t(`label.${p.category}`, p.category)}</span>
                       </button>
                     ))}
                   </div>
@@ -878,27 +880,27 @@ export default function WorkAllocationPage() {
         title={WA.detailsTitle}
         subtitle={WA.detailsSubtitle}
         items={[
-          { label: 'Name', value: selectedAllocation?.event_title || '—' },
-          { label: 'Role', value: selectedAllocation?.work_type || '—' },
-          { label: 'Designation', value: selectedAllocation?.work_type || '—' },
-          { label: 'Assigned Leader', value: selectedAllocation?.created_by_name || '—' },
-          { label: 'Ward / Booth', value: selectedAllocation?.event_location || '—' },
-          { label: 'Status', value: selectedAllocation?.status || '—' },
-          { label: 'Late completion', value: selectedAllocation?.is_late_completion ? 'Yes' : 'No' },
-          { label: 'Assigned Team', value: selectedAllocation?.assigned_users?.map((u) => u.name).join(', ') || '—' },
-          { label: 'Due Date', value: selectedAllocation?.due_date ? new Date(selectedAllocation.due_date).toLocaleString() : '—' },
-          { label: 'Started At', value: selectedAllocation?.started_at ? new Date(selectedAllocation.started_at).toLocaleString() : '—' },
-          { label: 'Completed At', value: selectedAllocation?.completed_at ? new Date(selectedAllocation.completed_at).toLocaleString() : '—' },
-          { label: 'Before Proof', value: selectedAllocation?.before_image_url ? 'Uploaded' : 'Not uploaded' },
-          { label: 'After Proof', value: selectedAllocation?.after_image_url ? 'Uploaded' : 'Not uploaded' },
-          { label: 'Execution notes', value: selectedAllocation?.execution_notes || '—' },
-          { label: 'Not Completed Reason', value: selectedAllocation?.not_completed_reason || '—' },
-          { label: 'Description', value: selectedAllocation?.description || '—' },
+          { label: t('label.name', 'Name'), value: selectedAllocation?.event_title || '—' },
+          { label: t('label.role', 'Role'), value: selectedAllocation?.work_type || '—' },
+          { label: t('shared.ui.teamsDesignation', 'Designation'), value: selectedAllocation?.work_type || '—' },
+          { label: t('wa.details.leader', 'Assigned Leader'), value: selectedAllocation?.created_by_name || '—' },
+          { label: t('wa.details.ward_booth', 'Ward / Booth'), value: selectedAllocation?.event_location || '—' },
+          { label: t('label.status', 'Status'), value: selectedAllocation?.status ? t(`label.${selectedAllocation.status}`, selectedAllocation.status) : '—' },
+          { label: t('wa.details.late_completion', 'Late completion'), value: selectedAllocation?.is_late_completion ? t('label.yes', 'Yes') : t('label.no', 'No') },
+          { label: t('wa.ui.assignedTeamLabel', 'Assigned Team'), value: selectedAllocation?.assigned_users?.map((u) => u.name).join(', ') || '—' },
+          { label: t('wa.details.due_date', 'Due Date'), value: selectedAllocation?.due_date ? new Date(selectedAllocation.due_date).toLocaleString() : '—' },
+          { label: t('wa.details.started_at', 'Started At'), value: selectedAllocation?.started_at ? new Date(selectedAllocation.started_at).toLocaleString() : '—' },
+          { label: t('wa.details.completed_at', 'Completed At'), value: selectedAllocation?.completed_at ? new Date(selectedAllocation.completed_at).toLocaleString() : '—' },
+          { label: t('wa.details.before_proof', 'Before Proof'), value: selectedAllocation?.before_image_url ? t('wa.details.uploaded', 'Uploaded') : t('wa.details.not_uploaded', 'Not uploaded') },
+          { label: t('wa.details.after_proof', 'After Proof'), value: selectedAllocation?.after_image_url ? t('wa.details.uploaded', 'Uploaded') : t('wa.details.not_uploaded', 'Not uploaded') },
+          { label: t('wa.details.execution_notes', 'Execution notes'), value: selectedAllocation?.execution_notes || '—' },
+          { label: t('wa.details.not_completed_reason', 'Not Completed Reason'), value: selectedAllocation?.not_completed_reason || '—' },
+          { label: t('label.description', 'Description'), value: selectedAllocation?.description || '—' },
         ]}
         extra={
           selectedAllocation?.proofs && selectedAllocation.proofs.length > 0 ? (
             <div className="rounded-lg border border-dark-100 dark:border-white/10 bg-dark-50/40 dark:bg-white/[0.02] p-3">
-              <p className="text-[10px] uppercase tracking-widest text-dark-500 mb-2">All proof images</p>
+              <p className="text-[10px] uppercase tracking-widest text-dark-500 mb-2">{t('wa.details.all_proofs', 'All proof images')}</p>
               <div className="flex flex-wrap gap-2">
                 {selectedAllocation.proofs.map((p) => (
                   <button
@@ -908,7 +910,7 @@ export default function WorkAllocationPage() {
                     className="relative w-16 h-16 rounded-lg border border-dark-200 dark:border-white/10 overflow-hidden"
                   >
                     <img src={p.image_url} alt="" className="w-full h-full object-cover" />
-                    <span className="absolute bottom-0 inset-x-0 bg-black/60 text-[7px] text-white text-center uppercase">{p.category}</span>
+                    <span className="absolute bottom-0 inset-x-0 bg-black/60 text-[7px] text-white text-center uppercase">{t(`label.${p.category}`, p.category)}</span>
                   </button>
                 ))}
               </div>

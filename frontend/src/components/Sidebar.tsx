@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
+import { useLanguage } from '@/context/LanguageContext';
 import {
   LayoutDashboard, Users, MapPin, UsersRound, ListTodo,
   ClipboardList, Calendar, Vote, BarChart3, MessageSquare,
@@ -47,109 +48,109 @@ export function SidebarProvider({ children }: { children: React.ReactNode }) {
  */
 const NAV_CONFIG = [
   {
-    title: NAV_SECTIONS.overview,
+    get title() { return NAV_SECTIONS.overview; },
     items: [
       {
         href: '/dashboard',
-        label: SIDEBAR.dashboard,
+        get label() { return SIDEBAR.dashboard; },
         icon: LayoutDashboard,
         roles: ['super_admin', 'mla', 'campaign_manager', 'ward_head', 'booth_worker']
       },
     ],
   },
   {
-    title: NAV_SECTIONS.systemControl,
+    get title() { return NAV_SECTIONS.systemControl; },
     items: [
       {
         href: '/dashboard/users',
-        label: SIDEBAR.users,
+        get label() { return SIDEBAR.users; },
         icon: Users,
         roles: ['super_admin']
       },
       {
         href: '/dashboard/constituency',
-        label: SIDEBAR.constituency,
+        get label() { return SIDEBAR.constituency; },
         icon: MapPin,
         roles: ['super_admin', 'mla']
       },
     ],
   },
   {
-    title: NAV_SECTIONS.fieldOperations,
+    get title() { return NAV_SECTIONS.fieldOperations; },
     items: [
       {
         href: '/dashboard/teams',
-        label: SIDEBAR.teams,
+        get label() { return SIDEBAR.teams; },
         icon: UsersRound,
         roles: ['super_admin', 'campaign_manager', 'ward_head']
       },
       {
         href: '/dashboard/voters',
-        label: SIDEBAR.voters,
+        get label() { return SIDEBAR.voters; },
         icon: Vote,
         roles: ['super_admin', 'mla', 'campaign_manager', 'ward_head', 'booth_worker']
       },
       {
         href: '/dashboard/tasks',
-        label: SIDEBAR.tasks,
+        get label() { return SIDEBAR.tasks; },
         icon: ListTodo,
         roles: ['super_admin', 'campaign_manager', 'ward_head', 'booth_worker']
       },
       {
         href: '/dashboard/surveys',
-        label: SIDEBAR.surveys,
+        get label() { return SIDEBAR.surveys; },
         icon: ClipboardList,
         roles: ['super_admin', 'mla', 'campaign_manager', 'ward_head', 'booth_worker']
       },
       {
         href: '/dashboard/party-members',
-        label: 'Party Members',
+        get label() { return SIDEBAR.partyMembers; },
         icon: Users,
         roles: ['super_admin', 'mla', 'campaign_manager', 'ward_head']
       },
     ],
   },
   {
-    title: NAV_SECTIONS.campaign,
+    get title() { return NAV_SECTIONS.campaign; },
     items: [
       {
         href: '/dashboard/events',
-        label: SIDEBAR.events,
+        get label() { return SIDEBAR.events; },
         icon: Calendar,
         roles: ['super_admin', 'mla', 'campaign_manager']
       },
       {
         href: '/dashboard/work-allocation',
-        label: SIDEBAR.workAllocation,
+        get label() { return SIDEBAR.workAllocation; },
         icon: ListTodo,
         roles: ['super_admin', 'mla', 'campaign_manager', 'ward_head', 'booth_worker']
       },
       {
         href: '/dashboard/reports',
-        label: SIDEBAR.reports,
+        get label() { return SIDEBAR.reports; },
         icon: BarChart3,
         roles: ['super_admin', 'mla']
       },
       {
         href: '/dashboard/messages',
-        label: SIDEBAR.messages,
+        get label() { return SIDEBAR.messages; },
         icon: MessageSquare,
         roles: ['super_admin', 'mla']
       },
       {
         href: '/dashboard/media',
-        label: SIDEBAR.mediaLibrary,
+        get label() { return SIDEBAR.mediaLibrary; },
         icon: Image,
         roles: ['super_admin', 'mla']
       },
     ],
   },
   {
-    title: NAV_SECTIONS.aiTools,
+    get title() { return NAV_SECTIONS.aiTools; },
     items: [
       {
         href: '/dashboard/ai-assistant',
-        label: SIDEBAR.aiAssistant,
+        get label() { return SIDEBAR.aiAssistant; },
         icon: Bot,
         roles: ['super_admin', 'mla']
       },
@@ -160,6 +161,7 @@ const NAV_CONFIG = [
 export default function Sidebar() {
   const pathname = usePathname();
   const { user, logout } = useAuth();
+  const { language, t } = useLanguage();
   const { collapsed, setCollapsed, mobileOpen, setMobileOpen } = useSidebar();
 
   // Close mobile sidebar on route change
@@ -174,13 +176,17 @@ export default function Sidebar() {
       ...section,
       items: section.items.filter(item => item.roles.includes(user.role_name))
     })).filter(section => section.items.length > 0);
-  }, [user]);
+  }, [user, language]);
 
   const getInitials = (name: string) => {
     return name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || 'U';
   };
 
   const desktopWidth = collapsed ? 76 : 272;
+
+  const formatRole = (role?: string) => {
+    return role?.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) || 'User';
+  };
 
   return (
     <>
@@ -219,7 +225,7 @@ export default function Sidebar() {
             {!collapsed && (
               <div className="flex flex-col justify-center min-w-0 animate-fade-in">
                 <h2 className="text-[15px] font-medium text-dark-900 dark:text-white tracking-tight leading-none mb-0">MLA</h2>
-                <p className="text-[7px] text-dark-400 dark:text-dark-500 uppercase tracking-[1.5px] font-normal mt-0.5 whitespace-nowrap">Election Management</p>
+                <p className="text-[7px] text-dark-400 dark:text-dark-500 uppercase tracking-[1.5px] font-normal mt-0.5 whitespace-nowrap">{t('sidebar.election_management_sub', 'Election Management')}</p>
               </div>
             )}
           </div>
@@ -237,7 +243,7 @@ export default function Sidebar() {
             <button
               onClick={() => setCollapsed(!collapsed)}
               className="hidden lg:flex w-7 h-7 rounded-lg hover:bg-dark-100 dark:hover:bg-white/[0.06] text-dark-400 dark:text-dark-500 transition-all items-center justify-center"
-              title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+              title={collapsed ? t('action.expand_sidebar', 'Expand sidebar') : t('action.collapse_sidebar', 'Collapse sidebar')}
             >
               {collapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
             </button>
@@ -328,13 +334,13 @@ export default function Sidebar() {
                   <div className="text-[13px] font-medium text-dark-900 dark:text-white truncate leading-tight">{user?.name}</div>
                   <div className="text-[9px] font-medium text-dark-600 dark:text-dark-500 uppercase tracking-[1px] mt-0.5 whitespace-nowrap flex items-center gap-1">
                     <Zap className="w-2.5 h-2.5 text-emerald-600" />
-                    {user?.role_name?.replace(/_/g, ' ')}
+                    {t(`role.${user?.role_name}`, formatRole(user?.role_name))}
                   </div>
                 </div>
                 <button
                   onClick={(e) => { e.stopPropagation(); logout(); }}
                   className="opacity-0 group-hover:opacity-100 transition-all duration-200 p-2 rounded-lg hover:bg-red-500/10 hover:text-red-500 text-dark-400 flex-shrink-0"
-                  title="Logout"
+                  title={t('action.sign_out', 'Logout')}
                 >
                   <LogOut className="w-4 h-4" />
                 </button>

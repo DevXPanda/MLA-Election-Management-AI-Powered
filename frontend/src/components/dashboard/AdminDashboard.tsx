@@ -3,7 +3,9 @@
 import { Users, Vote, ClipboardList, ListTodo, Calendar, UserCheck, Activity, ArrowUpRight, Target, BarChart3 } from 'lucide-react';
 import { Doughnut, Line } from 'react-chartjs-2';
 import { format, formatDistanceToNow } from 'date-fns';
+import { hi } from 'date-fns/locale';
 import { DashboardStats } from '@/types';
+import { useLanguage } from '@/context/LanguageContext';
 
 interface DashboardProps {
   stats: DashboardStats;
@@ -11,17 +13,19 @@ interface DashboardProps {
 }
 
 export default function AdminDashboard({ stats, chartDefaults }: DashboardProps) {
+  const { t, language } = useLanguage();
+
   const statCards = [
-    { label: 'Total Users', value: stats.stats.total_users, icon: Users, color: 'text-blue-600 dark:text-blue-400', bgIcon: 'bg-blue-500/10 dark:bg-blue-500/12', glow: 'shadow-blue-500/20' },
-    { label: 'Total Voters', value: stats.stats.total_voters, icon: Vote, color: 'text-green-600 dark:text-green-400', bgIcon: 'bg-green-500/10 dark:bg-green-500/12', glow: 'shadow-green-500/20' },
-    { label: 'Total Surveys', value: stats.stats.total_surveys, icon: ClipboardList, color: 'text-amber-600 dark:text-amber-400', bgIcon: 'bg-amber-500/10 dark:bg-amber-500/12', glow: 'shadow-amber-500/20' },
-    { label: 'Tasks Active', value: stats.stats.total_tasks, icon: ListTodo, color: 'text-purple-600 dark:text-purple-400', bgIcon: 'bg-purple-500/10 dark:bg-purple-500/12', glow: 'shadow-purple-500/20' },
-    { label: 'Total Events', value: stats.stats.total_events, icon: Calendar, color: 'text-pink-600 dark:text-pink-400', bgIcon: 'bg-pink-500/10 dark:bg-pink-500/12', glow: 'shadow-pink-500/20' },
-    { label: 'Total Workers', value: stats.stats.active_workers, icon: UserCheck, color: 'text-emerald-600 dark:text-emerald-400', bgIcon: 'bg-emerald-500/10 dark:bg-emerald-500/12', glow: 'shadow-emerald-500/20' },
+    { label: t('dashboard.total_users', 'Total Users'), value: stats.stats.total_users, icon: Users, color: 'text-blue-600 dark:text-blue-400', bgIcon: 'bg-blue-500/10 dark:bg-blue-500/12', glow: 'shadow-blue-500/20' },
+    { label: t('dashboard.total_voters', 'Total Voters'), value: stats.stats.total_voters, icon: Vote, color: 'text-green-600 dark:text-green-400', bgIcon: 'bg-green-500/10 dark:bg-green-500/12', glow: 'shadow-green-500/20' },
+    { label: t('dashboard.total_surveys', 'Total Surveys'), value: stats.stats.total_surveys, icon: ClipboardList, color: 'text-amber-600 dark:text-amber-400', bgIcon: 'bg-amber-500/10 dark:bg-amber-500/12', glow: 'shadow-amber-500/20' },
+    { label: t('dashboard.tasks_active', 'Tasks Active'), value: stats.stats.total_tasks, icon: ListTodo, color: 'text-purple-600 dark:text-purple-400', bgIcon: 'bg-purple-500/10 dark:bg-purple-500/12', glow: 'shadow-purple-500/20' },
+    { label: t('dashboard.total_events', 'Total Events'), value: stats.stats.total_events, icon: Calendar, color: 'text-pink-600 dark:text-pink-400', bgIcon: 'bg-pink-500/10 dark:bg-pink-500/12', glow: 'shadow-pink-500/20' },
+    { label: t('dashboard.total_workers', 'Total Workers'), value: stats.stats.active_workers, icon: UserCheck, color: 'text-emerald-600 dark:text-emerald-400', bgIcon: 'bg-emerald-500/10 dark:bg-emerald-500/12', glow: 'shadow-emerald-500/20' },
   ];
 
   const supportData = {
-    labels: stats.charts.support_stats?.map((s) => s.support_status.toUpperCase()) || [],
+    labels: stats.charts.support_stats?.map((s) => t('support.' + s.support_status.toLowerCase(), s.support_status).toUpperCase()) || [],
     datasets: [{
       data: stats.charts.support_stats?.map((s) => parseInt(s.count)) || [],
       backgroundColor: ['#10b981', '#f59e0b', '#ef4444', '#64748b'],
@@ -32,7 +36,7 @@ export default function AdminDashboard({ stats, chartDefaults }: DashboardProps)
   const surveyTrendData = {
     labels: stats.charts.survey_trend?.map((s) => format(new Date(s.date), 'dd MMM')) || [],
     datasets: [{
-      label: 'Campaign Growth',
+      label: t('dashboard.campaign_growth', 'Campaign Growth'),
       data: stats.charts.survey_trend?.map((s) => parseInt(s.count)) || [],
       borderColor: '#f97316',
       backgroundColor: 'rgba(249, 115, 22, 0.12)',
@@ -48,7 +52,7 @@ export default function AdminDashboard({ stats, chartDefaults }: DashboardProps)
   };
 
   const genderData = {
-    labels: stats.charts.gender_breakdown?.map(g => g.gender) || [],
+    labels: stats.charts.gender_breakdown?.map(g => t('gender.' + g.gender.toLowerCase(), g.gender)) || [],
     datasets: [{
       data: stats.charts.gender_breakdown?.map(g => parseInt(g.count)) || [],
       backgroundColor: ['#3b82f6', '#ec4899', '#64748b'],
@@ -57,9 +61,9 @@ export default function AdminDashboard({ stats, chartDefaults }: DashboardProps)
   };
 
   const taskBreakdownData = {
-    labels: stats.charts.task_status?.map(t => t.status.replace(/_/g, ' ').toUpperCase()) || [],
+    labels: stats.charts.task_status?.map(tStat => t('label.' + tStat.status.toLowerCase(), tStat.status.replace(/_/g, ' ')).toUpperCase()) || [],
     datasets: [{
-      data: stats.charts.task_status?.map(t => parseInt(t.count)) || [],
+      data: stats.charts.task_status?.map(tStat => parseInt(tStat.count)) || [],
       backgroundColor: ['#10b981', '#f59e0b', '#ef4444', '#334155'],
       borderWidth: 0,
     }],
@@ -83,7 +87,7 @@ export default function AdminDashboard({ stats, chartDefaults }: DashboardProps)
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
         <div className="glass-card p-6 border border-dark-100/50 dark:border-white/5 shadow-xl">
           <h3 className="text-base font-medium text-dark-900 dark:text-white mb-8 flex items-center gap-2">
-            <Activity className="w-5 h-5 text-saffron-500" /> Global Voter Sentiment
+            <Activity className="w-5 h-5 text-saffron-500" /> {t('dashboard.voter_sentiment', 'Global Voter Sentiment')}
           </h3>
           <div className="h-[220px]">
             <Doughnut data={supportData} options={{ ...chartDefaults, cutout: '75%' }} />
@@ -92,7 +96,7 @@ export default function AdminDashboard({ stats, chartDefaults }: DashboardProps)
             {stats.charts.support_stats?.map((s, i) => (
               <div key={s.support_status} className="px-3 py-1.5 rounded-lg bg-dark-50 dark:bg-dark-800/60 flex items-center gap-2 text-[10px] font-medium uppercase tracking-wider border border-dark-100 dark:border-transparent transition-colors">
                 <span className={`w-1.5 h-1.5 rounded-full ${['bg-green-500', 'bg-amber-500', 'bg-red-500', 'bg-dark-500'][i % 4]}`} />
-                <span className="text-dark-600 dark:text-dark-400">{s.support_status}: {s.count}</span>
+                <span className="text-dark-600 dark:text-dark-400">{t('support.' + s.support_status.toLowerCase(), s.support_status)}: {s.count}</span>
               </div>
             ))}
           </div>
@@ -100,7 +104,7 @@ export default function AdminDashboard({ stats, chartDefaults }: DashboardProps)
 
         <div className="glass-card p-6 lg:col-span-2 border border-dark-100/50 dark:border-white/5 shadow-xl">
           <h3 className="text-base font-medium text-dark-900 dark:text-white mb-8 flex items-center gap-2">
-            <ArrowUpRight className="w-5 h-5 text-saffron-500" /> Campaign Growth
+            <ArrowUpRight className="w-5 h-5 text-saffron-500" /> {t('dashboard.campaign_growth', 'Campaign Growth')}
           </h3>
           <div className="h-[280px]">
             <Line data={surveyTrendData} options={chartDefaults} />
@@ -111,7 +115,7 @@ export default function AdminDashboard({ stats, chartDefaults }: DashboardProps)
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
         <div className="glass-card p-6 border border-dark-100/50 dark:border-white/5 shadow-xl">
           <h3 className="text-base font-medium text-dark-900 dark:text-white mb-8 flex items-center gap-2">
-             <Users className="w-5 h-5 text-blue-500" /> Gender Distribution
+             <Users className="w-5 h-5 text-blue-500" /> {t('dashboard.gender_distribution', 'Gender Distribution')}
           </h3>
           <div className="h-[220px]">
             <Doughnut data={genderData} options={{ ...chartDefaults, cutout: '75%' }} />
@@ -120,7 +124,7 @@ export default function AdminDashboard({ stats, chartDefaults }: DashboardProps)
             {stats.charts.gender_breakdown?.map((g, i) => (
               <div key={i} className="px-3 py-1.5 rounded-lg bg-dark-50 dark:bg-dark-800/40 flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider border border-dark-100 dark:border-transparent">
                 <span className={`w-1.5 h-1.5 rounded-full ${['bg-blue-500', 'bg-pink-500', 'bg-slate-500'][i % 3]}`} />
-                <span className="text-dark-600 dark:text-dark-400">{g.gender}: {g.count}</span>
+                <span className="text-dark-600 dark:text-dark-400">{t('gender.' + g.gender.toLowerCase(), g.gender)}: {g.count}</span>
               </div>
             ))}
           </div>
@@ -128,16 +132,16 @@ export default function AdminDashboard({ stats, chartDefaults }: DashboardProps)
 
         <div className="glass-card p-6 border border-dark-100/50 dark:border-white/5 shadow-xl">
           <h3 className="text-base font-medium text-dark-900 dark:text-white mb-8 flex items-center gap-2">
-             <ListTodo className="w-5 h-5 text-purple-500" /> Task Efficiency
+             <ListTodo className="w-5 h-5 text-purple-500" /> {t('dashboard.task_efficiency', 'Task Efficiency')}
           </h3>
           <div className="h-[220px]">
             <Doughnut data={taskBreakdownData} options={{ ...chartDefaults, cutout: '75%' }} />
           </div>
           <div className="flex flex-wrap gap-2 mt-6 justify-center">
-            {stats.charts.task_status?.map((t, i) => (
+            {stats.charts.task_status?.map((tStat, i) => (
               <div key={i} className="px-3 py-1.5 rounded-lg bg-dark-50 dark:bg-dark-800/40 flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider border border-dark-100 dark:border-transparent">
                 <span className={`w-1.5 h-1.5 rounded-full ${['bg-green-500', 'bg-amber-500', 'bg-red-500', 'bg-indigo-500'][i % 4]}`} />
-                <span className="text-dark-600 dark:text-dark-400">{t.status.split('_').join(' ')}: {t.count}</span>
+                <span className="text-dark-600 dark:text-dark-400">{t('label.' + tStat.status.toLowerCase(), tStat.status.split('_').join(' '))}: {tStat.count}</span>
               </div>
             ))}
           </div>
@@ -146,7 +150,7 @@ export default function AdminDashboard({ stats, chartDefaults }: DashboardProps)
         <div className="glass-card overflow-hidden h-full border border-dark-100/50 dark:border-white/5 shadow-xl">
           <div className="p-6 border-b border-dark-100 dark:border-white/5 flex items-center justify-between bg-dark-50/50 dark:bg-white/[0.02]">
             <h3 className="text-base font-medium text-dark-900 dark:text-white flex items-center gap-2">
-               <UserCheck className="w-5 h-5 text-emerald-500" /> Top Performers
+               <UserCheck className="w-5 h-5 text-emerald-500" /> {t('dashboard.top_performers', 'Top Performers')}
             </h3>
             <ArrowUpRight className="w-4 h-4 text-dark-500" />
           </div>
@@ -170,7 +174,7 @@ export default function AdminDashboard({ stats, chartDefaults }: DashboardProps)
         <div className="glass-card overflow-hidden border border-dark-100/50 dark:border-white/5 shadow-xl">
           <div className="p-6 border-b border-dark-100 dark:border-white/5 flex items-center justify-between bg-dark-50/50 dark:bg-white/[0.02]">
             <h3 className="text-base font-medium text-dark-900 dark:text-white flex items-center gap-2">
-               <Activity className="w-5 h-5 text-saffron-500" /> Live Operation Logs
+               <Activity className="w-5 h-5 text-saffron-500" /> {t('dashboard.operation_logs', 'Live Operation Logs')}
             </h3>
           </div>
           <div className="max-h-[360px] overflow-y-auto p-4 custom-scrollbar">
@@ -181,14 +185,14 @@ export default function AdminDashboard({ stats, chartDefaults }: DashboardProps)
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-[13px] text-dark-700 dark:text-dark-300 leading-snug">
-                    <span className="font-bold text-dark-900 dark:text-dark-100">{activity.user_name}</span> {activity.action.toLowerCase().replace(/_/g, ' ')}
+                    <span className="font-bold text-dark-900 dark:text-dark-100">{activity.user_name}</span> {t(activity.action.toLowerCase(), activity.action.toLowerCase().replace(/_/g, ' '))}
                   </p>
                   <div className="flex justify-between items-center mt-2">
                     <div className="text-[10px] font-bold text-dark-400 dark:text-dark-500 uppercase tracking-widest bg-dark-100 dark:bg-dark-800 px-2 py-0.5 rounded-md">
-                      {activity.module}
+                      {t('sidebar.' + activity.module, activity.module)}
                     </div>
                     <div className="text-[10px] font-medium text-dark-400">
-                      {formatDistanceToNow(new Date(activity.created_at), { addSuffix: true })}
+                      {formatDistanceToNow(new Date(activity.created_at), { addSuffix: true, locale: language === 'hi' ? hi : undefined })}
                     </div>
                   </div>
                 </div>
@@ -201,11 +205,11 @@ export default function AdminDashboard({ stats, chartDefaults }: DashboardProps)
           <div className="mb-10 flex items-center justify-between">
             <div>
               <h3 className="text-lg font-bold text-dark-900 dark:text-white flex items-center gap-3">
-                <BarChart3 className="w-6 h-6 text-indigo-500" /> Key Constituency Issues
+                <BarChart3 className="w-6 h-6 text-indigo-500" /> {t('dashboard.key_issues', 'Key Constituency Issues')}
               </h3>
-              <p className="text-xs text-dark-500 font-medium uppercase tracking-[2px] mt-2">Major Public Constraints</p>
+              <p className="text-xs text-dark-500 font-medium uppercase tracking-[2px] mt-2">{t('label.major_public_constraints', 'Major Public Constraints')}</p>
             </div>
-            <div className="bg-indigo-500/10 text-indigo-500 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest">LIVE DATA</div>
+            <div className="bg-indigo-500/10 text-indigo-500 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest">{t('label.live_data', 'LIVE DATA')}</div>
           </div>
           
           <div className="space-y-6">
@@ -213,9 +217,9 @@ export default function AdminDashboard({ stats, chartDefaults }: DashboardProps)
               <div key={i} className="relative group">
                 <div className="flex justify-between items-center mb-2.5">
                   <span className="text-[11px] font-black text-dark-800 dark:text-dark-300 uppercase tracking-[1.5px] group-hover:text-indigo-500 transition-colors">
-                    {issue.name}
+                    {t(issue.name.toLowerCase(), issue.name)}
                   </span>
-                  <span className="text-[10px] font-black text-indigo-500">{issue.count} REF</span>
+                  <span className="text-[10px] font-black text-indigo-500">{issue.count} {t('label.ref', 'REF')}</span>
                 </div>
                 <div className="h-2 bg-dark-100 dark:bg-dark-800 rounded-full overflow-hidden p-[1px] border border-dark-200/50 dark:border-white/5">
                   <div 

@@ -10,10 +10,12 @@ import {
 } from 'chart.js';
 import { Line, Doughnut } from 'react-chartjs-2';
 import { MODULE_HEADER } from '@/lib/ui-labels';
+import { useLanguage } from '@/context/LanguageContext';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, PointElement, LineElement, ArcElement, Title, Tooltip, Legend, Filler);
 
 export default function ReportsPage() {
+  const { t } = useLanguage();
   const [dashStats, setDashStats] = useState<any>(null);
   const [surveyStats, setSurveyStats] = useState<any>(null);
   const [voterStats, setVoterStats] = useState<any>(null);
@@ -81,10 +83,10 @@ export default function ReportsPage() {
         {dashStats && (
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
             {[
-              { label: 'Total Voters', value: dashStats.stats?.total_voters || 0, icon: Vote, color: 'bg-blue-500/12 text-blue-400' },
-              { label: 'Surveys Done', value: dashStats.stats?.total_surveys || 0, icon: BarChart3, color: 'bg-green-500/12 text-green-400' },
-              { label: 'Active Workers', value: dashStats.stats?.active_workers || 0, icon: Users, color: 'bg-saffron-500/12 text-saffron-400' },
-              { label: 'Tasks Complete', value: dashStats.stats?.total_tasks || 0, icon: TrendingUp, color: 'bg-purple-500/12 text-purple-400' },
+              { label: t('dashboard.total_voters', 'Total Voters'), value: dashStats.stats?.total_voters || 0, icon: Vote, color: 'bg-blue-500/12 text-blue-400' },
+              { label: t('dashboard.total_surveys', 'Surveys Done'), value: dashStats.stats?.total_surveys || 0, icon: BarChart3, color: 'bg-green-500/12 text-green-400' },
+              { label: t('dashboard.total_workers', 'Active Workers'), value: dashStats.stats?.active_workers || 0, icon: Users, color: 'bg-saffron-500/12 text-saffron-400' },
+              { label: t('dashboard.tasks_active', 'Tasks Complete'), value: dashStats.stats?.total_tasks || 0, icon: TrendingUp, color: 'bg-purple-500/12 text-purple-400' },
             ].map(c => {
               const Icon = c.icon;
               return (
@@ -105,11 +107,11 @@ export default function ReportsPage() {
               <div className="mb-8 flex items-center justify-between">
                 <div>
                   <h3 className="text-base font-medium text-dark-900 dark:text-white flex items-center gap-2">
-                    <TrendingUp className="w-5 h-5 text-saffron-500" /> Survey Collection Trend
+                    <TrendingUp className="w-5 h-5 text-saffron-500" /> {t('report.survey_trend', 'Survey Collection Trend')}
                   </h3>
-                  <p className="text-[11px] text-dark-500 font-medium uppercase tracking-wider mt-1 opacity-70">Active Field Intelligence</p>
+                  <p className="text-[11px] text-dark-500 font-medium uppercase tracking-wider mt-1 opacity-70">{t('report.active_field_intel', 'Active Field Intelligence')}</p>
                 </div>
-                <div className="px-3 py-1 rounded-full bg-saffron-500/10 text-saffron-500 text-[10px] font-bold uppercase tracking-widest">Live</div>
+                <div className="px-3 py-1 rounded-full bg-saffron-500/10 text-saffron-500 text-[10px] font-bold uppercase tracking-widest">{t('label.live_data', 'Live')}</div>
               </div>
               <div className="h-[280px]">
                 <Line data={{
@@ -136,13 +138,13 @@ export default function ReportsPage() {
             <div className="glass-card p-6 border border-dark-100/50 dark:border-white/5 shadow-xl">
               <div className="mb-8">
                 <h3 className="text-base font-medium text-dark-900 dark:text-white flex items-center gap-2">
-                  <Activity className="w-5 h-5 text-emerald-500" /> Voter Sentiment Analysis
+                  <Activity className="w-5 h-5 text-emerald-500" /> {t('dashboard.voter_sentiment', 'Voter Sentiment Analysis')}
                 </h3>
-                <p className="text-[11px] text-dark-500 font-medium uppercase tracking-wider mt-1 opacity-70">Cumulative Political Standing</p>
+                <p className="text-[11px] text-dark-500 font-medium uppercase tracking-wider mt-1 opacity-70">{t('report.cumulative_standing', 'Cumulative Political Standing')}</p>
               </div>
               <div className="h-[240px] flex items-center justify-center">
                 <Doughnut data={{
-                  labels: voterStats.support_breakdown.map((s: any) => s.support_status.toUpperCase()),
+                  labels: voterStats.support_breakdown.map((s: any) => t(`support.${s.support_status.toLowerCase()}`, s.support_status).toUpperCase()),
                   datasets: [{
                     data: voterStats.support_breakdown.map((s: any) => parseInt(s.count)),
                     backgroundColor: ['#10b981', '#f59e0b', '#ef4444', '#64748b'],
@@ -154,7 +156,7 @@ export default function ReportsPage() {
                 {voterStats.support_breakdown.map((s: any, i: number) => (
                   <div key={i} className="px-3 py-1.5 rounded-lg bg-dark-50 dark:bg-dark-800/60 flex items-center gap-2 text-[10px] font-medium uppercase tracking-wider border border-dark-100 dark:border-transparent">
                     <span className={`w-1.5 h-1.5 rounded-full ${['bg-green-500', 'bg-amber-500', 'bg-red-500', 'bg-dark-500'][i % 4]}`} />
-                    <span className="text-dark-600 dark:text-dark-400">{s.support_status}: {s.count}</span>
+                    <span className="text-dark-600 dark:text-dark-400">{t(`support.${s.support_status.toLowerCase()}`, s.support_status)}: {s.count}</span>
                   </div>
                 ))}
               </div>
@@ -168,9 +170,9 @@ export default function ReportsPage() {
              <div className="glass-card p-6 border border-dark-100/50 dark:border-white/5 shadow-xl">
                <div className="mb-8">
                  <h3 className="text-base font-medium text-dark-900 dark:text-white flex items-center gap-2">
-                   <Target className="w-5 h-5 text-indigo-500" /> Geographic Coverage
+                   <Target className="w-5 h-5 text-indigo-500" /> {t('report.geo_coverage', 'Geographic Coverage')}
                  </h3>
-                 <p className="text-[11px] text-dark-500 font-medium uppercase tracking-wider mt-1 opacity-70">Booth-wise Voter Density</p>
+                 <p className="text-[11px] text-dark-500 font-medium uppercase tracking-wider mt-1 opacity-70">{t('report.booth_density', 'Booth-wise Voter Density')}</p>
                </div>
                <div className="space-y-4 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
                  {voterStats.by_ward.map((w: any, idx: number) => (
@@ -179,7 +181,7 @@ export default function ReportsPage() {
                         <div className="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center text-[10px] font-bold text-indigo-500">B-{idx+1}</div>
                         <span className="text-xs font-bold text-dark-800 dark:text-dark-100 uppercase tracking-wider">{w.ward_name}</span>
                      </div>
-                     <span className="text-xs font-black text-indigo-400">{w.count} VOTERS</span>
+                     <span className="text-xs font-black text-indigo-400">{w.count} {t('sidebar.voters', 'VOTERS')}</span>
                    </div>
                  ))}
                </div>
@@ -190,15 +192,15 @@ export default function ReportsPage() {
           {voterStats && (
             <div className="glass-card p-6 mb-8 border border-dark-100/50 dark:border-white/5 shadow-xl bg-gradient-to-br from-emerald-500/[0.02] to-transparent flex flex-col justify-center">
               <h3 className="text-base font-bold text-dark-900 dark:text-white flex items-center gap-3 mb-4">
-                <Users className="w-6 h-6 text-emerald-500" /> Welfare Outreach
+                <Users className="w-6 h-6 text-emerald-500" /> {t('report.welfare_outreach', 'Welfare Outreach')}
               </h3>
               <p className="text-xs text-dark-500 uppercase tracking-widest font-medium leading-relaxed mb-6">
-                Tracking beneficiaries across various government schemes and localized impact.
+                {t('report.welfare_desc', 'Tracking beneficiaries across various government schemes and localized impact.')}
               </p>
               <div className="space-y-4">
                  <div className="p-5 rounded-2xl bg-white/40 dark:bg-white/5 border border-dark-100 dark:border-white/5 flex justify-between items-center">
                     <div>
-                      <div className="text-[10px] font-black text-dark-500 uppercase tracking-widest mb-1">Total Beneficiaries</div>
+                      <div className="text-[10px] font-black text-dark-500 uppercase tracking-widest mb-1">{t('report.total_beneficiaries', 'Total Beneficiaries')}</div>
                       <div className="text-2xl font-black text-dark-900 dark:text-white">{voterStats.scheme_beneficiaries || 0}</div>
                     </div>
                     <div className="h-10 w-10 rounded-full bg-emerald-500/10 flex items-center justify-center">
@@ -206,8 +208,8 @@ export default function ReportsPage() {
                     </div>
                  </div>
                  <div className="p-5 rounded-2xl bg-white/40 dark:bg-white/5 border border-dark-100 dark:border-white/5">
-                    <div className="text-[10px] font-black text-dark-500 uppercase tracking-widest mb-1">Scheme Coverage</div>
-                    <div className="text-xl font-black text-dark-900 dark:text-white">{Math.round((voterStats.scheme_beneficiaries / (voterStats.total || 1)) * 100) || 0}% Reach</div>
+                    <div className="text-[10px] font-black text-dark-500 uppercase tracking-widest mb-1">{t('report.scheme_coverage', 'Scheme Coverage')}</div>
+                    <div className="text-xl font-black text-dark-900 dark:text-white">{Math.round((voterStats.scheme_beneficiaries / (voterStats.total || 1)) * 100) || 0}% {t('report.reach', 'Reach')}</div>
                     <div className="h-1.5 bg-dark-100 dark:bg-dark-800 rounded-full mt-3 overflow-hidden">
                        <div className="h-full bg-blue-500" style={{ width: `${(voterStats.scheme_beneficiaries / (voterStats.total || 1)) * 100}%` }} />
                     </div>
@@ -223,12 +225,12 @@ export default function ReportsPage() {
             <div className="mb-10 flex items-center justify-between">
               <div>
                 <h3 className="text-xl font-bold text-dark-900 dark:text-white flex items-center gap-3 text-shadow-sm">
-                  <BarChart3 className="w-6 h-6 text-saffron-500" /> Strategic Priority Matrix
+                  <BarChart3 className="w-6 h-6 text-saffron-500" /> {t('report.priority_matrix', 'Strategic Priority Matrix')}
                 </h3>
-                <p className="text-xs text-dark-500 font-medium uppercase tracking-[3px] mt-2 opacity-80">Major Public Constraints Index</p>
+                <p className="text-xs text-dark-500 font-medium uppercase tracking-[3px] mt-2 opacity-80">{t('report.major_constraints_index', 'Major Public Constraints Index')}</p>
               </div>
               <div className="px-4 py-1.5 rounded-full border border-dark-100 dark:border-white/5 bg-dark-50/50 dark:bg-white/5 text-[10px] font-bold text-dark-500 flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" /> CRITICAL
+                <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" /> {t('report.critical', 'CRITICAL')}
               </div>
             </div>
             
@@ -239,13 +241,13 @@ export default function ReportsPage() {
                     <div className="flex justify-between items-start mb-6">
                        <span className="w-8 h-8 rounded-lg bg-saffron-500/10 text-saffron-500 flex items-center justify-center text-xs font-black border border-saffron-500/20">{idx + 1}</span>
                        <span className={`px-2 py-0.5 rounded text-[9px] font-black tracking-widest uppercase ${parseInt(i.count) > 5 ? "bg-red-500/10 text-red-500" : "bg-emerald-500/10 text-emerald-500"}`}>
-                         {parseInt(i.count) > 5 ? "Immediate Action" : "Monitoring"}
+                         {parseInt(i.count) > 5 ? t('report.immediate_action', 'Immediate Action') : t('report.monitoring', 'Monitoring')}
                        </span>
                     </div>
                     <div className="text-sm font-black text-dark-900 dark:text-dark-100 mb-2 uppercase tracking-wide truncate pr-8">{i.name}</div>
                     <div className="flex items-center gap-2 mb-4">
                        <Activity className="w-3.5 h-3.5 text-dark-400" /> 
-                       <span className="text-[11px] font-bold text-dark-500 uppercase tracking-wider">{i.count} Verified Reports</span>
+                       <span className="text-[11px] font-bold text-dark-500 uppercase tracking-wider">{i.count} {t('report.verified_reports', 'Verified Reports')}</span>
                     </div>
                     <div className="h-1.5 bg-dark-100 dark:bg-dark-800 rounded-full overflow-hidden">
                        <div 
@@ -260,19 +262,88 @@ export default function ReportsPage() {
           </div>
         )}
 
+        {/* Survey Questions Analytics breakdown */}
+        {surveyStats?.questions_breakdown && surveyStats.questions_breakdown.length > 0 && (
+          <div className="glass-card p-8 mb-8 border border-dark-100/50 dark:border-white/5 shadow-2xl">
+            <div className="mb-8">
+              <h3 className="text-xl font-bold text-dark-900 dark:text-white flex items-center gap-3">
+                <BarChart3 className="w-6 h-6 text-saffron-500" /> {t('report.survey_questions_analytics', 'Survey Questions Breakdown')}
+              </h3>
+              <p className="text-xs text-dark-500 font-medium uppercase tracking-[3px] mt-2 opacity-85">
+                {t('report.custom_survey_responses_breakdown', 'Analysis of Predefined Survey Questions')}
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              {surveyStats.questions_breakdown.map((qb: any) => {
+                const totalResponses = qb.responses.reduce((sum: number, r: any) => sum + r.count, 0);
+                let avgRating = 0;
+                if (qb.answer_type === 'rating' && totalResponses > 0) {
+                  const totalStars = qb.responses.reduce((sum: number, r: any) => sum + (parseInt(r.answer) * r.count), 0);
+                  avgRating = Math.round((totalStars / totalResponses) * 10) / 10;
+                }
+
+                return (
+                  <div key={qb.question_id} className="p-6 rounded-2xl bg-dark-50/50 dark:bg-white/[0.02] border border-dark-100 dark:border-white/5 shadow-sm">
+                    <div className="flex justify-between items-start mb-4">
+                      <div>
+                        <span className="text-[10px] font-black text-saffron-500 uppercase tracking-widest block mb-1">
+                          {t('surveys.question_type_' + qb.answer_type, qb.answer_type.replace('_', ' '))}
+                        </span>
+                        <h4 className="text-sm font-bold text-dark-900 dark:text-dark-100 leading-snug">{qb.question_text}</h4>
+                      </div>
+                      {qb.answer_type === 'rating' && totalResponses > 0 && (
+                        <div className="bg-yellow-400/10 border border-yellow-400/20 text-yellow-500 rounded-xl px-2.5 py-0.5 flex items-center gap-1">
+                          <span className="font-bold text-xs">{avgRating}</span>
+                          <span className="text-xs">★</span>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="space-y-3 mt-4">
+                      {qb.responses.map((resp: any, ri: number) => {
+                        const percentage = totalResponses > 0 ? Math.round((resp.count / totalResponses) * 100) : 0;
+                        return (
+                          <div key={ri} className="space-y-1">
+                            <div className="flex justify-between text-xs font-medium">
+                              <span className="text-dark-700 dark:text-dark-300">
+                                {qb.answer_type === 'rating' ? `${resp.answer} ${parseInt(resp.answer) === 1 ? 'Star' : 'Stars'}` : resp.answer}
+                              </span>
+                              <span className="text-dark-900 dark:text-dark-200 font-bold">{resp.count} ({percentage}%)</span>
+                            </div>
+                            <div className="h-1.5 bg-dark-100 dark:bg-dark-800 rounded-full overflow-hidden">
+                              <div
+                                className="h-full bg-gradient-to-r from-saffron-500 to-saffron-400 rounded-full"
+                                style={{ width: `${percentage}%` }}
+                              />
+                            </div>
+                          </div>
+                        );
+                      })}
+                      {qb.responses.length === 0 && (
+                        <p className="text-dark-500 text-xs italic">{t('surveys.no_responses', 'No responses recorded yet')}</p>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {/* Voter Demographics */}
         {voterStats && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div className="glass-card p-6 border border-dark-100/50 dark:border-white/5 shadow-xl">
               <div className="mb-8">
                 <h3 className="text-base font-medium text-dark-900 dark:text-white flex items-center gap-2">
-                  <PieChart className="w-5 h-5 text-blue-500" /> Gender Distribution
+                  <PieChart className="w-5 h-5 text-blue-500" /> {t('dashboard.gender_distribution', 'Gender Distribution')}
                 </h3>
-                <p className="text-[11px] text-dark-500 font-medium uppercase tracking-wider mt-1 opacity-70">Democratic Composition</p>
+                <p className="text-[11px] text-dark-500 font-medium uppercase tracking-wider mt-1 opacity-70">{t('report.democratic_composition', 'Democratic Composition')}</p>
               </div>
               <div className="h-[240px] flex items-center justify-center relative">
                 <Doughnut data={{
-                  labels: voterStats.gender_breakdown?.map((g: any) => g.gender?.toUpperCase() || 'UNKNOWN') || [],
+                  labels: voterStats.gender_breakdown?.map((g: any) => t(`gender.${g.gender?.toLowerCase()}`, g.gender || 'UNKNOWN').toUpperCase()) || [],
                   datasets: [{
                     data: voterStats.gender_breakdown?.map((g: any) => parseInt(g.count)) || [],
                     backgroundColor: ['#3b82f6', '#ec4899', '#64748b'],
@@ -284,7 +355,7 @@ export default function ReportsPage() {
                 {voterStats.gender_breakdown?.map((g: any, i: number) => (
                   <div key={i} className="px-4 py-2 rounded-xl bg-dark-50 dark:bg-dark-800/40 flex items-center gap-3 border border-dark-100 dark:border-white/5 backdrop-blur-md">
                     <span className={`w-2.5 h-2.5 rounded-full ${['bg-blue-500', 'bg-pink-500', 'bg-slate-500'][i % 3]}`} />
-                    <span className="text-[11px] font-bold text-dark-700 dark:text-dark-300 uppercase tracking-widest">{g.gender || 'Unknown'}: {g.count}</span>
+                    <span className="text-[11px] font-bold text-dark-700 dark:text-dark-300 uppercase tracking-widest">{t(`gender.${g.gender?.toLowerCase()}`, g.gender || 'Unknown')}: {g.count}</span>
                   </div>
                 ))}
               </div>
@@ -293,16 +364,16 @@ export default function ReportsPage() {
             <div className="glass-card p-6 border border-dark-100/50 dark:border-white/5 shadow-xl">
               <div className="mb-8">
                 <h3 className="text-base font-medium text-dark-900 dark:text-white flex items-center gap-2">
-                  <Target className="w-5 h-5 text-purple-500" /> Caste Composition
+                  <Target className="w-5 h-5 text-purple-500" /> {t('report.caste_composition', 'Caste Composition')}
                 </h3>
-                <p className="text-[11px] text-dark-500 font-medium uppercase tracking-wider mt-1 opacity-70">Major Social Demographics</p>
+                <p className="text-[11px] text-dark-500 font-medium uppercase tracking-wider mt-1 opacity-70">{t('report.major_social_demographics', 'Major Social Demographics')}</p>
               </div>
               <div className="space-y-5 max-h-[340px] overflow-y-auto pr-3 custom-scrollbar">
                 {voterStats.caste_breakdown?.slice(0, 10).map((c: any, i: number) => (
                   <div key={i} className="group cursor-default">
                     <div className="flex justify-between text-[11px] font-black uppercase tracking-[1.5px] mb-2.5">
                       <span className="text-dark-600 dark:text-dark-400 group-hover:text-saffron-500 transition-colors flex items-center gap-2">
-                        <span className="w-1.5 h-1.5 rounded-full bg-saffron-500/40" /> {c.caste || 'Unknown'}
+                        <span className="w-1.5 h-1.5 rounded-full bg-saffron-500/40" /> {t(`caste.${c.caste?.toLowerCase()}`, c.caste || 'Unknown')}
                       </span>
                       <span className="text-dark-900 dark:text-white bg-dark-50 dark:bg-dark-800 px-2 py-0.5 rounded-md border border-dark-100 dark:border-white/5">{c.count}</span>
                     </div>

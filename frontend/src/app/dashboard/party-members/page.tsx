@@ -16,6 +16,7 @@ import { useSearchParams } from 'next/navigation';
 import DetailsModal from '@/components/DetailsModal';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
+import { useLanguage } from '@/context/LanguageContext';
 import { format } from 'date-fns';
 import { Pie, Bar, Line } from 'react-chartjs-2';
 import {
@@ -58,6 +59,7 @@ export interface PartyMember {
 function PartyMembersContent() {
   const { user } = useAuth();
   const { theme } = useTheme();
+  const { t, language } = useLanguage();
   const [members, setMembers] = useState<PartyMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -481,7 +483,7 @@ function PartyMembersContent() {
         borderWidth: 0
       }]
     };
-  }, [summaryData]);
+  }, [summaryData, t]);
 
   const growthChartData = useMemo(() => {
     const dataList = summaryData?.charts?.monthly_growth || [];
@@ -542,28 +544,28 @@ function PartyMembersContent() {
 
   const statCards = useMemo(() => {
     return [
-      { label: 'Total Party Members', value: summaryData?.total_members ?? 0, icon: Users, color: 'text-blue-600 dark:text-blue-400', bgIcon: 'bg-blue-500/10 dark:bg-blue-500/12', glow: 'shadow-blue-500/20' },
-      { label: 'BJP Supporters', value: summaryData?.bjp_supporters ?? 0, icon: Sparkles, color: 'text-orange-500 dark:text-orange-400', bgIcon: 'bg-orange-500/10 dark:bg-orange-500/12', glow: 'shadow-orange-500/20' },
-      { label: 'Opposition Supporters', value: summaryData?.opposition_supporters ?? 0, icon: Users, color: 'text-red-500 dark:text-red-400', bgIcon: 'bg-red-500/10 dark:bg-red-500/12', glow: 'shadow-red-500/20' },
-      { label: 'Neutral / Undecided', value: summaryData?.neutral_undecided ?? 0, icon: HelpCircle, color: 'text-slate-500 dark:text-slate-400', bgIcon: 'bg-slate-500/10 dark:bg-slate-500/12', glow: 'shadow-slate-500/20' },
-      { label: 'Active Wards', value: summaryData?.active_wards ?? 0, icon: MapPin, color: 'text-purple-500 dark:text-purple-400', bgIcon: 'bg-purple-500/10 dark:bg-purple-500/12', glow: 'shadow-purple-500/20' },
-      { label: 'Top Performer', value: summaryData?.top_performer?.name && summaryData.top_performer.name !== 'None' ? `${summaryData.top_performer.name} (${summaryData.top_performer.count})` : '—', icon: Award, color: 'text-emerald-500 dark:text-emerald-400', bgIcon: 'bg-emerald-500/10 dark:bg-emerald-500/12', glow: 'shadow-emerald-500/20' }
+      { label: t('pm.total_party_members'), value: summaryData?.total_members ?? 0, icon: Users, color: 'text-blue-600 dark:text-blue-400', bgIcon: 'bg-blue-500/10 dark:bg-blue-500/12', glow: 'shadow-blue-500/20' },
+      { label: t('pm.bjp_supporters'), value: summaryData?.bjp_supporters ?? 0, icon: Sparkles, color: 'text-orange-500 dark:text-orange-400', bgIcon: 'bg-orange-500/10 dark:bg-orange-500/12', glow: 'shadow-orange-500/20' },
+      { label: t('pm.opposition_supporters'), value: summaryData?.opposition_supporters ?? 0, icon: Users, color: 'text-red-500 dark:text-red-400', bgIcon: 'bg-red-500/10 dark:bg-red-500/12', glow: 'shadow-red-500/20' },
+      { label: t('pm.neutral_undecided'), value: summaryData?.neutral_undecided ?? 0, icon: HelpCircle, color: 'text-slate-500 dark:text-slate-400', bgIcon: 'bg-slate-500/10 dark:bg-slate-500/12', glow: 'shadow-slate-500/20' },
+      { label: t('pm.active_wards'), value: summaryData?.active_wards ?? 0, icon: MapPin, color: 'text-purple-500 dark:text-purple-400', bgIcon: 'bg-purple-500/10 dark:bg-purple-500/12', glow: 'shadow-purple-500/20' },
+      { label: t('pm.top_performer'), value: summaryData?.top_performer?.name && summaryData.top_performer.name !== 'None' ? `${summaryData.top_performer.name} (${summaryData.top_performer.count})` : '—', icon: Award, color: 'text-emerald-500 dark:text-emerald-400', bgIcon: 'bg-emerald-500/10 dark:bg-emerald-500/12', glow: 'shadow-emerald-500/20' }
     ];
-  }, [summaryData]);
+  }, [summaryData, t]);
 
   // Access Denied screen for Booth Worker
   if (!isAllowed) {
     return (
       <>
-        <Header title="Access Restricted" subtitle="Field Operations Restriction" />
+        <Header title={t('pm.access_restricted')} subtitle={t('pm.field_ops_restricted')} />
         <div className="dashboard-container max-w-[600px] mx-auto text-center py-20">
           <div className="glass-card p-8 flex flex-col items-center gap-4">
             <div className="w-16 h-16 rounded-2xl bg-red-500/10 flex items-center justify-center text-red-500">
               <Users className="w-8 h-8" />
             </div>
-            <h2 className="text-xl font-bold text-dark-900 dark:text-white">Permission Required</h2>
+            <h2 className="text-xl font-bold text-dark-900 dark:text-white">{t('pm.permission_required')}</h2>
             <p className="text-sm text-dark-500 leading-relaxed">
-              Your role (<strong>{user?.role_name?.replace(/_/g, ' ')}</strong>) is not authorized to manage or view Party Supporter records. Please contact your Campaign Manager if you require access.
+              {t('pm.restricted_desc', 'Your role ({role}) is not authorized to manage or view Party Supporter records. Please contact your Campaign Manager if you require access.').replace('{role}', user?.role_name?.replace(/_/g, ' ') || '')}
             </p>
           </div>
         </div>
@@ -573,7 +575,7 @@ function PartyMembersContent() {
 
   return (
     <>
-      <Header title="Party Members" subtitle="Party member database, demographics, and support tracking" />
+      <Header title={t('sidebar.partyMembers')} subtitle={t('partyMembers.subtitle')} />
       <div className="dashboard-container">
         
         {/* Summary Aggregations Cards */}
@@ -613,7 +615,7 @@ function PartyMembersContent() {
                 : 'border-transparent text-dark-500 hover:text-dark-700 dark:hover:text-dark-300'
             }`}
           >
-            Supporters Database
+            {t('pm.tab.database', 'Supporters Database')}
           </button>
           <button
             onClick={() => setActiveTab('analytics')}
@@ -623,7 +625,7 @@ function PartyMembersContent() {
                 : 'border-transparent text-dark-500 hover:text-dark-700 dark:hover:text-dark-300'
             }`}
           >
-            Analytics & Reports
+            {t('pm.tab.analytics', 'Analytics & Reports')}
           </button>
         </div>
 
@@ -631,7 +633,7 @@ function PartyMembersContent() {
           analyticsLoading ? (
             <div className="flex flex-col items-center justify-center py-20 gap-3">
               <Loader2 className="w-8 h-8 animate-spin text-saffron-500" />
-              <span className="text-xs font-medium text-dark-500 uppercase tracking-widest">Generating Analytics Reports...</span>
+              <span className="text-xs font-medium text-dark-500 uppercase tracking-widest">{t('pm.generating_analytics')}</span>
             </div>
           ) : (
             <div className="space-y-6 pb-10">
@@ -640,10 +642,10 @@ function PartyMembersContent() {
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div className="glass-card p-6 border border-dark-100/50 dark:border-white/5 shadow-xl">
                   <h3 className="text-base font-medium text-dark-900 dark:text-white mb-6 flex items-center gap-2">
-                    <Activity className="w-5 h-5 text-saffron-500" /> Supporter Sentiment
+                    <Activity className="w-5 h-5 text-saffron-500" /> {t('pm.supporter_sentiment')}
                   </h3>
                   {(!summaryData?.charts?.support_distribution || summaryData.charts.support_distribution.length === 0) ? (
-                    <EmptyState message="No sentiment data available" />
+                    <EmptyState message={t('pm.no_sentiment_data')} />
                   ) : (
                     <div className="h-[220px]">
                       <Pie data={supportChartData} options={pieOptions} />
@@ -653,10 +655,10 @@ function PartyMembersContent() {
 
                 <div className="glass-card p-6 lg:col-span-2 border border-dark-100/50 dark:border-white/5 shadow-xl">
                   <h3 className="text-base font-medium text-dark-900 dark:text-white mb-6 flex items-center gap-2">
-                    <TrendingUp className="w-5 h-5 text-saffron-500" /> Registration Growth
+                    <TrendingUp className="w-5 h-5 text-saffron-500" /> {t('pm.registration_growth')}
                   </h3>
                   {(!summaryData?.charts?.monthly_growth || summaryData.charts.monthly_growth.length === 0) ? (
-                    <EmptyState message="No registration data available" />
+                    <EmptyState message={t('pm.no_growth_data')} />
                   ) : (
                     <div className="h-[220px]">
                       <Line data={growthChartData} options={chartDefaults} />
@@ -669,10 +671,10 @@ function PartyMembersContent() {
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <div className="glass-card p-6 border border-dark-100/50 dark:border-white/5 shadow-xl">
                   <h3 className="text-base font-medium text-dark-900 dark:text-white mb-6 flex items-center gap-2">
-                    <MapPin className="w-5 h-5 text-indigo-500" /> Ward-wise Member Counts (Top 10)
+                    <MapPin className="w-5 h-5 text-indigo-500" /> {t('pm.ward_counts')}
                   </h3>
                   {wardsStats.length === 0 ? (
-                    <EmptyState message="No ward data available" />
+                    <EmptyState message={t('pm.no_ward_data')} />
                   ) : (
                     <div className="h-[220px]">
                       <Bar data={wardChartData} options={chartDefaults} />
@@ -682,10 +684,10 @@ function PartyMembersContent() {
 
                 <div className="glass-card p-6 border border-dark-100/50 dark:border-white/5 shadow-xl">
                   <h3 className="text-base font-medium text-dark-900 dark:text-white mb-6 flex items-center gap-2">
-                    <Award className="w-5 h-5 text-emerald-500" /> Top Performers Output (Top 10)
+                    <Award className="w-5 h-5 text-emerald-500" /> {t('pm.performers_output')}
                   </h3>
                   {topPerformers.length === 0 ? (
-                    <EmptyState message="No performers data available" />
+                    <EmptyState message={t('pm.no_performers_data')} />
                   ) : (
                     <div className="h-[220px]">
                       <Bar data={creatorChartData} options={chartDefaults} />
@@ -699,32 +701,32 @@ function PartyMembersContent() {
                 <div className="glass-card overflow-hidden border border-dark-100/50 dark:border-white/5 shadow-xl">
                   <div className="p-6 border-b border-dark-100 dark:border-white/5 flex items-center justify-between bg-dark-50/50 dark:bg-white/[0.02]">
                     <h3 className="text-base font-medium text-dark-900 dark:text-white flex items-center gap-2">
-                      <Award className="w-5 h-5 text-emerald-500" /> Top Performer Rankings
+                      <Award className="w-5 h-5 text-emerald-500" /> {t('pm.top_rankings')}
                     </h3>
                   </div>
                   <div className="p-4 overflow-x-auto">
                     <table className="w-full text-left border-collapse text-xs text-dark-800 dark:text-dark-300">
                       <thead>
                         <tr className="border-b border-dark-100 dark:border-white/5 text-dark-500 font-bold uppercase tracking-wider">
-                          <th className="py-2.5">Rank</th>
-                          <th className="py-2.5">User</th>
-                          <th className="py-2.5">Role</th>
-                          <th className="py-2.5">Added</th>
-                          <th className="py-2.5">BJP Conv.</th>
-                          <th className="py-2.5 text-right">Action</th>
+                          <th className="py-2.5">{t('pm.rankings.rank')}</th>
+                          <th className="py-2.5">{t('pm.rankings.user')}</th>
+                          <th className="py-2.5">{t('pm.rankings.role')}</th>
+                          <th className="py-2.5">{t('pm.rankings.added')}</th>
+                          <th className="py-2.5">{t('pm.rankings.bjp_conv')}</th>
+                          <th className="py-2.5 text-right">{t('pm.rankings.action')}</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-dark-100 dark:divide-white/5">
                         {topPerformers.length === 0 ? (
                           <tr>
-                            <td colSpan={6} className="text-center py-8 text-dark-500">No performers found.</td>
+                            <td colSpan={6} className="text-center py-8 text-dark-500">{t('pm.rankings.no_performers')}</td>
                           </tr>
                         ) : (
                           topPerformers.map((worker) => (
                             <tr key={worker.user_id} className="hover:bg-dark-50/50 dark:hover:bg-white/[0.01]">
                               <td className="py-3 font-bold text-dark-900 dark:text-white">{worker.rank}</td>
                               <td className="py-3 font-semibold text-dark-900 dark:text-white">{worker.user_name}</td>
-                              <td className="py-3 capitalize text-dark-500">{worker.role?.replace(/_/g, ' ')}</td>
+                              <td className="py-3 capitalize text-dark-500">{t(`role.${worker.role}`, t(`role.${worker.role}`, t(`role.${worker.role}`, worker.role?.replace(/_/g, ' '))))}</td>
                               <td className="py-3 font-bold text-emerald-600 dark:text-emerald-400">{worker.total_members_added}</td>
                               <td className="py-3 font-bold text-orange-500">{worker.bjp_supporters_added} ({worker.join_rate}%)</td>
                               <td className="py-3 text-right">
@@ -732,7 +734,7 @@ function PartyMembersContent() {
                                   onClick={() => loadCreatorDetails(worker.user_id)}
                                   className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-saffron-500 bg-saffron-500/10 hover:bg-saffron-500/20 rounded-md transition-all"
                                 >
-                                  View Details
+                                  {t('pm.rankings.view_details')}
                                 </button>
                               </td>
                             </tr>
@@ -746,26 +748,26 @@ function PartyMembersContent() {
                 <div className="glass-card overflow-hidden border border-dark-100/50 dark:border-white/5 shadow-xl">
                   <div className="p-6 border-b border-dark-100 dark:border-white/5 flex items-center justify-between bg-dark-50/50 dark:bg-white/[0.02]">
                     <h3 className="text-base font-medium text-dark-900 dark:text-white flex items-center gap-2">
-                      <MapPin className="w-5 h-5 text-indigo-500" /> Ward-wise Performance
+                      <MapPin className="w-5 h-5 text-indigo-500" /> {t('pm.ward_performance')}
                     </h3>
                   </div>
                   <div className="p-4 overflow-x-auto">
                     <table className="w-full text-left border-collapse text-xs text-dark-800 dark:text-dark-300">
                       <thead>
                         <tr className="border-b border-dark-100 dark:border-white/5 text-dark-500 font-bold uppercase tracking-wider">
-                          <th className="py-2.5">Ward Name</th>
-                          <th className="py-2.5">Total Members</th>
-                          <th className="py-2.5">BJP</th>
-                          <th className="py-2.5">Opposition</th>
-                          <th className="py-2.5">Neutral</th>
-                          <th className="py-2.5">Growth</th>
-                          <th className="py-2.5 text-right">Top Creator</th>
+                          <th className="py-2.5">{t('pm.ward.name')}</th>
+                          <th className="py-2.5">{t('pm.ward.total_members')}</th>
+                          <th className="py-2.5">{t('pm.ward.bjp')}</th>
+                          <th className="py-2.5">{t('pm.ward.opp')}</th>
+                          <th className="py-2.5">{t('pm.ward.neutral')}</th>
+                          <th className="py-2.5">{t('pm.ward.growth')}</th>
+                          <th className="py-2.5 text-right">{t('pm.ward.top_creator')}</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-dark-100 dark:divide-white/5">
                         {wardsStats.length === 0 ? (
                           <tr>
-                            <td colSpan={7} className="text-center py-8 text-dark-500">No ward summary data available.</td>
+                            <td colSpan={7} className="text-center py-8 text-dark-500">{t('pm.ward.no_summary')}</td>
                           </tr>
                         ) : (
                           wardsStats.map((ward) => (
@@ -793,11 +795,11 @@ function PartyMembersContent() {
             {/* Header Title with Button */}
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
               <div>
-                <h2 className="text-xl font-bold text-dark-900 dark:text-white font-serif">Supporters & Members</h2>
-                <p className="text-xs text-dark-500 font-semibold">{meta.total} registered members</p>
+                <h2 className="text-xl font-bold text-dark-900 dark:text-white font-serif">{t('pm.list.title')}</h2>
+                <p className="text-xs text-dark-500 font-semibold">{t('pm.list.subtitle').replace('{total}', String(meta.total))}</p>
               </div>
               <button onClick={openCreate} className="btn-primary">
-                <UserPlus className="w-4 h-4" /> Register Party Member
+                <UserPlus className="w-4 h-4" /> {t('pm.list.register')}
               </button>
             </div>
 
@@ -812,7 +814,7 @@ function PartyMembersContent() {
                     type="text"
                     value={search}
                     onChange={(e) => { setSearch(e.target.value); setMeta(prev => ({ ...prev, page: 1 })); }}
-                    placeholder="Search by name, phone number..."
+                    placeholder={t('pm.list.search_placeholder')}
                     className="form-input pl-10"
                   />
                 </div>
@@ -823,7 +825,7 @@ function PartyMembersContent() {
                   onChange={(e) => { setWardFilter(e.target.value); setMeta(prev => ({ ...prev, page: 1 })); }}
                   className="form-input max-w-[200px]"
                 >
-                  <option value="">All Wards</option>
+                  <option value="">{t('pm.list.all_wards')}</option>
                   {wards.map(w => (
                     <option key={w.id} value={w.id}>Ward {w.number} - {w.name}</option>
                   ))}
@@ -835,15 +837,15 @@ function PartyMembersContent() {
                   onChange={(e) => { setSupportFilter(e.target.value); setMeta(prev => ({ ...prev, page: 1 })); }}
                   className="form-input max-w-[200px]"
                 >
-                  <option value="">All Preferences</option>
-                  <option value="Neutral">Neutral</option>
+                  <option value="">{t('pm.list.all_preferences')}</option>
+                  <option value="Neutral">{t('support.neutral')}</option>
                   <option value="BJP">BJP</option>
                   <option value="Samajwadi Party">Samajwadi Party</option>
                   <option value="Congress">Congress</option>
                   <option value="BSP">BSP</option>
                   <option value="AAP">AAP</option>
-                  <option value="Undecided">Undecided</option>
-                  <option value="Other">Other</option>
+                  <option value="Undecided">{t('support.unknown', 'Undecided')}</option>
+                  <option value="Other">{t('gender.other', 'Other')}</option>
                 </select>
 
                 {/* Creator Role Dropdown */}
@@ -852,11 +854,11 @@ function PartyMembersContent() {
                   onChange={(e) => { setCreatorRoleFilter(e.target.value); setMeta(prev => ({ ...prev, page: 1 })); }}
                   className="form-input max-w-[200px]"
                 >
-                  <option value="">All Creators</option>
-                  <option value="super_admin">Super Admin</option>
-                  <option value="mla">MLA / Candidate</option>
-                  <option value="campaign_manager">Campaign Manager</option>
-                  <option value="ward_head">Ward Head</option>
+                  <option value="">{t('pm.list.all_creators')}</option>
+                  <option value="super_admin">{t('role.super_admin')}</option>
+                  <option value="mla">{t('role.mla')}</option>
+                  <option value="campaign_manager">{t('role.campaign_manager')}</option>
+                  <option value="ward_head">{t('role.ward_head')}</option>
                 </select>
 
                 {/* Reset Filters Option */}
@@ -865,7 +867,7 @@ function PartyMembersContent() {
                     onClick={() => { setSearch(''); setWardFilter(''); setSupportFilter(''); setCreatorRoleFilter(''); setMeta(prev => ({ ...prev, page: 1 })); }}
                     className="px-4 py-2 text-xs font-semibold text-red-500 hover:bg-red-500/10 rounded-lg transition-colors border border-red-500/20"
                   >
-                    Clear Filters
+                    {t('pm.list.clear_filters')}
                   </button>
                 )}
 
@@ -877,13 +879,13 @@ function PartyMembersContent() {
               <table className="data-table">
                 <thead>
                   <tr>
-                    <th className="w-[30%] min-w-[220px]">Member</th>
-                    <th className="min-w-[120px]">Phone</th>
-                    <th className="min-w-[150px]">Geography</th>
-                    <th className="min-w-[120px]">Demographics</th>
-                    <th className="min-w-[155px]">Support Preference</th>
-                    <th className="min-w-[150px]">Registered By</th>
-                    <th className="text-right">Actions</th>
+                    <th className="w-[30%] min-w-[220px]">{t('pm.table.member')}</th>
+                    <th className="min-w-[120px]">{t('pm.table.phone')}</th>
+                    <th className="min-w-[150px]">{t('pm.table.geography')}</th>
+                    <th className="min-w-[120px]">{t('pm.table.demographics')}</th>
+                    <th className="min-w-[155px]">{t('pm.table.preference')}</th>
+                    <th className="min-w-[150px]">{t('pm.table.registered_by')}</th>
+                    <th className="text-right">{t('pm.table.actions')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-dark-100 dark:divide-white/5">
@@ -892,14 +894,14 @@ function PartyMembersContent() {
                       <td colSpan={7} className="text-center py-20">
                         <div className="flex flex-col items-center gap-3">
                           <Loader2 className="w-8 h-8 animate-spin text-saffron-500" />
-                          <span className="text-xs font-medium text-dark-500 uppercase tracking-widest">Loading supporters registry...</span>
+                          <span className="text-xs font-medium text-dark-500 uppercase tracking-widest">{t('pm.list.loading')}</span>
                         </div>
                       </td>
                     </tr>
                   ) : members.length === 0 ? (
                     <tr>
                       <td colSpan={7} className="text-center py-16 text-dark-500 font-medium">
-                        No party members found matching the criteria.
+                        {t('pm.list.empty')}
                       </td>
                     </tr>
                   ) : (
@@ -926,7 +928,7 @@ function PartyMembersContent() {
                                 {member.full_name}
                               </div>
                               <div className="text-[10px] font-bold text-dark-500 truncate uppercase mt-0.5 tracking-wider">
-                                {member.email || 'No email'}
+                                {member.email || t('pm.table.no_email')}
                               </div>
                             </div>
                           </div>
@@ -940,10 +942,10 @@ function PartyMembersContent() {
                         {/* Ward / Booth details */}
                         <td>
                           <div className="text-xs font-bold text-dark-900 dark:text-dark-300 truncate">
-                            {member.ward_name ? `Ward: ${member.ward_name}` : `Ward No: ${member.ward_number || '—'}`}
+                            {member.ward_name ? `${t('pm.table.ward')}: ${member.ward_name}` : `${t('pm.table.ward_no')}: ${member.ward_number || '—'}`}
                           </div>
                           <div className="text-[10px] font-medium text-dark-500 truncate mt-0.5">
-                            {member.booth_name ? `Booth: ${member.booth_name}` : member.booth_number ? `Booth No: ${member.booth_number}` : 'No booth assigned'}
+                            {member.booth_name ? `${t('pm.table.booth')}: ${member.booth_name}` : member.booth_number ? `${t('pm.table.booth_no')}: ${member.booth_number}` : t('pm.table.no_booth')}
                           </div>
                         </td>
 
@@ -953,7 +955,7 @@ function PartyMembersContent() {
                             {member.profession || '—'}
                           </div>
                           <div className="text-[10px] text-dark-500 font-medium capitalize mt-0.5">
-                            {member.gender || '—'} {member.age ? `• ${member.age} yrs` : ''}
+                            {t(`gender.${member.gender?.toLowerCase()}`, t(`gender.${member.gender?.toLowerCase()}`, t(`gender.${member.gender?.toLowerCase()}`, member.gender || '—')))} {member.age ? `• ${member.age} {t('pm.table.yrs')}` : ''}
                           </div>
                         </td>
 
@@ -970,7 +972,7 @@ function PartyMembersContent() {
                             {member.created_by_name}
                           </div>
                           <div className="text-[9px] font-black text-dark-500 uppercase tracking-widest mt-0.5">
-                            {formatRole(member.created_by_role)}
+                            {t(`role.${member.created_by_role}`, t(`role.${member.created_by_role}`, t(`role.${member.created_by_role}`, formatRole(member.created_by_role))))}
                           </div>
                         </td>
 
@@ -980,21 +982,21 @@ function PartyMembersContent() {
                             <button 
                               onClick={() => setSelectedMember(member)} 
                               className="p-2 rounded-lg bg-dark-100 dark:bg-dark-800 text-dark-600 dark:text-dark-400 hover:bg-saffron-500/10 hover:text-saffron-500 transition-all" 
-                              title="View complete profile"
+                              title={t('pm.actions.view_profile')}
                             >
                               <Eye className="w-3.5 h-3.5" />
                             </button>
                             <button 
                               onClick={() => openEdit(member)} 
                               className="p-2 rounded-lg bg-dark-100 dark:bg-dark-800 text-dark-600 dark:text-dark-400 hover:bg-saffron-500/10 hover:text-saffron-500 transition-all"
-                              title="Edit member"
+                              title={t('pm.actions.edit_member')}
                             >
                               <Edit3 className="w-3.5 h-3.5" />
                             </button>
                             <button 
                               onClick={() => handleDelete(member.id)} 
                               className="p-2 rounded-lg bg-red-500/10 text-red-500 hover:bg-red-500/20 transition-all"
-                              title="Delete member"
+                              title={t('pm.actions.delete_member')}
                             >
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>
@@ -1012,7 +1014,7 @@ function PartyMembersContent() {
             {!loading && meta.totalPages > 1 && (
               <div className="px-6 py-4 flex items-center justify-between border-t border-dark-100 dark:border-white/5 bg-dark-50/30 dark:bg-white/[0.01]">
                 <p className="text-xs text-dark-500 font-medium">
-                  Page {meta.page} of {meta.totalPages} • Total {meta.total} records
+                  {t('voters.page_info').replace('{page}', String(meta.page)).replace('{totalPages}', String(meta.totalPages)).replace('{total}', String(meta.total))}
                 </p>
                 <div className="flex gap-2">
                   <button 
@@ -1041,14 +1043,14 @@ function PartyMembersContent() {
       <Modal
         isOpen={showModal}
         onClose={() => setShowModal(false)}
-        title={editingMember ? 'Edit Party Member' : 'Register Party Member'}
-        subtitle={editingMember ? 'Update party supporter details and preference' : 'Fill in the details to register a new supporter or party worker'}
+        title={editingMember ? t('pm.form.edit_title') : t('pm.form.create_title')}
+        subtitle={editingMember ? t('pm.form.edit_subtitle') : t('pm.form.create_subtitle')}
         maxWidth="max-w-[760px]"
         footer={(
           <div className="flex gap-3 justify-end w-full">
-            <button type="button" onClick={() => setShowModal(false)} className="px-6 py-2.5 rounded-xl border border-dark-200 dark:border-white/10 text-dark-500 font-medium hover:bg-dark-50 transition-all">Cancel</button>
+            <button type="button" onClick={() => setShowModal(false)} className="px-6 py-2.5 rounded-xl border border-dark-200 dark:border-white/10 text-dark-500 font-medium hover:bg-dark-50 transition-all">{t('action.cancel')}</button>
             <button type="submit" form="member-form" className="px-8 py-2.5 rounded-xl bg-saffron-500 text-dark-950 font-medium shadow-lg shadow-saffron-500/20 hover:scale-105 active:scale-95 transition-all">
-              {editingMember ? 'Save Changes' : 'Register Supporter'}
+              {editingMember ? t('action.save') : t('pm.form.register_btn')}
             </button>
           </div>
         )}
@@ -1057,7 +1059,7 @@ function PartyMembersContent() {
           
           {/* Photo upload box */}
           <div className="space-y-2">
-            <label className="block text-[10px] font-medium text-dark-400 uppercase tracking-widest px-1">Profile Photo (Max 5MB)</label>
+            <label className="block text-[10px] font-medium text-dark-400 uppercase tracking-widest px-1">{t('pm.form.photo_label')}</label>
             <div className="flex items-center gap-4 p-4 rounded-xl border border-dashed border-dark-200 dark:border-white/10 bg-dark-50/50 dark:bg-white/[0.01]">
               <div className="relative w-16 h-16 rounded-xl border border-dark-200 dark:border-white/10 overflow-hidden bg-dark-100 dark:bg-dark-900 flex items-center justify-center flex-shrink-0">
                 {form.photo_url ? (
@@ -1088,16 +1090,16 @@ function PartyMembersContent() {
                   htmlFor="modal-photo-file"
                   className="px-4 py-2 text-xs font-semibold bg-dark-100 dark:bg-dark-800 hover:bg-saffron-500/10 hover:text-saffron-500 rounded-lg transition-colors cursor-pointer border border-dark-200 dark:border-white/5 inline-block"
                 >
-                  Choose Image File
+                  {t('pm.form.photo_choose')}
                 </label>
-                <p className="text-[10px] text-dark-500 mt-1">Accepts PNG, JPG, GIF up to 5MB. Photo is optional.</p>
+                <p className="text-[10px] text-dark-500 mt-1">{t('pm.form.photo_hint')}</p>
               </div>
             </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
-              <label className="block text-[10px] font-medium text-dark-400 uppercase tracking-widest px-1">Full Name *</label>
+              <label className="block text-[10px] font-medium text-dark-400 uppercase tracking-widest px-1">{t('pm.form.full_name')}</label>
               <input 
                 value={form.full_name} 
                 onChange={e => setForm({...form, full_name: e.target.value})} 
@@ -1107,7 +1109,7 @@ function PartyMembersContent() {
               />
             </div>
             <div className="space-y-2">
-              <label className="block text-[10px] font-medium text-dark-400 uppercase tracking-widest px-1">Phone Number *</label>
+              <label className="block text-[10px] font-medium text-dark-400 uppercase tracking-widest px-1">{t('pm.form.phone')}</label>
               <input 
                 value={form.phone} 
                 onChange={e => setForm({...form, phone: e.target.value})} 
@@ -1120,7 +1122,7 @@ function PartyMembersContent() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
-              <label className="block text-[10px] font-medium text-dark-400 uppercase tracking-widest px-1">Email Address</label>
+              <label className="block text-[10px] font-medium text-dark-400 uppercase tracking-widest px-1">{t('pm.form.email')}</label>
               <input 
                 type="email" 
                 value={form.email} 
@@ -1130,7 +1132,7 @@ function PartyMembersContent() {
               />
             </div>
             <div className="space-y-2">
-              <label className="block text-[10px] font-medium text-dark-400 uppercase tracking-widest px-1">Home Address</label>
+              <label className="block text-[10px] font-medium text-dark-400 uppercase tracking-widest px-1">{t('pm.form.address')}</label>
               <input 
                 value={form.address} 
                 onChange={e => setForm({...form, address: e.target.value})} 
@@ -1142,28 +1144,28 @@ function PartyMembersContent() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
-              <label className="block text-[10px] font-medium text-dark-400 uppercase tracking-widest px-1">Assigned Ward *</label>
+              <label className="block text-[10px] font-medium text-dark-400 uppercase tracking-widest px-1">{t('pm.form.ward_assigned')}</label>
               <select 
                 value={form.ward_id} 
                 onChange={e => setForm({...form, ward_id: e.target.value, booth_id: ''})} 
                 className="form-input" 
                 required
               >
-                <option value="">Select Ward</option>
+                <option value="">{t('pm.form.select_ward')}</option>
                 {wards.map(w => (
                   <option key={w.id} value={w.id}>Ward {w.number} - {w.name}</option>
                 ))}
               </select>
             </div>
             <div className="space-y-2">
-              <label className="block text-[10px] font-medium text-dark-400 uppercase tracking-widest px-1">Assigned Booth (Optional)</label>
+              <label className="block text-[10px] font-medium text-dark-400 uppercase tracking-widest px-1">{t('pm.form.booth_assigned')}</label>
               <select 
                 value={form.booth_id} 
                 onChange={e => setForm({...form, booth_id: e.target.value})} 
                 className="form-input" 
                 disabled={!form.ward_id}
               >
-                <option value="">Select Booth</option>
+                <option value="">{t('pm.form.select_booth')}</option>
                 {booths.map(b => (
                   <option key={b.id} value={b.id}>Booth {b.number} - {b.name}</option>
                 ))}
@@ -1173,7 +1175,7 @@ function PartyMembersContent() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
-              <label className="block text-[10px] font-medium text-dark-400 uppercase tracking-widest px-1">Qualification</label>
+              <label className="block text-[10px] font-medium text-dark-400 uppercase tracking-widest px-1">{t('pm.form.qualification')}</label>
               <input 
                 value={form.qualification} 
                 onChange={e => setForm({...form, qualification: e.target.value})} 
@@ -1182,7 +1184,7 @@ function PartyMembersContent() {
               />
             </div>
             <div className="space-y-2">
-              <label className="block text-[10px] font-medium text-dark-400 uppercase tracking-widest px-1">Profession / Occupation</label>
+              <label className="block text-[10px] font-medium text-dark-400 uppercase tracking-widest px-1">{t('pm.form.profession')}</label>
               <input 
                 value={form.profession} 
                 onChange={e => setForm({...form, profession: e.target.value})} 
@@ -1194,7 +1196,7 @@ function PartyMembersContent() {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="space-y-2">
-              <label className="block text-[10px] font-medium text-dark-400 uppercase tracking-widest px-1">Age</label>
+              <label className="block text-[10px] font-medium text-dark-400 uppercase tracking-widest px-1">{t('pm.form.age')}</label>
               <input 
                 type="number" 
                 value={form.age} 
@@ -1204,20 +1206,20 @@ function PartyMembersContent() {
               />
             </div>
             <div className="space-y-2">
-              <label className="block text-[10px] font-medium text-dark-400 uppercase tracking-widest px-1">Gender</label>
+              <label className="block text-[10px] font-medium text-dark-400 uppercase tracking-widest px-1">{t('pm.form.gender')}</label>
               <select 
                 value={form.gender} 
                 onChange={e => setForm({...form, gender: e.target.value})} 
                 className="form-input"
               >
-                <option value="">Select Gender</option>
+                <option value="">{t('pm.form.select_gender')}</option>
                 <option value="male">Male</option>
                 <option value="female">Female</option>
                 <option value="other">Other</option>
               </select>
             </div>
             <div className="space-y-2">
-              <label className="block text-[10px] font-medium text-dark-400 uppercase tracking-widest px-1">Support Preference</label>
+              <label className="block text-[10px] font-medium text-dark-400 uppercase tracking-widest px-1">{t('pm.form.support')}</label>
               <select 
                 value={form.support_preference} 
                 onChange={e => setForm({...form, support_preference: e.target.value})} 
@@ -1242,12 +1244,12 @@ function PartyMembersContent() {
       <Modal
         isOpen={!!selectedMember}
         onClose={() => setSelectedMember(null)}
-        title="Party Member Profile"
-        subtitle="Identity, demographic insights, and geographical mapping"
+        title={t('pm.details.title')}
+        subtitle={t('pm.details.subtitle')}
         maxWidth="max-w-[760px]"
         footer={(
           <button type="button" onClick={() => setSelectedMember(null)} className="btn-secondary min-w-[120px]">
-            Close
+            {t('action.close')}
           </button>
         )}
       >
@@ -1281,56 +1283,56 @@ function PartyMembersContent() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               
               <div className="rounded-lg border border-dark-100 dark:border-white/10 bg-dark-50/20 dark:bg-white/[0.01] p-3">
-                <p className="text-[10px] uppercase tracking-widest text-dark-500 mb-1">Ward Details</p>
+                <p className="text-[10px] uppercase tracking-widest text-dark-500 mb-1">{t('pm.details.ward_details')}</p>
                 <div className="text-sm font-semibold text-dark-900 dark:text-dark-100">
                   {selectedMember.ward_name ? `Ward: ${selectedMember.ward_name}` : `Ward Number: ${selectedMember.ward_number || '—'}`}
                 </div>
               </div>
 
               <div className="rounded-lg border border-dark-100 dark:border-white/10 bg-dark-50/20 dark:bg-white/[0.01] p-3">
-                <p className="text-[10px] uppercase tracking-widest text-dark-500 mb-1">Booth Details</p>
+                <p className="text-[10px] uppercase tracking-widest text-dark-500 mb-1">{t('pm.details.booth_details')}</p>
                 <div className="text-sm font-semibold text-dark-900 dark:text-dark-100">
                   {selectedMember.booth_name ? `Booth: ${selectedMember.booth_name}` : selectedMember.booth_number ? `Booth Number: ${selectedMember.booth_number}` : '—'}
                 </div>
               </div>
 
               <div className="rounded-lg border border-dark-100 dark:border-white/10 bg-dark-50/20 dark:bg-white/[0.01] p-3">
-                <p className="text-[10px] uppercase tracking-widest text-dark-500 mb-1">Qualification</p>
+                <p className="text-[10px] uppercase tracking-widest text-dark-500 mb-1">{t('pm.form.qualification')}</p>
                 <div className="text-sm font-semibold text-dark-900 dark:text-dark-100">
                   {selectedMember.qualification || '—'}
                 </div>
               </div>
 
               <div className="rounded-lg border border-dark-100 dark:border-white/10 bg-dark-50/20 dark:bg-white/[0.01] p-3">
-                <p className="text-[10px] uppercase tracking-widest text-dark-500 mb-1">Profession</p>
+                <p className="text-[10px] uppercase tracking-widest text-dark-500 mb-1">{t('pm.form.profession')}</p>
                 <div className="text-sm font-semibold text-dark-900 dark:text-dark-100">
                   {selectedMember.profession || '—'}
                 </div>
               </div>
 
               <div className="rounded-lg border border-dark-100 dark:border-white/10 bg-dark-50/20 dark:bg-white/[0.01] p-3">
-                <p className="text-[10px] uppercase tracking-widest text-dark-500 mb-1">Gender / Age</p>
+                <p className="text-[10px] uppercase tracking-widest text-dark-500 mb-1">{t('pm.details.gender_age')}</p>
                 <div className="text-sm font-semibold text-dark-900 dark:text-dark-100 capitalize">
                   {selectedMember.gender || '—'} {selectedMember.age ? `(${selectedMember.age} years old)` : ''}
                 </div>
               </div>
 
               <div className="rounded-lg border border-dark-100 dark:border-white/10 bg-dark-50/20 dark:bg-white/[0.01] p-3">
-                <p className="text-[10px] uppercase tracking-widest text-dark-500 mb-1">Address</p>
+                <p className="text-[10px] uppercase tracking-widest text-dark-500 mb-1">{t('pm.form.address')}</p>
                 <div className="text-sm font-semibold text-dark-900 dark:text-dark-100">
                   {selectedMember.address || '—'}
                 </div>
               </div>
 
               <div className="rounded-lg border border-dark-100 dark:border-white/10 bg-dark-50/20 dark:bg-white/[0.01] p-3">
-                <p className="text-[10px] uppercase tracking-widest text-dark-500 mb-1">Registered By</p>
+                <p className="text-[10px] uppercase tracking-widest text-dark-500 mb-1">{t('pm.details.registered_by')}</p>
                 <div className="text-sm font-semibold text-dark-900 dark:text-dark-100">
                   {selectedMember.created_by_name} ({formatRole(selectedMember.created_by_role)})
                 </div>
               </div>
 
               <div className="rounded-lg border border-dark-100 dark:border-white/10 bg-dark-50/20 dark:bg-white/[0.01] p-3">
-                <p className="text-[10px] uppercase tracking-widest text-dark-500 mb-1">Registered Date</p>
+                <p className="text-[10px] uppercase tracking-widest text-dark-500 mb-1">{t('pm.details.registered_date')}</p>
                 <div className="text-sm font-semibold text-dark-900 dark:text-dark-100">
                   {selectedMember.created_at ? new Date(selectedMember.created_at).toLocaleString() : '—'}
                 </div>
@@ -1345,19 +1347,19 @@ function PartyMembersContent() {
       <Modal
         isOpen={!!selectedCreatorId}
         onClose={() => { setSelectedCreatorId(null); setCreatorDetails(null); }}
-        title="Performer Activity Summary"
-        subtitle="Granular activity tracking, geographical breakdowns, and sentiment distributions"
+        title={t('pm.perf.title')}
+        subtitle={t('pm.perf.subtitle')}
         maxWidth="max-w-[850px]"
         footer={(
           <button type="button" onClick={() => { setSelectedCreatorId(null); setCreatorDetails(null); }} className="btn-secondary min-w-[120px]">
-            Close
+            {t('action.close')}
           </button>
         )}
       >
         {creatorLoading || !creatorDetails ? (
           <div className="flex flex-col items-center justify-center py-20 gap-3">
             <Loader2 className="w-8 h-8 animate-spin text-saffron-500" />
-            <span className="text-xs font-medium text-dark-500 uppercase tracking-widest">Fetching performer analytics...</span>
+            <span className="text-xs font-medium text-dark-500 uppercase tracking-widest">{t('pm.perf.fetching')}</span>
           </div>
         ) : (
           <div className="space-y-6 max-h-[75vh] overflow-y-auto pr-2 custom-scrollbar">
@@ -1382,7 +1384,7 @@ function PartyMembersContent() {
               </div>
               <div className="p-4 rounded-xl bg-saffron-500/10 border border-saffron-500/20 text-center sm:self-center shrink-0 self-start min-w-[100px]">
                 <div className="text-2xl font-extrabold text-saffron-600 dark:text-saffron-400">{creatorDetails.stats.total_members}</div>
-                <div className="text-[9px] font-black text-dark-500 uppercase tracking-widest mt-1">Added</div>
+                <div className="text-[9px] font-black text-dark-500 uppercase tracking-widest mt-1">{t('pm.perf.added')}</div>
               </div>
             </div>
 
@@ -1392,10 +1394,10 @@ function PartyMembersContent() {
               {/* Support Distribution Pie */}
               <div className="glass-card p-5 border border-dark-100/50 dark:border-white/5">
                 <h4 className="text-sm font-bold text-dark-900 dark:text-white mb-4 flex items-center gap-2">
-                  <Activity className="w-4 h-4 text-saffron-500" /> Sentiment Preference
+                  <Activity className="w-4 h-4 text-saffron-500" /> {t('pm.perf.sentiment')}
                 </h4>
                 {creatorDetails.stats.support_distribution.length === 0 ? (
-                  <EmptyState message="No sentiment data available" />
+                  <EmptyState message={t('pm.no_sentiment_data')} />
                 ) : (
                   <div className="h-[200px]">
                     <Pie
@@ -1427,10 +1429,10 @@ function PartyMembersContent() {
               {/* Monthly growth line chart */}
               <div className="glass-card p-5 border border-dark-100/50 dark:border-white/5">
                 <h4 className="text-sm font-bold text-dark-900 dark:text-white mb-4 flex items-center gap-2">
-                  <TrendingUp className="w-4 h-4 text-saffron-500" /> Registration Timeline
+                  <TrendingUp className="w-4 h-4 text-saffron-500" /> {t('pm.perf.timeline')}
                 </h4>
                 {creatorDetails.stats.timeline.length === 0 ? (
-                  <EmptyState message="No timeline data available" />
+                  <EmptyState message={t('pm.perf.no_reg')} />
                 ) : (
                   <div className="h-[200px]">
                     <Line
@@ -1469,10 +1471,10 @@ function PartyMembersContent() {
               
               {/* Ward breakdown */}
               <div className="glass-card p-5 border border-dark-100/50 dark:border-white/5">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-dark-500 mb-3">Ward Distribution</h4>
+                <h4 className="text-xs font-bold uppercase tracking-wider text-dark-500 mb-3">{t('pm.perf.ward_dist')}</h4>
                 <div className="max-h-[220px] overflow-y-auto divide-y divide-dark-100 dark:divide-white/5 pr-1 custom-scrollbar">
                   {creatorDetails.stats.ward_breakdown.length === 0 ? (
-                    <div className="text-center py-8 text-xs text-dark-500">No ward registrations.</div>
+                    <div className="text-center py-8 text-xs text-dark-500">{t('pm.perf.no_ward')}</div>
                   ) : (
                     creatorDetails.stats.ward_breakdown.map((item: any) => (
                       <div key={item.ward_name} className="flex justify-between items-center py-2.5">
@@ -1486,10 +1488,10 @@ function PartyMembersContent() {
 
               {/* Booth breakdown */}
               <div className="glass-card p-5 border border-dark-100/50 dark:border-white/5">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-dark-500 mb-3">Booth Distribution (Top 10)</h4>
+                <h4 className="text-xs font-bold uppercase tracking-wider text-dark-500 mb-3">{t('pm.perf.booth_dist')}</h4>
                 <div className="max-h-[220px] overflow-y-auto divide-y divide-dark-100 dark:divide-white/5 pr-1 custom-scrollbar">
                   {creatorDetails.stats.booth_breakdown.length === 0 ? (
-                    <div className="text-center py-8 text-xs text-dark-500">No booth registrations.</div>
+                    <div className="text-center py-8 text-xs text-dark-500">{t('pm.perf.no_booth')}</div>
                   ) : (
                     creatorDetails.stats.booth_breakdown.map((item: any) => (
                       <div key={item.booth_name} className="flex justify-between items-center py-2.5">
@@ -1508,7 +1510,7 @@ function PartyMembersContent() {
 
             {/* Recent Registrations List */}
             <div className="glass-card p-5 border border-dark-100/50 dark:border-white/5">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-dark-500 mb-3">Recent Registrations (Last 10)</h4>
+              <h4 className="text-xs font-bold uppercase tracking-wider text-dark-500 mb-3">{t('pm.perf.recent_reg')}</h4>
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse text-xs text-dark-800 dark:text-dark-300">
                   <thead>
@@ -1523,7 +1525,7 @@ function PartyMembersContent() {
                   <tbody className="divide-y divide-dark-100 dark:divide-white/5">
                     {creatorDetails.stats.recent_registrations.length === 0 ? (
                       <tr>
-                        <td colSpan={5} className="text-center py-8 text-dark-500">No registrations found.</td>
+                        <td colSpan={5} className="text-center py-8 text-dark-500">{t('pm.perf.no_reg')}</td>
                       </tr>
                     ) : (
                       creatorDetails.stats.recent_registrations.map((member: any) => (

@@ -7,6 +7,7 @@ import { useAuth } from '@/context/AuthContext';
 import { aiAPI } from '@/lib/api';
 import Header from '@/components/Header';
 import { MODULE_HEADER } from '@/lib/ui-labels';
+import { useLanguage } from '@/context/LanguageContext';
 import {
   Bot, Send, Plus, Trash2, Copy, Check, Loader2, Sparkles,
   MessageSquare, ArrowDown, User, Clock, ChevronLeft,
@@ -176,32 +177,36 @@ function CopyButton({ text, size = 'md' }: { text: string; size?: 'sm' | 'md' })
 }
 
 // ── Thinking / status indicator ─────────────────────────────────
-const STATUS_MESSAGES = [
-  { icon: '🧠', text: 'Thinking...' },
-  { icon: '🔍', text: 'Searching web...' },
-  { icon: '📊', text: 'Analyzing data...' },
-  { icon: '🗳️', text: 'Checking election records...' },
-  { icon: '📰', text: 'Reading latest news...' },
-  { icon: '⚡', text: 'Generating response...' },
-];
+function getStatusMessages(t: any) {
+  return [
+    { icon: '🧠', text: t('ai.status.thinking', 'Thinking...') },
+    { icon: '🔍', text: t('ai.status.searching', 'Searching web...') },
+    { icon: '📊', text: t('ai.status.analyzing', 'Analyzing data...') },
+    { icon: '🗳️', text: t('ai.status.checking', 'Checking election records...') },
+    { icon: '📰', text: t('ai.status.reading', 'Reading latest news...') },
+    { icon: '⚡', text: t('ai.status.generating', 'Generating response...') },
+  ];
+}
 
 function ThinkingIndicator() {
+  const { t } = useLanguage();
   const [idx, setIdx] = useState(0);
   const [visible, setVisible] = useState(true);
+  const statusMessages = getStatusMessages(t);
 
   useEffect(() => {
     const interval = setInterval(() => {
       // Fade out → change → fade in
       setVisible(false);
       setTimeout(() => {
-        setIdx(prev => (prev + 1) % STATUS_MESSAGES.length);
+        setIdx(prev => (prev + 1) % statusMessages.length);
         setVisible(true);
       }, 200);
     }, 1500);
     return () => clearInterval(interval);
-  }, []);
+  }, [statusMessages.length]);
 
-  const current = STATUS_MESSAGES[idx];
+  const current = statusMessages[idx];
 
   return (
     <div className="flex items-end gap-2.5 max-w-[85%]">
@@ -305,11 +310,12 @@ function ChartCard({ chart }: { chart: AIChartPayload }) {
 
 // ── Welcome ─────────────────────────────────────────────────────
 function WelcomeScreen({ onSuggestion }: { onSuggestion: (text: string) => void }) {
+  const { t } = useLanguage();
   const suggestions = [
-    { icon: '🗳️', title: 'Voter Strategy', prompt: 'How can I increase voter turnout in the primary booths of our constituency?' },
-    { icon: '📊', title: 'Data Analysis', prompt: 'Compare voter demographics and suggest where we should focus our outreach efforts.' },
-    { icon: '📢', title: 'Speech Writing', prompt: 'Draft a short, impactful speech focusing on local development for a small community rally.' },
-    { icon: '🤝', title: 'Volunteer Help', prompt: 'Create a simple training guide for booth-level workers for the upcoming election day.' },
+    { icon: '🗳️', title: t('ai.suggest.title1'), prompt: t('ai.suggest.prompt1') },
+    { icon: '📊', title: t('ai.suggest.title2'), prompt: t('ai.suggest.prompt2') },
+    { icon: '📢', title: t('ai.suggest.title3'), prompt: t('ai.suggest.prompt3') },
+    { icon: '🤝', title: t('ai.suggest.title4'), prompt: t('ai.suggest.prompt4') },
   ];
 
   return (
@@ -322,9 +328,9 @@ function WelcomeScreen({ onSuggestion }: { onSuggestion: (text: string) => void 
           <Sparkles size={8} className="text-white" />
         </div>
       </div>
-      <h2 className="text-xl md:text-2xl font-medium text-dark-900 dark:text-white mb-2 tracking-tight">AI Assistant</h2>
+      <h2 className="text-xl md:text-2xl font-medium text-dark-900 dark:text-white mb-2 tracking-tight">{t('label.welcome_ai')}</h2>
       <p className="text-dark-400 dark:text-dark-500 text-sm mb-8 text-center max-w-md leading-relaxed">
-        Ask me anything — campaign strategy, voter research, speech writing, or general management. I&apos;m here to help you win.
+        {t('label.welcome_ai_sub')}
       </p>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-xl">
         {suggestions.map((s, i) => (
@@ -343,7 +349,7 @@ function WelcomeScreen({ onSuggestion }: { onSuggestion: (text: string) => void 
       </div>
       <div className="mt-8 flex items-center gap-2 text-[11px] text-dark-400 dark:text-dark-600">
         <Sparkles size={10} className="text-saffron-400" />
-        <span>Powered by XPanda</span>
+        <span>{t('label.powered_by')}</span>
       </div>
     </div>
   );
@@ -353,6 +359,7 @@ function WelcomeScreen({ onSuggestion }: { onSuggestion: (text: string) => void 
 //  MAIN PAGE
 // ═══════════════════════════════════════════════════════════════
 export default function AIAssistantPage() {
+  const { t, language } = useLanguage();
   const { user } = useAuth();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
@@ -420,7 +427,7 @@ export default function AIAssistantPage() {
       }
     } catch (err) {
       console.error('Failed to load messages:', err);
-      setError('Failed to load chat history.');
+      setError(t('label.stream_error', 'Failed to load chat history.'));
     }
   };
 
@@ -428,8 +435,8 @@ export default function AIAssistantPage() {
   const handleDeleteSession = async (e: React.MouseEvent, sessionId: number) => {
     e.stopPropagation();
     showToast.confirm(
-      'Delete Chat',
-      'Are you sure you want to delete this conversation? This cannot be undone.',
+      t('label.delete_chat'),
+      t('label.delete_chat_msg'),
       async () => {
         try {
           await aiAPI.deleteSession(sessionId);
@@ -438,13 +445,13 @@ export default function AIAssistantPage() {
             setActiveSessionId(null);
             setMessages([]);
           }
-          toast.success('Chat deleted successfully');
+          toast.success(t('label.delete_chat_success', 'Chat deleted successfully'));
         } catch (err) {
           console.error('Failed to delete session:', err);
-          showToast.error('Failed to delete chat session.');
+          showToast.error(t('label.delete_chat_failed', 'Failed to delete chat session.'));
         }
       },
-      'Delete'
+      t('action.delete')
     );
   };
 
@@ -484,8 +491,8 @@ export default function AIAssistantPage() {
             <div className="w-14 h-14 rounded-2xl bg-red-500/10 flex items-center justify-center mx-auto mb-4">
               <Bot size={24} className="text-red-400" />
             </div>
-            <h2 className="text-lg font-medium text-dark-900 dark:text-white mb-2">Access Restricted</h2>
-            <p className="text-dark-400 text-sm">AI Assistant is available for Super Admin and MLA roles only.</p>
+            <h2 className="text-lg font-medium text-dark-900 dark:text-white mb-2">{t('ai.access_restricted')}</h2>
+            <p className="text-dark-400 text-sm">{t('ai.access_restricted_desc')}</p>
           </div>
         </div>
       </>
@@ -517,7 +524,7 @@ export default function AIAssistantPage() {
       // ── Non-streaming path (chart) ───────────────────────────────
       try {
         const history = [...messages, userMsg].slice(-10).map(m => ({ role: m.role, content: m.content }));
-        const res = await aiAPI.chat(messageText, history, activeSessionId || undefined, user?.id);
+        const res = await aiAPI.chat(messageText, history, activeSessionId || undefined, user?.id, language);
 
         if (res.data.success && res.data.reply) {
           if (!activeSessionId && res.data.session_id) setActiveSessionId(res.data.session_id);
@@ -581,6 +588,7 @@ export default function AIAssistantPage() {
           history,
           session_id: activeSessionId || undefined,
           userId: user?.id,
+          lang: language,
         }),
       });
 
@@ -667,10 +675,15 @@ export default function AIAssistantPage() {
     const now = new Date();
     const diff = now.getTime() - date.getTime();
     const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-    if (days === 0) return 'Today';
-    if (days === 1) return 'Yesterday';
-    if (days < 7) return `${days}d ago`;
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    if (days === 0) return t('label.today', 'Today');
+    if (days === 1) return t('label.yesterday', 'Yesterday');
+    if (days < 7) {
+      if (language === 'hi') {
+        return `${days} दिन पहले`;
+      }
+      return `${days}d ago`;
+    }
+    return date.toLocaleDateString(language === 'hi' ? 'hi-IN' : 'en-US', { month: 'short', day: 'numeric' });
   };
 
   return (
@@ -692,7 +705,7 @@ export default function AIAssistantPage() {
               <button onClick={handleNewChat}
                 className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg bg-gradient-to-br from-saffron-500 to-amber-600 text-white text-xs font-medium shadow-md shadow-saffron-500/20 hover:shadow-saffron-500/30 transition-all active:scale-[0.98]"
               >
-                <Plus size={14} /> New Chat
+                <Plus size={14} /> {t('ai.new_chat', 'New Chat')}
               </button>
             </div>
 
@@ -705,7 +718,7 @@ export default function AIAssistantPage() {
               ) : sessions.length === 0 ? (
                 <div className="text-center py-8 px-4">
                   <MessageSquare className="w-8 h-8 text-dark-300 dark:text-dark-600 mx-auto mb-2" />
-                  <p className="text-xs text-dark-400 dark:text-dark-500">No chats yet</p>
+                  <p className="text-xs text-dark-400 dark:text-dark-500">{t('ai.no_chats', 'No chats yet')}</p>
                 </div>
               ) : (
                 sessions.map(s => (
@@ -722,7 +735,7 @@ export default function AIAssistantPage() {
                       <div className="flex-1 min-w-0">
                         <p className={`text-xs font-medium truncate mb-0.5 ${activeSessionId === s.id ? 'text-saffron-600 dark:text-saffron-400' : 'text-dark-700 dark:text-dark-300'
                           }`}>{s.title}</p>
-                        <p className="text-[10px] text-dark-400 dark:text-dark-500 truncate">{s.last_message || 'Empty chat'}</p>
+                        <p className="text-[10px] text-dark-400 dark:text-dark-500 truncate">{s.last_message || t('ai.empty_chat', 'Empty chat')}</p>
                         <p className="text-[9px] text-dark-300 dark:text-dark-600 mt-1">{formatSessionDate(s.updated_at)}</p>
                       </div>
                       <button
@@ -765,7 +778,7 @@ export default function AIAssistantPage() {
               <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setMobileHistoryOpen(false)} />
               <div className="absolute left-0 top-0 bottom-0 w-[300px] bg-white dark:bg-dark-900 border-r border-dark-100 dark:border-white/[0.04] flex flex-col animate-slide-in-right z-10">
                 <div className="p-3 border-b border-dark-100 dark:border-white/[0.04] flex items-center justify-between">
-                  <h3 className="text-sm font-medium text-dark-900 dark:text-white">Chat History</h3>
+                  <h3 className="text-sm font-medium text-dark-900 dark:text-white">{t('ai.chat_history', 'Chat History')}</h3>
                   <button onClick={() => setMobileHistoryOpen(false)} className="p-1.5 rounded-lg hover:bg-dark-100 dark:hover:bg-dark-800">
                     <X size={16} className="text-dark-400" />
                   </button>
@@ -774,7 +787,7 @@ export default function AIAssistantPage() {
                   <button onClick={handleNewChat}
                     className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg bg-gradient-to-br from-saffron-500 to-amber-600 text-white text-xs font-medium shadow-md shadow-saffron-500/20 active:scale-[0.98] transition-all"
                   >
-                    <Plus size={14} /> New Chat
+                    <Plus size={14} /> {t('ai.new_chat', 'New Chat')}
                   </button>
                 </div>
                 <div className="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-0.5">
@@ -783,7 +796,7 @@ export default function AIAssistantPage() {
                       className={`w-full text-left p-3 rounded-lg transition-all group ${activeSessionId === s.id ? 'bg-saffron-500/10 border border-saffron-500/20' : 'hover:bg-dark-50 dark:hover:bg-dark-800/40 border border-transparent'
                         }`}>
                       <p className={`text-xs font-medium truncate mb-0.5 ${activeSessionId === s.id ? 'text-saffron-600' : 'text-dark-700 dark:text-dark-300'}`}>{s.title}</p>
-                      <p className="text-[10px] text-dark-400 truncate">{s.last_message || 'Empty chat'}</p>
+                      <p className="text-[10px] text-dark-400 truncate">{s.last_message || t('ai.empty_chat', 'Empty chat')}</p>
                     </button>
                   ))}
                 </div>
@@ -807,9 +820,9 @@ export default function AIAssistantPage() {
                   <Bot size={13} className="text-white" />
                 </div>
                 <div>
-                  <p className="text-xs font-medium text-dark-900 dark:text-white leading-tight">AI Assistant</p>
+                  <p className="text-xs font-medium text-dark-900 dark:text-white leading-tight">{t('sidebar.aiAssistant', 'AI Assistant')}</p>
                   <p className="text-[9px] text-dark-400 dark:text-dark-500">
-                    {isLoading ? 'Typing...' : 'Online • OpenAI'}
+                    {isLoading ? t('label.typing', 'Typing...') : t('label.online_openai', 'Online • OpenAI')}
                   </p>
                 </div>
               </div>
@@ -818,7 +831,7 @@ export default function AIAssistantPage() {
                   <button onClick={handleNewChat}
                     className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg hover:bg-dark-100 dark:hover:bg-dark-800 text-dark-400 hover:text-dark-600 dark:hover:text-dark-200 text-[11px] font-medium transition-all"
                   >
-                    <Plus size={13} /> New
+                    <Plus size={13} /> {t('label.new_chat', 'New')}
                   </button>
                 )}
               </div>
@@ -860,7 +873,7 @@ export default function AIAssistantPage() {
                                   onClick={() => { setEditingMsgId(null); setEditText(''); }}
                                   className="text-[12px] text-dark-400 dark:text-dark-500 hover:text-dark-600 dark:hover:text-dark-300 transition-colors px-2 py-1"
                                 >
-                                  Cancel
+                                  {t('action.cancel', 'Cancel')}
                                 </button>
                                 <button
                                   onClick={() => {
@@ -874,7 +887,7 @@ export default function AIAssistantPage() {
                                   disabled={!editText.trim() || isLoading}
                                   className="text-[12px] font-medium px-3 py-1.5 rounded-lg bg-gradient-to-br from-saffron-500 to-amber-600 text-white shadow-sm hover:scale-105 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
-                                  Save &amp; Resend
+                                  {t('label.save_resend', 'Save & Resend')}
                                 </button>
                               </div>
                             </div>
@@ -901,10 +914,10 @@ export default function AIAssistantPage() {
                                   <button
                                     onClick={() => { setEditingMsgId(msg.id); setEditText(msg.content); }}
                                     className="flex items-center gap-1 p-1 rounded-md text-dark-400 dark:text-dark-500 hover:text-dark-600 dark:hover:text-dark-300 transition-colors"
-                                    title="Edit message"
+                                    title={t('action.edit', 'Edit message')}
                                   >
                                     <Pencil size={11} />
-                                    <span style={{ fontSize: '11px' }}>Edit</span>
+                                    <span style={{ fontSize: '11px' }}>{t('action.edit', 'Edit')}</span>
                                   </button>
                                 </div>
                               )}
@@ -938,7 +951,7 @@ export default function AIAssistantPage() {
                         <span className="text-xs text-red-400">{error}</span>
                         <button onClick={() => { setError(null); if (messages.length) sendMessage(messages.filter(m => m.role === 'user').pop()?.content); }}
                           className="text-[10px] text-red-400 hover:text-red-300 underline underline-offset-2 whitespace-nowrap"
-                        >Retry</button>
+                        >{t('label.retry', 'Retry')}</button>
                       </div>
                     </div>
                   )}
@@ -968,7 +981,7 @@ export default function AIAssistantPage() {
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
                     onKeyDown={handleKeyDown}
-                    placeholder="Message AI Assistant..."
+                    placeholder={t('label.message_ai_placeholder', 'Message AI Assistant...')}
                     rows={1}
                     className="flex-1 bg-transparent resize-none outline-none text-[13.5px] text-dark-900 dark:text-dark-100 placeholder-dark-400 dark:placeholder-dark-500 max-h-[140px] custom-scrollbar leading-relaxed py-0.5"
                     id="ai-chat-input"
@@ -989,7 +1002,7 @@ export default function AIAssistantPage() {
                 </div>
                 <p className="text-[10px] text-dark-300 dark:text-dark-600 mt-2 flex items-center justify-center gap-1.5">
                   <Sparkles size={9} className="text-saffron-400/60" />
-                  AI responses may not always be accurate. Verify important info.
+                  {t('label.ai_disclaimer', 'AI responses may not always be accurate. Verify important info.')}
                 </p>
               </div>
             </div>

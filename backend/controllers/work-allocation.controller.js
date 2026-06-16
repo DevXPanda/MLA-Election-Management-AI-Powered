@@ -63,7 +63,12 @@ const getAllocations = async (req, res) => {
 
     // Role-based scoping
     // Role-based filtering logic: Only Admins see everything. Others see assigned/created work.
-    if (req.userRole !== 'super_admin' && req.userRole !== 'mla') {
+    if (req.userRole === 'mla' && req.scope?.constituency_id) {
+      // MLA sees all allocations in their constituency's events
+      paramCount++;
+      query += ` AND e.constituency_id = $${paramCount}`;
+      params.push(req.scope.constituency_id);
+    } else if (req.userRole !== 'super_admin' && req.userRole !== 'mla') {
       paramCount++;
       query += ` AND (
         wa.id IN (SELECT work_allocation_id FROM work_allocation_users WHERE user_id = $${paramCount})
@@ -128,7 +133,15 @@ const updateStatus = async (req, res) => {
   const { status, not_completed_reason } = req.body;
 
   try {
-    if (req.userRole !== 'super_admin' && req.userRole !== 'mla') {
+    if (req.userRole === 'mla' && req.scope?.constituency_id) {
+      const waCheck = await pool.query(
+        'SELECT wa.id FROM work_allocations wa JOIN events e ON wa.event_id = e.id WHERE wa.id = $1 AND wa.organization_id = $2 AND e.constituency_id = $3',
+        [id, req.tenant, req.scope.constituency_id]
+      );
+      if (!waCheck.rows.length) {
+        return res.status(403).json(formatResponse(false, 'Access denied. Work allocation outside constituency.'));
+      }
+    } else if (req.userRole !== 'super_admin') {
       const assignmentCheck = await pool.query(
         'SELECT 1 FROM work_allocation_users WHERE work_allocation_id = $1 AND user_id = $2',
         [id, req.user.id]
@@ -207,6 +220,22 @@ const uploadProof = async (req, res) => {
   if (!items.length) return res.status(400).json(formatResponse(false, 'Proof image(s) required.'));
 
   try {
+    if (req.userRole === 'mla' && req.scope?.constituency_id) {
+      const waCheck = await pool.query(
+        'SELECT wa.id FROM work_allocations wa JOIN events e ON wa.event_id = e.id WHERE wa.id = $1 AND wa.organization_id = $2 AND e.constituency_id = $3',
+        [id, req.tenant, req.scope.constituency_id]
+      );
+      if (!waCheck.rows.length) {
+        return res.status(403).json(formatResponse(false, 'Access denied. Work allocation outside constituency.'));
+      }
+    } else if (req.userRole !== 'super_admin') {
+      const assignmentCheck = await pool.query(
+        'SELECT 1 FROM work_allocation_users WHERE work_allocation_id = $1 AND user_id = $2',
+        [id, req.user.id]
+      );
+      if (!assignmentCheck.rows.length) return res.status(403).json(formatResponse(false, 'Not assigned to this task.'));
+    }
+
     const waCheck = await pool.query(
       'SELECT id, event_id, before_image_url, after_image_url FROM work_allocations WHERE id = $1 AND organization_id = $2',
       [id, req.tenant]
@@ -268,12 +297,20 @@ const uploadProof = async (req, res) => {
 // Get stats for dashboard
 const getWorkStats = async (req, res) => {
   try {
-    const totalQuery = 'SELECT COUNT(*) FROM work_allocations WHERE organization_id = $1';
+    // Build constituency scope
+    let constJoin = '';
+    let constFilter = '';
+    if (req.userRole === 'mla' && req.scope?.constituency_id) {
+      constJoin = ' JOIN events e_scope ON wa.event_id = e_scope.id';
+      constFilter = ` AND e_scope.constituency_id = ${parseInt(req.scope.constituency_id)}`;
+    }
+
+    const totalQuery = `SELECT COUNT(*) FROM work_allocations wa${constJoin} WHERE wa.organization_id = $1${constFilter}`;
     const statusQuery = `
-      SELECT status, COUNT(*) 
-      FROM work_allocations 
-      WHERE organization_id = $1 
-      GROUP BY status
+      SELECT wa.status, COUNT(*) 
+      FROM work_allocations wa${constJoin}
+      WHERE wa.organization_id = $1${constFilter}
+      GROUP BY wa.status
     `;
     const eventProgressQuery = `
       SELECT e.title, 
@@ -281,7 +318,7 @@ const getWorkStats = async (req, res) => {
              COUNT(*) FILTER (WHERE wa.status = 'completed') as completed_tasks
       FROM work_allocations wa
       JOIN events e ON wa.event_id = e.id
-      WHERE wa.organization_id = $1
+      WHERE wa.organization_id = $1${req.userRole === 'mla' && req.scope?.constituency_id ? ` AND e.constituency_id = ${parseInt(req.scope.constituency_id)}` : ''}
       GROUP BY e.id, e.title
     `;
     const userPerformanceQuery = `
@@ -291,7 +328,7 @@ const getWorkStats = async (req, res) => {
       FROM users u
       JOIN work_allocation_users wau ON u.id = wau.user_id
       JOIN work_allocations wa ON wau.work_allocation_id = wa.id
-      WHERE u.organization_id = $1
+      WHERE u.organization_id = $1${req.userRole === 'mla' && req.scope?.constituency_id ? ` AND u.constituency_id = ${parseInt(req.scope.constituency_id)}` : ''}
       GROUP BY u.id, u.name
       ORDER BY completed DESC
       LIMIT 10
@@ -324,6 +361,15 @@ const createAllocation = async (req, res) => {
     if (!event_id || !work_type) return res.status(400).json(formatResponse(false, 'Event ID and Work Type are required.'));
 
     await client.query('BEGIN');
+
+    if (req.userRole === 'mla' && req.scope?.constituency_id) {
+      const eventCheck = await client.query('SELECT constituency_id FROM events WHERE id = $1 AND organization_id = $2', [event_id, req.tenant]);
+      if (!eventCheck.rows.length || eventCheck.rows[0].constituency_id !== req.scope.constituency_id) {
+        await client.query('ROLLBACK');
+        return res.status(403).json(formatResponse(false, 'Access denied. Event outside constituency.'));
+      }
+    }
+
     const result = await client.query(
       `INSERT INTO work_allocations (event_id, work_type, description, due_date, organization_id, created_by)
        VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
@@ -363,6 +409,18 @@ const updateAllocation = async (req, res) => {
     const { status, description, due_date, assigned_user_ids } = req.body;
     const { id } = req.params;
     await client.query('BEGIN');
+
+    if (req.userRole === 'mla' && req.scope?.constituency_id) {
+      const waCheck = await client.query(
+        'SELECT wa.id FROM work_allocations wa JOIN events e ON wa.event_id = e.id WHERE wa.id = $1 AND wa.organization_id = $2 AND e.constituency_id = $3',
+        [id, req.tenant, req.scope.constituency_id]
+      );
+      if (!waCheck.rows.length) {
+        await client.query('ROLLBACK');
+        return res.status(403).json(formatResponse(false, 'Access denied. Work allocation outside constituency.'));
+      }
+    }
+
     const result = await client.query(
       `UPDATE work_allocations SET status = COALESCE($1, status), description = COALESCE($2, description), due_date = COALESCE($3, due_date), updated_at = CURRENT_TIMESTAMP
        WHERE id = $4 AND organization_id = $5 RETURNING *`,
@@ -388,6 +446,17 @@ const updateAllocation = async (req, res) => {
 const deleteAllocation = async (req, res) => {
   try {
     const { id } = req.params;
+
+    if (req.userRole === 'mla' && req.scope?.constituency_id) {
+      const waCheck = await pool.query(
+        'SELECT wa.id FROM work_allocations wa JOIN events e ON wa.event_id = e.id WHERE wa.id = $1 AND wa.organization_id = $2 AND e.constituency_id = $3',
+        [id, req.tenant, req.scope.constituency_id]
+      );
+      if (!waCheck.rows.length) {
+        return res.status(403).json(formatResponse(false, 'Access denied. Work allocation outside constituency.'));
+      }
+    }
+
     const result = await pool.query('DELETE FROM work_allocations WHERE id = $1 AND organization_id = $2 RETURNING id', [id, req.tenant]);
     if (!result.rows.length) return res.status(404).json(formatResponse(false, 'Work allocation not found.'));
     res.json(formatResponse(true, 'Work allocation deleted.'));

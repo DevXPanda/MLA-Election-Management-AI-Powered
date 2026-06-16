@@ -184,7 +184,59 @@ const seedDatabase = async () => {
     }
     console.log('✅ Voters seeded (15 voters)');
 
+    // Step 8.5: Survey Questions
+    const questions = [
+      {
+        question_text: 'What is the primary civic issue in your neighborhood?',
+        answer_type: 'single_choice',
+        options: JSON.stringify(['Water Supply', 'Road Conditions', 'Electricity', 'Healthcare', 'Security', 'Other']),
+        order_index: 1
+      },
+      {
+        question_text: 'Are you satisfied with the responsiveness of the current MLA office?',
+        answer_type: 'yes_no',
+        options: JSON.stringify(['Yes', 'No', 'Undecided']),
+        order_index: 2
+      },
+      {
+        question_text: 'How would you rate the overall development in your ward?',
+        answer_type: 'rating',
+        options: null,
+        order_index: 3
+      }
+    ];
+
+    const seededQuestionIds = [];
+    for (const q of questions) {
+      const qRes = await pool.query(
+        `INSERT INTO survey_questions (question_text, answer_type, options, order_index, organization_id)
+         VALUES ($1, $2, $3, $4, $5)
+         ON CONFLICT DO NOTHING RETURNING id`,
+        [q.question_text, q.answer_type, q.options, q.order_index, orgId]
+      );
+      if (qRes.rows.length > 0) {
+        seededQuestionIds.push(qRes.rows[0].id);
+      } else {
+        const exist = await pool.query('SELECT id FROM survey_questions WHERE question_text = $1 AND organization_id = $2', [q.question_text, orgId]);
+        seededQuestionIds.push(exist.rows[0].id);
+      }
+    }
+    console.log('✅ Survey questions seeded');
+
     // Step 9: Surveys (with organization_id)
+    const dummyAnswers = [
+      ['Water Supply', 'Yes', '4'],
+      ['Road Conditions', 'No', '2'],
+      ['Electricity', 'Yes', '5'],
+      ['Healthcare', 'No', '1'],
+      ['Security', 'Undecided', '3'],
+      ['Other', 'Yes', '4'],
+      ['Water Supply', 'No', '2'],
+      ['Road Conditions', 'Yes', '3'],
+      ['Electricity', 'Yes', '5'],
+      ['Healthcare', 'No', '2']
+    ];
+
     for (let i = 0; i < 10; i++) {
       const surveyRes = await pool.query(
         `INSERT INTO surveys (voter_id, booth_id, ward_id, area_id, surveyor_id, support_status, satisfaction_level, remarks, organization_id)
@@ -193,15 +245,27 @@ const seedDatabase = async () => {
          userIds[5 + (i % 3)], statuses[i % statuses.length], (i % 5) + 1,
          'Sample survey remarks for voter ' + voterNames[i], orgId]
       );
+      const surveyId = surveyRes.rows[0].id;
+
       const numIssues = 2 + (i % 2);
       for (let j = 0; j < numIssues; j++) {
         await pool.query(
           'INSERT INTO survey_responses (survey_id, issue_id, severity) VALUES ($1, $2, $3)',
-          [surveyRes.rows[0].id, issueIds[(i + j) % issueIds.length], (j % 5) + 1]
+          [surveyId, issueIds[(i + j) % issueIds.length], (j % 5) + 1]
+        );
+      }
+
+      // Seed answers for custom questions
+      for (let qIdx = 0; qIdx < seededQuestionIds.length; qIdx++) {
+        await pool.query(
+          `INSERT INTO survey_answers (survey_id, question_id, answer_text)
+           VALUES ($1, $2, $3)
+           ON CONFLICT (survey_id, question_id) DO NOTHING`,
+          [surveyId, seededQuestionIds[qIdx], dummyAnswers[i][qIdx]]
         );
       }
     }
-    console.log('✅ Surveys seeded (10 surveys with responses)');
+    console.log('✅ Surveys seeded (10 surveys with responses & answers)');
 
     // Step 10: Tasks (with organization_id)
     const taskTypes = ['door_to_door', 'survey_collection', 'event_participation', 'voter_outreach', 'report_submission'];

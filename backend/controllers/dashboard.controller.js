@@ -131,16 +131,17 @@ exports.getDashboardStats = async (req, res) => {
         GROUP BY status
       `, params);
 
+      const scopeU = buildScopeFilter(req, 'u');
       const topPerformers = await pool.query(`
         SELECT u.name, COUNT(s.id) as surveys_count, 
                (SELECT COUNT(*) FROM tasks t WHERE t.assigned_to = u.id AND t.status = 'completed') as tasks_completed
         FROM users u
         JOIN surveys s ON u.id = s.surveyor_id
-        WHERE 1=1${clause.replace('organization_id', 'u.organization_id')}
+        WHERE 1=1${scopeU.clause}
         GROUP BY u.id, u.name
         ORDER BY surveys_count DESC
         LIMIT 5
-      `, params);
+      `, scopeU.params);
 
       const surveyTrend = await pool.query(`
         WITH days AS (

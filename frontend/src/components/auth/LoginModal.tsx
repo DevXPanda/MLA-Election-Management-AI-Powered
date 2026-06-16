@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
+import { useLanguage } from '@/context/LanguageContext';
 import { Shield, Eye, EyeOff, Loader2 } from 'lucide-react';
 import Modal from '../Modal';
 
@@ -12,6 +13,7 @@ interface LoginModalProps {
 
 export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
   const { login } = useAuth();
+  const { t } = useLanguage();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -26,7 +28,7 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
       await login(email, password);
       onClose();
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Login failed. Please try again.');
+      setError(err.response?.data?.message ? t(err.response.data.message, err.response.data.message) : t('login.failed', 'Login failed. Please try again.'));
     } finally {
       setLoading(false);
     }
@@ -36,8 +38,8 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Election Command Login"
-      subtitle="Authorized access only for Election Management System"
+      title={t('login.title', 'Election Command Login')}
+      subtitle={t('login.subtitle', 'Authorized access only for Election Management System')}
       maxWidth="max-w-[440px]"
     >
       <div className="py-4">
@@ -52,7 +54,7 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
             <label className="block text-xs font-semibold text-dark-400 dark:text-dark-500 uppercase tracking-wider mb-2">
-              Email Address
+              {t('label.email', 'Email Address')}
             </label>
             <input
               type="email"
@@ -66,7 +68,7 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
 
           <div>
             <label className="block text-xs font-semibold text-dark-400 dark:text-dark-500 uppercase tracking-wider mb-2">
-              Password
+              {t('label.password', 'Password')}
             </label>
             <div className="relative">
               <input
@@ -93,12 +95,12 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
             className="btn-primary w-full h-12 text-base mt-2"
           >
             {loading ? (
-              <>
+              <div className="flex items-center justify-center gap-2">
                 <Loader2 className="w-5 h-5 animate-spin" />
-                Signing in...
-              </>
+                <span>{t('login.authenticating', 'Signing in...')}</span>
+              </div>
             ) : (
-              'Sign In'
+              t('action.sign_in', 'Sign In')
             )}
           </button>
         </form>
