@@ -215,6 +215,7 @@ const createTables = async () => {
       actual_attendance INTEGER DEFAULT 0,
       status VARCHAR(20) DEFAULT 'upcoming',
       media_urls JSONB DEFAULT '[]',
+      feedback JSONB,
       created_by INTEGER REFERENCES users(id),
       organization_id INTEGER REFERENCES organizations(id) DEFAULT 1,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -249,7 +250,7 @@ const createTables = async () => {
       event_id INTEGER REFERENCES events(id) ON DELETE CASCADE,
       work_type VARCHAR(100) NOT NULL,
       description TEXT,
-      status VARCHAR(20) DEFAULT 'pending',
+      status VARCHAR(20) DEFAULT 'assigned',
       not_completed_reason TEXT,
       due_date TIMESTAMP,
       started_at TIMESTAMP,
@@ -478,6 +479,16 @@ const createTables = async () => {
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='party_members' AND column_name='help_preference') THEN
             ALTER TABLE party_members ADD COLUMN help_preference TEXT;
         END IF;
+
+        -- Event Feedback column to Events
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='events' AND column_name='feedback') THEN
+            ALTER TABLE events ADD COLUMN feedback JSONB;
+        END IF;
+
+        -- Redesign Work Allocation status mapping
+        ALTER TABLE work_allocations ALTER COLUMN status SET DEFAULT 'assigned';
+        UPDATE work_allocations SET status = 'assigned' WHERE status = 'pending';
+        UPDATE work_allocations SET status = 'in_progress' WHERE status = 'processing';
     END $$;
 
     -- AI Chat Sessions

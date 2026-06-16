@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import Header from '@/components/Header';
-import { dashboardAPI, surveysAPI, votersAPI } from '@/lib/api';
+import { dashboardAPI, surveysAPI, votersAPI, eventsAPI, workAllocationAPI } from '@/lib/api';
+import { WorkAllocation } from '@/types';
 import { BarChart3, TrendingUp, Users, Vote, Activity, Target, PieChart } from 'lucide-react';
 import {
   Chart as ChartJS, CategoryScale, LinearScale, BarElement,
@@ -19,20 +20,26 @@ export default function ReportsPage() {
   const [dashStats, setDashStats] = useState<any>(null);
   const [surveyStats, setSurveyStats] = useState<any>(null);
   const [voterStats, setVoterStats] = useState<any>(null);
+  const [completedEvents, setCompletedEvents] = useState<any[]>([]);
+  const [allocations, setAllocations] = useState<WorkAllocation[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => { loadAll(); }, []);
 
   const loadAll = async () => {
     try {
-      const [dash, survey, voter] = await Promise.allSettled([
+      const [dash, survey, voter, evts, allocs] = await Promise.allSettled([
         dashboardAPI.getStats(),
         surveysAPI.getStats(),
         votersAPI.getStats(),
+        eventsAPI.getAll({ status: 'completed', limit: 100 }),
+        workAllocationAPI.getAll({ limit: 1000 }),
       ]);
       if (dash.status === 'fulfilled') setDashStats(dash.value.data.data);
       if (survey.status === 'fulfilled') setSurveyStats(survey.value.data.data);
       if (voter.status === 'fulfilled') setVoterStats(voter.value.data.data);
+      if (evts.status === 'fulfilled') setCompletedEvents(evts.value.data.data);
+      if (allocs.status === 'fulfilled') setAllocations(allocs.value.data.data);
     } catch {} finally { setLoading(false); }
   };
 
@@ -327,6 +334,151 @@ export default function ReportsPage() {
                   </div>
                 );
               })}
+            </div>
+          </div>
+        )}
+
+        {/* Event Performance & Outcomes Feedback Section */}
+        {completedEvents && completedEvents.length > 0 && (
+          <div className="glass-card p-8 mb-8 border border-dark-100/50 dark:border-white/5 shadow-2xl relative overflow-hidden">
+            <div className="mb-8 flex items-center justify-between">
+              <div>
+                <h3 className="text-xl font-bold text-dark-900 dark:text-white flex items-center gap-3 text-shadow-sm">
+                  <Target className="w-6 h-6 text-saffron-500" /> Event Performance & Outcomes Feedback
+                </h3>
+                <p className="text-xs text-dark-500 font-medium uppercase tracking-[3px] mt-2 opacity-80">Completed Event Summaries & Feedback</p>
+              </div>
+            </div>
+
+            <div className="space-y-6 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
+              {completedEvents.map((evt) => {
+                const fb = evt.feedback
+                  ? (typeof evt.feedback === 'string'
+                      ? JSON.parse(evt.feedback)
+                      : evt.feedback)
+                  : null;
+                return (
+                  <div key={evt.id} className="p-5 rounded-2xl bg-dark-50/50 dark:bg-white/[0.02] border border-dark-100 dark:border-white/5 shadow-sm space-y-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-dark-100/50 dark:border-white/5 pb-3 gap-2">
+                      <div>
+                        <h4 className="text-sm font-bold text-dark-900 dark:text-dark-100 uppercase tracking-tight">{evt.title}</h4>
+                        <p className="text-[10px] text-dark-500 font-medium uppercase tracking-wider mt-0.5">
+                          {evt.location} · {evt.event_date ? new Date(evt.event_date).toLocaleDateString('en', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-bold text-dark-500 uppercase tracking-wider">
+                          Attendance: <span className="text-emerald-500 font-black">{evt.actual_attendance || 0}</span> / {evt.expected_attendance || 0}
+                        </span>
+                        <span className="px-2 py-0.5 rounded text-[9px] font-black tracking-widest uppercase bg-emerald-500/10 text-emerald-500">
+                          {evt.expected_attendance > 0 ? `${Math.round(((evt.actual_attendance || 0) / evt.expected_attendance) * 100)}% SUCCESS` : 'COMPLETED'}
+                        </span>
+                      </div>
+                    </div>
+
+                    {fb ? (
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-xs">
+                        <div className="bg-white/40 dark:bg-white/[0.01] p-3 rounded-xl border border-dark-100/30 dark:border-white/5">
+                          <p className="font-bold text-dark-500 uppercase tracking-widest text-[9px] mb-1">Outcome</p>
+                          <p className="text-dark-850 dark:text-dark-300 font-medium line-clamp-3">{fb.outcome}</p>
+                        </div>
+                        <div className="bg-white/40 dark:bg-white/[0.01] p-3 rounded-xl border border-dark-100/30 dark:border-white/5">
+                          <p className="font-bold text-dark-500 uppercase tracking-widest text-[9px] mb-1">Achievements</p>
+                          <p className="text-dark-850 dark:text-dark-300 font-medium line-clamp-3">{fb.achievements}</p>
+                        </div>
+                        <div className="bg-white/40 dark:bg-white/[0.01] p-3 rounded-xl border border-dark-100/30 dark:border-white/5">
+                          <p className="font-bold text-dark-500 uppercase tracking-widest text-[9px] mb-1">Public Response</p>
+                          <p className="text-dark-850 dark:text-dark-300 font-medium line-clamp-3">{fb.public_response}</p>
+                        </div>
+                        <div className="bg-white/40 dark:bg-white/[0.01] p-3 rounded-xl border border-dark-100/30 dark:border-white/5">
+                          <p className="font-bold text-dark-500 uppercase tracking-widest text-[9px] mb-1">Follow-up Plan</p>
+                          <p className="text-dark-850 dark:text-dark-300 font-medium line-clamp-3">{fb.follow_up}</p>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-dark-500 text-xs italic">No feedback details available.</p>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Work Allocations Tracking & Status */}
+        {allocations && allocations.length > 0 && (
+          <div className="glass-card p-8 mb-8 border border-dark-100/50 dark:border-white/5 shadow-2xl relative overflow-hidden">
+            <div className="mb-6 flex items-center justify-between">
+              <div>
+                <h3 className="text-xl font-bold text-dark-900 dark:text-white flex items-center gap-3">
+                  <Activity className="w-6 h-6 text-saffron-500" /> Work Allocations Tracking & Status
+                </h3>
+                <p className="text-xs text-dark-500 font-medium uppercase tracking-[3px] mt-2 opacity-80">
+                  Full status log of field tasks and member responsibilities
+                </p>
+              </div>
+            </div>
+
+            <div className="table-responsive">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Event / Task</th>
+                    <th>Work Type</th>
+                    <th>Assigned Member</th>
+                    <th>Due Date</th>
+                    <th>Status</th>
+                    <th>Completion Details</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {allocations.map((alloc) => (
+                    <tr key={alloc.id}>
+                      <td>
+                        <div className="font-bold text-dark-900 dark:text-dark-100 uppercase tracking-tight">{alloc.event_title}</div>
+                        {alloc.description && <div className="text-[11px] text-dark-550 italic mt-0.5 line-clamp-1">{alloc.description}</div>}
+                      </td>
+                      <td>
+                        <span className="badge badge-neutral text-[10px] font-bold uppercase tracking-widest">{alloc.work_type}</span>
+                      </td>
+                      <td>
+                        {alloc.assigned_users && alloc.assigned_users.length > 0 ? (
+                          <div className="flex items-center gap-2">
+                            <div className="w-6 h-6 rounded-full bg-saffron-500 text-dark-950 flex items-center justify-center text-[9px] font-black">{alloc.assigned_users[0].name.charAt(0)}</div>
+                            <span className="font-medium text-dark-800 dark:text-dark-200">{alloc.assigned_users[0].name}</span>
+                          </div>
+                        ) : (
+                          <span className="text-dark-500 italic">Unassigned</span>
+                        )}
+                      </td>
+                      <td className="text-dark-600 dark:text-dark-400 text-xs font-bold uppercase tracking-tighter">
+                        {alloc.due_date ? new Date(alloc.due_date).toLocaleString() : '—'}
+                      </td>
+                      <td>
+                        <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider border ${
+                          alloc.status === 'completed' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' :
+                          alloc.status === 'in_progress' ? 'bg-blue-500/10 text-blue-500 border-blue-500/20' :
+                          alloc.status === 'overdue' ? 'bg-red-500/20 text-red-500 border-red-500/30 font-bold animate-pulse' :
+                          alloc.status === 'assigned' ? 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20' :
+                          alloc.status === 'cancelled' ? 'bg-red-500/10 text-red-500 border-red-500/20' :
+                          'bg-dark-500/10 text-dark-500 border-dark-500/20'
+                        }`}>
+                          {t(`label.${alloc.status}`, alloc.status)}
+                        </span>
+                      </td>
+                      <td className="text-xs text-dark-600 dark:text-dark-400">
+                        {alloc.status === 'completed' && alloc.completed_at ? (
+                          <span>Completed on {new Date(alloc.completed_at).toLocaleDateString()}</span>
+                        ) : alloc.status === 'not_completed' && alloc.not_completed_reason ? (
+                          <span className="text-orange-500">Reason: {alloc.not_completed_reason}</span>
+                        ) : (
+                          <span className="text-dark-500">—</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
         )}

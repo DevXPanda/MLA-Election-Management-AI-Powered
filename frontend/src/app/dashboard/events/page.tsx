@@ -6,12 +6,18 @@ import { showToast } from '@/lib/toast';
 import Header from '@/components/Header';
 import { eventsAPI } from '@/lib/api';
 import { AppEvent, WorkAllocation } from '@/types';
-import { Plus, Edit3, Trash2, X, Loader2, Calendar, MapPin, Users, Clock, Eye } from 'lucide-react';
+import { Plus, Edit3, Trash2, X, Loader2, Calendar, MapPin, Users, Clock, Eye, BarChart3 as BarIcon, Target, Activity } from 'lucide-react';
 import Modal from '@/components/Modal';
 import { format } from 'date-fns';
 import DetailsModal from '@/components/DetailsModal';
 import { MODULE_HEADER, EVENTS_UI, EVENT_TYPE_OPTIONS, eventTypeLabel, eventStatusLabel } from '@/lib/ui-labels';
 import { useLanguage } from '@/context/LanguageContext';
+import { Bar } from 'react-chartjs-2';
+import {
+  Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend
+} from 'chart.js';
+
+ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
 export default function EventsPage() {
   const { t } = useLanguage();
@@ -40,13 +46,25 @@ export default function EventsPage() {
   const [executionLoading, setExecutionLoading] = useState(false);
   const [statusFilter, setStatusFilter] = useState('');
   const [meta, setMeta] = useState({ total: 0, page: 1, totalPages: 1 });
+  const [activeTab, setActiveTab] = useState<'schedule' | 'history'>('schedule');
 
   const [form, setForm] = useState({
     title: '', type: 'rally', description: '', event_date: '',
-    location: '', expected_attendance: '', status: 'upcoming',
+    location: '', expected_attendance: '', actual_attendance: '', status: 'upcoming',
   });
 
-  useEffect(() => { loadEvents(); }, [statusFilter]);
+  const [feedbackForm, setFeedbackForm] = useState({
+    outcome: '',
+    key_observations: '',
+    public_response: '',
+    challenges: '',
+    achievements: '',
+    attendance_summary: '',
+    follow_up: '',
+    remarks: ''
+  });
+
+  useEffect(() => { loadEvents(); }, [statusFilter, activeTab]);
 
   useEffect(() => {
     if (!selectedEvent) {
@@ -74,7 +92,7 @@ export default function EventsPage() {
   const loadEvents = async (page = 1) => {
     setLoading(true);
     try {
-      const params: Record<string, string | number> = { page, limit: 20 };
+      const params: Record<string, string | number> = { page, limit: 50 };
       if (statusFilter) params.status = statusFilter;
       const res = await eventsAPI.getAll(params);
       setEvents(res.data.data);
@@ -85,7 +103,17 @@ export default function EventsPage() {
 
   const openCreate = () => {
     setEditingEvent(null);
-    setForm({ title: '', type: 'rally', description: '', event_date: '', location: '', expected_attendance: '', status: 'upcoming' });
+    setForm({ title: '', type: 'rally', description: '', event_date: '', location: '', expected_attendance: '', actual_attendance: '', status: 'upcoming' });
+    setFeedbackForm({
+      outcome: '',
+      key_observations: '',
+      public_response: '',
+      challenges: '',
+      achievements: '',
+      attendance_summary: '',
+      follow_up: '',
+      remarks: ''
+    });
     setShowModal(true);
   };
 
@@ -94,7 +122,20 @@ export default function EventsPage() {
     setForm({
       title: evt.title, type: evt.type, description: evt.description || '',
       event_date: evt.event_date ? evt.event_date.slice(0, 16) : '', location: evt.location || '',
-      expected_attendance: evt.expected_attendance ? String(evt.expected_attendance) : '', status: evt.status,
+      expected_attendance: evt.expected_attendance ? String(evt.expected_attendance) : '',
+      actual_attendance: evt.actual_attendance ? String(evt.actual_attendance) : '',
+      status: evt.status,
+    });
+    const fb = (evt.feedback ? (typeof evt.feedback === 'string' ? JSON.parse(evt.feedback) : evt.feedback) : {}) || {};
+    setFeedbackForm({
+      outcome: fb.outcome || '',
+      key_observations: fb.key_observations || '',
+      public_response: fb.public_response || '',
+      challenges: fb.challenges || '',
+      achievements: fb.achievements || '',
+      attendance_summary: fb.attendance_summary || '',
+      follow_up: fb.follow_up || '',
+      remarks: fb.remarks || ''
     });
     setShowModal(true);
   };
@@ -102,7 +143,30 @@ export default function EventsPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const data = { ...form, expected_attendance: form.expected_attendance ? parseInt(form.expected_attendance) : 0 };
+      const data: any = {
+        ...form,
+        expected_attendance: form.expected_attendance ? parseInt(form.expected_attendance) : 0,
+        actual_attendance: form.actual_attendance ? parseInt(form.actual_attendance) : 0
+      };
+      if (form.status === 'completed') {
+        const requiredFields = {
+          outcome: 'Event Outcome',
+          key_observations: 'Key Observations',
+          public_response: 'Public Response',
+          challenges: 'Challenges Faced',
+          achievements: 'Achievements',
+          attendance_summary: 'Attendance Summary',
+          follow_up: 'Follow-up Actions',
+          remarks: 'Additional Remarks'
+        };
+        for (const [key, label] of Object.entries(requiredFields)) {
+          if (!feedbackForm[key as keyof typeof feedbackForm].trim()) {
+            toast.error(`Event Feedback field "${label}" is required.`);
+            return;
+          }
+        }
+        data.feedback = feedbackForm;
+      }
       if (editingEvent) { await eventsAPI.update(editingEvent.id, data); }
       else { await eventsAPI.create(data); }
       setShowModal(false);
@@ -133,36 +197,167 @@ export default function EventsPage() {
     switch(s) { case 'upcoming': return 'badge-info'; case 'in_progress': return 'badge-warning'; case 'completed': return 'badge-success'; case 'cancelled': return 'badge-danger'; default: return 'badge-neutral'; }
   };
 
+  const displayedEvents = events.filter(evt => {
+    if (statusFilter) return true;
+    if (activeTab === 'schedule') {
+      return evt.status === 'upcoming' || evt.status === 'in_progress';
+    } else {
+      return evt.status === 'completed' || evt.status === 'cancelled';
+    }
+  });
+
   return (
     <>
       <Header title={MODULE_HEADER.events.title} subtitle={MODULE_HEADER.events.subtitle} />
       <div className="p-8">
+        
+        {/* Tab Switcher */}
+        <div className="flex border-b border-dark-100 dark:border-white/5 mb-6">
+          <button
+            onClick={() => { setActiveTab('schedule'); setStatusFilter(''); }}
+            className={`px-6 py-3 text-sm font-semibold transition-all border-b-2 -mb-[2px] ${
+              activeTab === 'schedule'
+                ? 'border-saffron-500 text-saffron-500 font-bold'
+                : 'border-transparent text-dark-500 hover:text-dark-700 dark:hover:text-dark-300'
+            }`}
+          >
+            Active Schedule
+          </button>
+          <button
+            onClick={() => { setActiveTab('history'); setStatusFilter(''); }}
+            className={`px-6 py-3 text-sm font-semibold transition-all border-b-2 -mb-[2px] ${
+              activeTab === 'history'
+                ? 'border-saffron-500 text-saffron-500 font-bold'
+                : 'border-transparent text-dark-500 hover:text-dark-700 dark:hover:text-dark-300'
+            }`}
+          >
+            Event History & Analytics
+          </button>
+        </div>
+
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-bold">{EVENTS_UI.listHeading} <span className="text-dark-500 font-normal text-base">({meta.total})</span></h2>
-          <button onClick={openCreate} className="btn-primary"><Plus className="w-4 h-4" /> {t('action.create', 'Create Event')}</button>
+          <h2 className="text-xl font-bold">
+            {activeTab === 'schedule' ? 'Event Schedule' : 'Event History & Performance'}
+            <span className="text-dark-500 font-normal text-base"> ({displayedEvents.length})</span>
+          </h2>
+          {activeTab === 'schedule' && (
+            <button onClick={openCreate} className="btn-primary">
+              <Plus className="w-4 h-4" /> {t('action.create', 'Create Event')}
+            </button>
+          )}
         </div>
 
         {/* Filters */}
         <div className="flex gap-3 mb-6">
-          {['', 'upcoming', 'in_progress', 'completed'].map(s => (
-            <button key={s} onClick={() => setStatusFilter(s)}
-              className={`filter-tab ${statusFilter === s ? 'filter-tab-active' : 'filter-tab-inactive'}`}>
-              {s ? eventStatusLabel(s) : t('label.all', 'All')}
-            </button>
-          ))}
+          {activeTab === 'schedule' ? (
+            ['', 'upcoming', 'in_progress'].map(s => (
+              <button key={s} onClick={() => setStatusFilter(s)}
+                className={`filter-tab ${statusFilter === s ? 'filter-tab-active' : 'filter-tab-inactive'}`}>
+                {s ? eventStatusLabel(s) : 'All Active'}
+              </button>
+            ))
+          ) : (
+            ['', 'completed', 'cancelled'].map(s => (
+              <button key={s} onClick={() => setStatusFilter(s)}
+                className={`filter-tab ${statusFilter === s ? 'filter-tab-active' : 'filter-tab-inactive'}`}>
+                {s ? eventStatusLabel(s) : 'All Historical'}
+              </button>
+            ))
+          )}
         </div>
+
+        {/* Analytics Section inside Tab 2 */}
+        {activeTab === 'history' && !loading && (
+          <div className="space-y-6 mb-8">
+            {/* Summary Row */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="glass-card p-4 flex flex-col justify-center">
+                <span className="text-[10px] font-black text-dark-500 uppercase tracking-wider">Completed Events</span>
+                <span className="text-xl font-black text-dark-900 dark:text-white mt-1">
+                  {events.filter(e => e.status === 'completed').length}
+                </span>
+              </div>
+              <div className="glass-card p-4 flex flex-col justify-center">
+                <span className="text-[10px] font-black text-dark-500 uppercase tracking-wider">Total Expected Attendance</span>
+                <span className="text-xl font-black text-dark-900 dark:text-white mt-1">
+                  {events.filter(e => e.status === 'completed').reduce((sum, e) => sum + (e.expected_attendance || 0), 0)}
+                </span>
+              </div>
+              <div className="glass-card p-4 flex flex-col justify-center">
+                <span className="text-[10px] font-black text-dark-500 uppercase tracking-wider">Total Actual Attendance</span>
+                <span className="text-xl font-black text-dark-900 dark:text-white mt-1">
+                  {events.filter(e => e.status === 'completed').reduce((sum, e) => sum + (e.actual_attendance || 0), 0)}
+                </span>
+              </div>
+              <div className="glass-card p-4 flex flex-col justify-center">
+                <span className="text-[10px] font-black text-dark-500 uppercase tracking-wider">Attendance Success Rate</span>
+                <span className="text-xl font-black text-emerald-500 mt-1">
+                  {(() => {
+                    const completed = events.filter(e => e.status === 'completed');
+                    const exp = completed.reduce((sum, e) => sum + (e.expected_attendance || 0), 0);
+                    const act = completed.reduce((sum, e) => sum + (e.actual_attendance || 0), 0);
+                    return exp > 0 ? `${Math.round((act / exp) * 100)}%` : '—';
+                  })()}
+                </span>
+              </div>
+            </div>
+
+            {/* Attendance success chart */}
+            {events.filter(e => e.status === 'completed').length > 0 && (
+              <div className="glass-card p-6">
+                <h3 className="text-sm font-bold text-dark-900 dark:text-white mb-4 flex items-center gap-2">
+                  <BarIcon className="w-4 h-4 text-saffron-500" /> Attendance Comparison Report (Last 5 Events)
+                </h3>
+                <div className="h-[220px]">
+                  <Bar
+                    options={{
+                      responsive: true,
+                      maintainAspectRatio: false,
+                      plugins: {
+                        legend: { position: 'top' as const, labels: { color: '#94a3b8', font: { size: 10 } } }
+                      },
+                      scales: {
+                        x: { ticks: { color: '#94a3b8', font: { size: 10 } }, grid: { display: false } },
+                        y: { ticks: { color: '#94a3b8', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.05)' } }
+                      }
+                    }}
+                    data={{
+                      labels: events.filter(e => e.status === 'completed').slice(0, 5).reverse().map(e => e.title),
+                      datasets: [
+                        {
+                          label: 'Expected',
+                          data: events.filter(e => e.status === 'completed').slice(0, 5).reverse().map(e => e.expected_attendance),
+                          backgroundColor: 'rgba(99, 102, 241, 0.4)',
+                          borderColor: 'rgb(99, 102, 241)',
+                          borderWidth: 1,
+                        },
+                        {
+                          label: 'Actual',
+                          data: events.filter(e => e.status === 'completed').slice(0, 5).reverse().map(e => e.actual_attendance),
+                          backgroundColor: 'rgba(249, 115, 22, 0.8)',
+                          borderColor: 'rgb(249, 115, 22)',
+                          borderWidth: 1,
+                        }
+                      ]
+                    }}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Event Cards */}
         {loading ? (
           <div className="flex justify-center py-16"><Loader2 className="w-8 h-8 animate-spin text-saffron-400" /></div>
-        ) : events.length === 0 ? (
+        ) : displayedEvents.length === 0 ? (
           <div className="text-center py-16 glass-card">
             <Calendar className="w-12 h-12 text-dark-700 mx-auto mb-4" />
             <h3 className="text-lg font-semibold text-dark-300">{t('event.no_events', 'No events found')}</h3>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
-            {events.map(evt => (
+            {displayedEvents.map(evt => (
               <div key={evt.id} className="glass-card-hover overflow-hidden group">
                 {/* Date strip */}
                 <div className="bg-gradient-to-r from-saffron-600 to-saffron-500 px-5 py-3 flex items-center justify-between">
@@ -260,6 +455,58 @@ export default function EventsPage() {
               </div>
             )}
           </div>
+
+          {form.status === 'completed' && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <label className="block text-xs font-black text-dark-400 uppercase tracking-widest px-1">Actual Attendance *</label>
+                <input type="number" value={form.actual_attendance} onChange={e => setForm({...form, actual_attendance: e.target.value})} className="form-input" placeholder="0" required />
+              </div>
+            </div>
+          )}
+
+          {form.status === 'completed' && (
+            <div className="border-t border-dark-100 dark:border-white/5 pt-6 space-y-6">
+              <div className="flex items-center gap-2">
+                <Target className="w-5 h-5 text-saffron-500" />
+                <h4 className="text-sm font-bold text-saffron-600 dark:text-saffron-400 uppercase tracking-wider">Event Completion Feedback (Mandatory)</h4>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <label className="block text-xs font-black text-dark-400 uppercase tracking-widest px-1">Event Outcome *</label>
+                  <textarea value={feedbackForm.outcome} onChange={e => setFeedbackForm({...feedbackForm, outcome: e.target.value})} className="form-input h-20 resize-none" placeholder="Summary of what was achieved..." required />
+                </div>
+                <div className="space-y-2">
+                  <label className="block text-xs font-black text-dark-400 uppercase tracking-widest px-1">Key Observations *</label>
+                  <textarea value={feedbackForm.key_observations} onChange={e => setFeedbackForm({...feedbackForm, key_observations: e.target.value})} className="form-input h-20 resize-none" placeholder="Important takeaways or voter remarks..." required />
+                </div>
+                <div className="space-y-2">
+                  <label className="block text-xs font-black text-dark-400 uppercase tracking-widest px-1">Public Response *</label>
+                  <textarea value={feedbackForm.public_response} onChange={e => setFeedbackForm({...feedbackForm, public_response: e.target.value})} className="form-input h-20 resize-none" placeholder="Sentiment of the audience..." required />
+                </div>
+                <div className="space-y-2">
+                  <label className="block text-xs font-black text-dark-400 uppercase tracking-widest px-1">Challenges Faced *</label>
+                  <textarea value={feedbackForm.challenges} onChange={e => setFeedbackForm({...feedbackForm, challenges: e.target.value})} className="form-input h-20 resize-none" placeholder="Any issues, delays, or logistical blocks..." required />
+                </div>
+                <div className="space-y-2">
+                  <label className="block text-xs font-black text-dark-400 uppercase tracking-widest px-1">Achievements *</label>
+                  <textarea value={feedbackForm.achievements} onChange={e => setFeedbackForm({...feedbackForm, achievements: e.target.value})} className="form-input h-20 resize-none" placeholder="Highlights and successes..." required />
+                </div>
+                <div className="space-y-2">
+                  <label className="block text-xs font-black text-dark-400 uppercase tracking-widest px-1">Attendance Summary *</label>
+                  <textarea value={feedbackForm.attendance_summary} onChange={e => setFeedbackForm({...feedbackForm, attendance_summary: e.target.value})} className="form-input h-20 resize-none" placeholder="Crowd composition and mobilization details..." required />
+                </div>
+                <div className="space-y-2">
+                  <label className="block text-xs font-black text-dark-400 uppercase tracking-widest px-1">Follow-up Actions *</label>
+                  <textarea value={feedbackForm.follow_up} onChange={e => setFeedbackForm({...feedbackForm, follow_up: e.target.value})} className="form-input h-20 resize-none" placeholder="Actions to take post-event..." required />
+                </div>
+                <div className="space-y-2">
+                  <label className="block text-xs font-black text-dark-400 uppercase tracking-widest px-1">Additional Remarks *</label>
+                  <textarea value={feedbackForm.remarks} onChange={e => setFeedbackForm({...feedbackForm, remarks: e.target.value})} className="form-input h-20 resize-none" placeholder="Any other notes..." required />
+                </div>
+              </div>
+            </div>
+          )}
         </form>
       </Modal>
 
@@ -284,6 +531,57 @@ export default function EventsPage() {
         ]}
         extra={
           <>
+            {(() => {
+              const fb = selectedEvent?.feedback
+                ? (typeof selectedEvent.feedback === 'string'
+                    ? JSON.parse(selectedEvent.feedback)
+                    : selectedEvent.feedback)
+                : null;
+              if (selectedEvent?.status !== 'completed' || !fb) return null;
+              return (
+                <div className="rounded-lg border border-saffron-500/30 bg-gradient-to-br from-saffron-500/5 to-transparent p-4 space-y-4">
+                  <div className="flex items-center gap-2 border-b border-saffron-500/20 pb-2">
+                    <Target className="w-5 h-5 text-saffron-500" />
+                    <h4 className="text-sm font-bold text-saffron-600 dark:text-saffron-400 uppercase tracking-wider">Event Performance & Feedback</h4>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                    <div className="bg-dark-50/50 dark:bg-white/[0.01] p-3 rounded-lg border border-dark-100/50 dark:border-white/5">
+                      <p className="font-bold text-dark-500 uppercase tracking-widest text-[9px] mb-1">Event Outcome</p>
+                      <p className="text-dark-800 dark:text-dark-200 font-medium">{fb.outcome}</p>
+                    </div>
+                    <div className="bg-dark-50/50 dark:bg-white/[0.01] p-3 rounded-lg border border-dark-100/50 dark:border-white/5">
+                      <p className="font-bold text-dark-500 uppercase tracking-widest text-[9px] mb-1">Achievements</p>
+                      <p className="text-dark-800 dark:text-dark-200 font-medium">{fb.achievements}</p>
+                    </div>
+                    <div className="bg-dark-50/50 dark:bg-white/[0.01] p-3 rounded-lg border border-dark-100/50 dark:border-white/5">
+                      <p className="font-bold text-dark-500 uppercase tracking-widest text-[9px] mb-1">Public Response</p>
+                      <p className="text-dark-800 dark:text-dark-200 font-medium">{fb.public_response}</p>
+                    </div>
+                    <div className="bg-dark-50/50 dark:bg-white/[0.01] p-3 rounded-lg border border-dark-100/50 dark:border-white/5">
+                      <p className="font-bold text-dark-500 uppercase tracking-widest text-[9px] mb-1">Attendance Summary</p>
+                      <p className="text-dark-800 dark:text-dark-200 font-medium">{fb.attendance_summary}</p>
+                    </div>
+                    <div className="bg-dark-50/50 dark:bg-white/[0.01] p-3 rounded-lg border border-dark-100/50 dark:border-white/5">
+                      <p className="font-bold text-dark-500 uppercase tracking-widest text-[9px] mb-1">Key Observations</p>
+                      <p className="text-dark-800 dark:text-dark-200 font-medium">{fb.key_observations}</p>
+                    </div>
+                    <div className="bg-dark-50/50 dark:bg-white/[0.01] p-3 rounded-lg border border-dark-100/50 dark:border-white/5">
+                      <p className="font-bold text-dark-500 uppercase tracking-widest text-[9px] mb-1">Challenges Faced</p>
+                      <p className="text-dark-800 dark:text-dark-200 font-medium">{fb.challenges}</p>
+                    </div>
+                    <div className="bg-dark-50/50 dark:bg-white/[0.01] p-3 rounded-lg border border-dark-100/50 dark:border-white/5">
+                      <p className="font-bold text-dark-500 uppercase tracking-widest text-[9px] mb-1">Follow-up Actions</p>
+                      <p className="text-dark-800 dark:text-dark-200 font-medium">{fb.follow_up}</p>
+                    </div>
+                    <div className="bg-dark-50/50 dark:bg-white/[0.01] p-3 rounded-lg border border-dark-100/50 dark:border-white/5">
+                      <p className="font-bold text-dark-500 uppercase tracking-widest text-[9px] mb-1">Additional Remarks</p>
+                      <p className="text-dark-800 dark:text-dark-200 font-medium">{fb.remarks}</p>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+
             {executionLoading && (
               <div className="flex justify-center py-4">
                 <Loader2 className="w-6 h-6 animate-spin text-saffron-400" />
@@ -298,6 +596,41 @@ export default function EventsPage() {
                     {t('label.completed_work', 'Completed work')}: {executionLog.summary.completed_allocations}
                   </p>
                 </div>
+
+                <div className="rounded-lg border border-dark-100 dark:border-white/10 bg-dark-50/40 dark:bg-white/[0.02] p-4">
+                  <p className="text-[10px] uppercase tracking-widest text-dark-500 mb-3 font-black">{t('event.work_allocations', 'Work Allocations & Tracking')}</p>
+                  {executionLog.work_allocations.length === 0 ? (
+                    <p className="text-xs text-dark-500 italic">{t('event.no_allocations', 'No work allocations created for this event yet.')}</p>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[250px] overflow-y-auto custom-scrollbar">
+                      {executionLog.work_allocations.map((alloc) => (
+                        <div key={alloc.id} className="p-3 rounded-xl border border-dark-100 dark:border-white/5 bg-white dark:bg-dark-950/40 flex flex-col justify-between text-xs">
+                          <div>
+                            <div className="flex justify-between items-start mb-1.5">
+                              <span className="text-[9px] font-black text-saffron-600 dark:text-saffron-500 uppercase tracking-wider">{alloc.work_type}</span>
+                              <span className={`px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider border ${
+                                alloc.status === 'completed' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' :
+                                alloc.status === 'in_progress' ? 'bg-blue-500/10 text-blue-500 border-blue-500/20' :
+                                alloc.status === 'overdue' ? 'bg-red-500/20 text-red-500 border-red-500/30 font-bold animate-pulse' :
+                                alloc.status === 'assigned' ? 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20' :
+                                alloc.status === 'cancelled' ? 'bg-red-500/10 text-red-500 border-red-500/20' :
+                                'bg-dark-500/10 text-dark-500 border-dark-500/20'
+                              }`}>
+                                {t(`label.${alloc.status}`, alloc.status)}
+                              </span>
+                            </div>
+                            {alloc.description && <p className="text-dark-700 dark:text-dark-400 italic mb-2 line-clamp-2">&quot;{alloc.description}&quot;</p>}
+                          </div>
+                          <div className="mt-2 pt-2 border-t border-dark-100 dark:border-white/5 flex items-center justify-between text-[10px] text-dark-600 dark:text-dark-500">
+                            <span>Assignee: <strong className="text-dark-900 dark:text-dark-200">{alloc.assigned_users?.[0]?.name || 'Unassigned'}</strong></span>
+                            <span>Due: {alloc.due_date ? new Date(alloc.due_date).toLocaleDateString() : '—'}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
                 {executionLog.participants.length > 0 && (
                   <div className="rounded-lg border border-dark-100 dark:border-white/10 bg-dark-50/40 dark:bg-white/[0.02] p-3">
                     <p className="text-[10px] uppercase tracking-widest text-dark-500 mb-2">{t('event.assigned_members', 'Assigned members')}</p>

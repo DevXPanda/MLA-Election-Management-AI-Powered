@@ -73,10 +73,45 @@ const createEvent = async (req, res) => {
 // Update event
 const updateEvent = async (req, res) => {
   try {
-    let { title, type, description, event_date, location, constituency_id, ward_id, expected_attendance, actual_attendance, status } = req.body;
+    let { title, type, description, event_date, location, constituency_id, ward_id, expected_attendance, actual_attendance, status, feedback } = req.body;
+
+    if (status === 'completed') {
+      if (!feedback) {
+        return res.status(400).json(formatResponse(false, 'Feedback is required when marking an event as Completed.'));
+      }
+      const requiredFields = {
+        outcome: 'Event Outcome',
+        key_observations: 'Key Observations',
+        public_response: 'Public Response',
+        challenges: 'Challenges Faced',
+        achievements: 'Achievements',
+        attendance_summary: 'Attendance Summary',
+        follow_up: 'Follow-up Actions',
+        remarks: 'Additional Remarks'
+      };
+      for (const [key, label] of Object.entries(requiredFields)) {
+        if (!feedback[key] || typeof feedback[key] !== 'string' || !feedback[key].trim()) {
+          return res.status(400).json(formatResponse(false, `Feedback field "${label}" is required.`));
+        }
+      }
+    }
 
     let scopeClause = '';
-    const scopeParams = [title, type, description, event_date, location, constituency_id || null, ward_id || null, expected_attendance, actual_attendance, status, req.params.id, req.tenant];
+    const scopeParams = [
+      title, 
+      type, 
+      description, 
+      event_date, 
+      location, 
+      constituency_id || null, 
+      ward_id || null, 
+      expected_attendance, 
+      actual_attendance, 
+      status, 
+      feedback ? (typeof feedback === 'string' ? feedback : JSON.stringify(feedback)) : null,
+      req.params.id, 
+      req.tenant
+    ];
     
     if (req.userRole === 'mla' && req.scope?.constituency_id) {
       constituency_id = req.scope.constituency_id;
@@ -86,7 +121,7 @@ const updateEvent = async (req, res) => {
           return res.status(400).json(formatResponse(false, 'Ward does not belong to your constituency.'));
         }
       }
-      scopeClause = ' AND constituency_id = $13';
+      scopeClause = ' AND constituency_id = $14';
       scopeParams[5] = constituency_id;
       scopeParams.push(req.scope.constituency_id);
     }
@@ -97,8 +132,9 @@ const updateEvent = async (req, res) => {
        location = COALESCE($5, location), constituency_id = $6, ward_id = $7,
        expected_attendance = COALESCE($8, expected_attendance),
        actual_attendance = COALESCE($9, actual_attendance),
-       status = COALESCE($10, status), updated_at = CURRENT_TIMESTAMP
-       WHERE id = $11 AND organization_id = $12${scopeClause} RETURNING *`,
+       status = COALESCE($10, status), feedback = COALESCE($11, feedback),
+       updated_at = CURRENT_TIMESTAMP
+       WHERE id = $12 AND organization_id = $13${scopeClause} RETURNING *`,
       scopeParams
     );
 

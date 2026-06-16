@@ -4,8 +4,8 @@ import { useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
 import { showToast } from '@/lib/toast';
 import Header from '@/components/Header';
-import { teamsAPI, usersAPI } from '@/lib/api';
-import { TeamMember, User } from '@/types';
+import { teamsAPI, usersAPI, workAllocationAPI } from '@/lib/api';
+import { TeamMember, User, WorkAllocation } from '@/types';
 import { Plus, Trash2, X, Loader2, Users, UserPlus, ShieldAlert, Award, Grid, Eye } from 'lucide-react';
 import Modal from '@/components/Modal';
 import StatsSummary from '@/components/dashboard/StatsSummary';
@@ -22,8 +22,28 @@ export default function TeamsPage() {
   const [selectedMember, setSelectedMember] = useState<TeamMember | null>(null);
   const [stats, setStats] = useState<any>(null);
   const [form, setForm] = useState({ user_id: '', designation: '', team_leader_id: '' });
+  const [memberAllocations, setMemberAllocations] = useState<WorkAllocation[]>([]);
+  const [loadingAllocations, setLoadingAllocations] = useState(false);
 
   useEffect(() => { loadMembers(); loadUsers(); loadStats(); }, []);
+
+  useEffect(() => {
+    if (selectedMember) {
+      setLoadingAllocations(true);
+      workAllocationAPI.getAll({ user_id: selectedMember.user_id })
+        .then(res => {
+          setMemberAllocations(res.data.data);
+        })
+        .catch(err => {
+          console.error('Failed to load member allocations:', err);
+        })
+        .finally(() => {
+          setLoadingAllocations(false);
+        });
+    } else {
+      setMemberAllocations([]);
+    }
+  }, [selectedMember]);
 
   const loadMembers = async () => {
     setLoading(true);
@@ -199,6 +219,47 @@ export default function TeamsPage() {
           { label: t('label.status', 'Status'), value: selectedMember?.status ? t('label.' + selectedMember.status, selectedMember.status) : '—' },
           { label: t('teams.joined_at', 'Joined At'), value: selectedMember?.joined_at ? new Date(selectedMember.joined_at).toLocaleString(language === 'hi' ? 'hi-IN' : 'en-US') : '—' },
         ]}
+        extra={
+          <div className="rounded-lg border border-dark-100 dark:border-white/10 bg-dark-50/40 dark:bg-white/[0.02] p-4">
+            <p className="text-[10px] uppercase tracking-widest text-dark-500 mb-3 font-black">
+              {t('users.assigned_tasks', 'Assigned Work Allocations')}
+            </p>
+            {loadingAllocations ? (
+              <div className="flex justify-center py-4">
+                <div className="w-5 h-5 border-2 border-dark-750 border-t-saffron-500 rounded-full animate-spin" />
+              </div>
+            ) : memberAllocations.length === 0 ? (
+              <p className="text-xs text-dark-500 italic py-2">
+                {t('users.no_tasks', 'No work allocations assigned to this user.')}
+              </p>
+            ) : (
+              <div className="space-y-2 max-h-[250px] overflow-y-auto custom-scrollbar">
+                {memberAllocations.map(alloc => (
+                  <div key={alloc.id} className="flex justify-between items-center p-2.5 rounded-lg border border-dark-100 dark:border-white/5 bg-white dark:bg-dark-950/40 text-xs">
+                    <div>
+                      <div className="font-bold text-dark-900 dark:text-dark-100 uppercase tracking-tight">
+                        {alloc.event_title}
+                      </div>
+                      <div className="text-[10px] text-dark-600 dark:text-dark-400 mt-0.5">
+                        {alloc.work_type} • Due: {alloc.due_date ? new Date(alloc.due_date).toLocaleDateString() : '—'}
+                      </div>
+                    </div>
+                    <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider border ${
+                      alloc.status === 'completed' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' :
+                      alloc.status === 'in_progress' ? 'bg-blue-500/10 text-blue-500 border-blue-500/20' :
+                      alloc.status === 'overdue' ? 'bg-red-500/20 text-red-500 border-red-500/30' :
+                      alloc.status === 'assigned' ? 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20' :
+                      alloc.status === 'cancelled' ? 'bg-red-500/10 text-red-500 border-red-500/20' :
+                      'bg-dark-500/10 text-dark-500 border-dark-500/20'
+                    }`}>
+                      {t(`label.${alloc.status}`, alloc.status)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        }
       />
     </>
   );

@@ -4,8 +4,8 @@ import { useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
 import { showToast } from '@/lib/toast';
 import Header from '@/components/Header';
-import { usersAPI, constituencyAPI, partyMembersAPI } from '@/lib/api';
-import { User, Role } from '@/types';
+import { usersAPI, constituencyAPI, partyMembersAPI, workAllocationAPI } from '@/lib/api';
+import { User, Role, WorkAllocation } from '@/types';
 import { Plus, Search, Edit3, Trash2, X, Loader2, UserPlus, Filter, Eye } from 'lucide-react';
 import Modal from '@/components/Modal';
 import DetailsModal from '@/components/DetailsModal';
@@ -24,6 +24,8 @@ export default function UsersPage() {
   const [roleFilter, setRoleFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [meta, setMeta] = useState({ total: 0, page: 1, totalPages: 1 });
+  const [userAllocations, setUserAllocations] = useState<WorkAllocation[]>([]);
+  const [loadingAllocations, setLoadingAllocations] = useState(false);
 
   // Form state
   // Form state
@@ -91,6 +93,24 @@ export default function UsersPage() {
     loadUsers();
     loadRoles();
   }, [search, roleFilter, statusFilter]);
+
+  useEffect(() => {
+    if (selectedUser) {
+      setLoadingAllocations(true);
+      workAllocationAPI.getAll({ user_id: selectedUser.id })
+        .then(res => {
+          setUserAllocations(res.data.data);
+        })
+        .catch(err => {
+          console.error('Failed to load user allocations:', err);
+        })
+        .finally(() => {
+          setLoadingAllocations(false);
+        });
+    } else {
+      setUserAllocations([]);
+    }
+  }, [selectedUser]);
 
   const loadRoles = async () => {
     try {
@@ -604,6 +624,47 @@ export default function UsersPage() {
           { label: t('users.last_login', 'Last Login'), value: selectedUser?.last_login ? new Date(selectedUser.last_login).toLocaleString(language === 'hi' ? 'hi-IN' : 'en-US') : t('label.never', 'Never') },
           { label: t('label.date', 'Created At'), value: selectedUser?.created_at ? new Date(selectedUser.created_at).toLocaleString(language === 'hi' ? 'hi-IN' : 'en-US') : '—' },
         ]}
+        extra={
+          <div className="rounded-lg border border-dark-100 dark:border-white/10 bg-dark-50/40 dark:bg-white/[0.02] p-4">
+            <p className="text-[10px] uppercase tracking-widest text-dark-500 mb-3 font-black">
+              {t('users.assigned_tasks', 'Assigned Work Allocations')}
+            </p>
+            {loadingAllocations ? (
+              <div className="flex justify-center py-4">
+                <div className="w-5 h-5 border-2 border-dark-750 border-t-saffron-500 rounded-full animate-spin" />
+              </div>
+            ) : userAllocations.length === 0 ? (
+              <p className="text-xs text-dark-500 italic py-2">
+                {t('users.no_tasks', 'No work allocations assigned to this user.')}
+              </p>
+            ) : (
+              <div className="space-y-2 max-h-[250px] overflow-y-auto custom-scrollbar">
+                {userAllocations.map(alloc => (
+                  <div key={alloc.id} className="flex justify-between items-center p-2.5 rounded-lg border border-dark-100 dark:border-white/5 bg-white dark:bg-dark-950/40 text-xs">
+                    <div>
+                      <div className="font-bold text-dark-900 dark:text-dark-100 uppercase tracking-tight">
+                        {alloc.event_title}
+                      </div>
+                      <div className="text-[10px] text-dark-600 dark:text-dark-400 mt-0.5">
+                        {alloc.work_type} • Due: {alloc.due_date ? new Date(alloc.due_date).toLocaleDateString() : '—'}
+                      </div>
+                    </div>
+                    <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider border ${
+                      alloc.status === 'completed' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' :
+                      alloc.status === 'in_progress' ? 'bg-blue-500/10 text-blue-500 border-blue-500/20' :
+                      alloc.status === 'overdue' ? 'bg-red-500/20 text-red-500 border-red-500/30' :
+                      alloc.status === 'assigned' ? 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20' :
+                      alloc.status === 'cancelled' ? 'bg-red-500/10 text-red-500 border-red-500/20' :
+                      'bg-dark-500/10 text-dark-500 border-dark-500/20'
+                    }`}>
+                      {t(`label.${alloc.status}`, alloc.status)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        }
       />
     </>
   );

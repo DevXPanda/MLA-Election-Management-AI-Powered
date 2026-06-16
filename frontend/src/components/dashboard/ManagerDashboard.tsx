@@ -108,6 +108,42 @@ export default function ManagerDashboard({ stats, chartDefaults }: DashboardProp
            </div>
         </div>
       </div>
+
+      {/* Recent Work Allocations Widget */}
+      {stats.lists.work_allocations && stats.lists.work_allocations.length > 0 && (
+        <div className="glass-card p-6 border border-dark-100/50 dark:border-white/5 shadow-xl mt-6">
+          <h3 className="text-base font-medium text-dark-900 dark:text-white mb-6 flex items-center gap-2">
+            <ListTodo className="w-5 h-5 text-saffron-500" /> {t('dashboard.work_allocations_progress', 'Work Allocations & Progress')}
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+            {stats.lists.work_allocations.map((alloc: any) => (
+              <div key={alloc.id} className="p-4 rounded-xl border border-dark-100 dark:border-white/5 bg-white dark:bg-dark-950/40 flex flex-col justify-between text-xs transition-transform hover:scale-[1.02] duration-300">
+                <div>
+                  <div className="flex justify-between items-start mb-2">
+                    <span className="text-[9px] font-black text-saffron-600 dark:text-saffron-500 uppercase tracking-wider">{alloc.work_type}</span>
+                    <span className={`px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider border ${
+                      alloc.status === 'completed' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' :
+                      alloc.status === 'in_progress' ? 'bg-blue-500/10 text-blue-500 border-blue-500/20' :
+                      alloc.status === 'overdue' ? 'bg-red-500/20 text-red-500 border-red-500/30 font-bold animate-pulse' :
+                      alloc.status === 'assigned' ? 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20' :
+                      alloc.status === 'cancelled' ? 'bg-red-500/10 text-red-500 border-red-500/20' :
+                      'bg-dark-500/10 text-dark-500 border-dark-500/20'
+                    }`}>
+                      {t(`label.${alloc.status}`, alloc.status)}
+                    </span>
+                  </div>
+                  <h4 className="font-bold text-dark-900 dark:text-white uppercase tracking-tight mb-1 truncate">{alloc.event_title}</h4>
+                  {alloc.description && <p className="text-dark-600 dark:text-dark-400 italic line-clamp-2 mt-1">&quot;{alloc.description}&quot;</p>}
+                </div>
+                <div className="mt-4 pt-2 border-t border-dark-100 dark:border-white/5 flex items-center justify-between text-[10px] text-dark-500">
+                  <span>Assignee: <strong className="text-dark-800 dark:text-dark-200">{alloc.assignee_name || 'Unassigned'}</strong></span>
+                  <span>Due: {alloc.due_date ? new Date(alloc.due_date).toLocaleDateString() : '—'}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

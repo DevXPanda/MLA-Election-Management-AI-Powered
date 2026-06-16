@@ -169,6 +169,22 @@ exports.getDashboardStats = async (req, res) => {
       charts.gender_breakdown = genderBreakdown.rows;
       charts.task_status = taskStatus.rows;
       lists.top_performers = topPerformers.rows;
+
+      const workAllocationsList = await pool.query(`
+        SELECT wa.id, wa.work_type, wa.description, wa.due_date,
+               (CASE
+                 WHEN wa.status NOT IN ('completed', 'cancelled') AND wa.due_date < CURRENT_TIMESTAMP THEN 'overdue'
+                 ELSE wa.status
+                END) as status,
+               e.title as event_title,
+               (SELECT u.name FROM work_allocation_users wau JOIN users u ON wau.user_id = u.id WHERE wau.work_allocation_id = wa.id LIMIT 1) as assignee_name
+        FROM work_allocations wa
+        JOIN events e ON wa.event_id = e.id
+        WHERE wa.organization_id = $1
+        ORDER BY wa.created_at DESC
+        LIMIT 5
+      `, [orgId]);
+      lists.work_allocations = workAllocationsList.rows;
     }
 
     // 4. SUPER ADMIN (System Logs)

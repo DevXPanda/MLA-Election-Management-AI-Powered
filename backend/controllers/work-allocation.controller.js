@@ -20,10 +20,18 @@ const WORK_TYPES = [
 // Get all work allocations
 const getAllocations = async (req, res) => {
   try {
-    const { event_id, status, work_type, page = 1, limit = 20 } = req.query;
+    const { event_id, status, work_type, user_id, page = 1, limit = 20 } = req.query;
 
     let query = `
-      SELECT wa.*, e.title as event_title, e.event_date, e.location as event_location,
+      SELECT wa.id, wa.event_id, wa.work_type, wa.description, wa.not_completed_reason,
+             wa.due_date, wa.started_at, wa.completed_at, wa.before_image_url, wa.after_image_url,
+             wa.geo_location_before, wa.geo_location_after, wa.organization_id, wa.created_by,
+             wa.created_at, wa.updated_at,
+             (CASE
+               WHEN wa.status NOT IN ('completed', 'cancelled') AND wa.due_date < CURRENT_TIMESTAMP THEN 'overdue'
+               ELSE wa.status
+              END) as status,
+             e.title as event_title, e.event_date, e.location as event_location,
              creator.name as created_by_name,
              (SELECT json_agg(json_build_object('id', u.id, 'name', u.name))
               FROM work_allocation_users wau
@@ -51,14 +59,27 @@ const getAllocations = async (req, res) => {
       params.push(event_id);
     }
     if (status) {
-      paramCount++;
-      query += ` AND wa.status = $${paramCount}`;
-      params.push(status);
+      if (status === 'overdue') {
+        query += ` AND wa.status NOT IN ('completed', 'cancelled') AND wa.due_date < CURRENT_TIMESTAMP`;
+      } else if (status === 'assigned') {
+        query += ` AND wa.status = 'assigned' AND (wa.due_date IS NULL OR wa.due_date >= CURRENT_TIMESTAMP)`;
+      } else if (status === 'in_progress') {
+        query += ` AND wa.status = 'in_progress' AND (wa.due_date IS NULL OR wa.due_date >= CURRENT_TIMESTAMP)`;
+      } else {
+        paramCount++;
+        query += ` AND wa.status = $${paramCount}`;
+        params.push(status);
+      }
     }
     if (work_type) {
       paramCount++;
       query += ` AND wa.work_type = $${paramCount}`;
       params.push(work_type);
+    }
+    if (user_id) {
+      paramCount++;
+      query += ` AND wa.id IN (SELECT work_allocation_id FROM work_allocation_users WHERE user_id = $${paramCount})`;
+      params.push(parseInt(user_id));
     }
 
     // Role-based scoping
@@ -100,7 +121,15 @@ const getAllocations = async (req, res) => {
 const getMyTasks = async (req, res) => {
   try {
     const query = `
-      SELECT wa.*, e.title as event_title, e.event_date, e.location as event_location,
+      SELECT wa.id, wa.event_id, wa.work_type, wa.description, wa.not_completed_reason,
+             wa.due_date, wa.started_at, wa.completed_at, wa.before_image_url, wa.after_image_url,
+             wa.geo_location_before, wa.geo_location_after, wa.organization_id, wa.created_by,
+             wa.created_at, wa.updated_at,
+             (CASE
+               WHEN wa.status NOT IN ('completed', 'cancelled') AND wa.due_date < CURRENT_TIMESTAMP THEN 'overdue'
+               ELSE wa.status
+              END) as status,
+             e.title as event_title, e.event_date, e.location as event_location,
              creator.name as assigned_by_name,
              (SELECT COALESCE(json_agg(json_build_object(
                 'id', p.id, 'category', p.category, 'image_url', p.image_url, 'created_at', p.created_at
@@ -160,7 +189,7 @@ const updateStatus = async (req, res) => {
     let params = [status, id, req.tenant];
     let paramExtra = 4;
 
-    if (status === 'processing') {
+    if (status === 'processing' || status === 'in_progress') {
       updates += ', started_at = COALESCE(started_at, CURRENT_TIMESTAMP)';
     } else if (status === 'completed') {
       const legacy = await pool.query('SELECT after_image_url FROM work_allocations WHERE id = $1', [id]);
@@ -307,10 +336,15 @@ const getWorkStats = async (req, res) => {
 
     const totalQuery = `SELECT COUNT(*) FROM work_allocations wa${constJoin} WHERE wa.organization_id = $1${constFilter}`;
     const statusQuery = `
-      SELECT wa.status, COUNT(*) 
+      SELECT 
+        CASE 
+          WHEN wa.status NOT IN ('completed', 'cancelled') AND wa.due_date < CURRENT_TIMESTAMP THEN 'overdue'
+          ELSE wa.status
+        END as status,
+        COUNT(*) 
       FROM work_allocations wa${constJoin}
       WHERE wa.organization_id = $1${constFilter}
-      GROUP BY wa.status
+      GROUP BY 1
     `;
     const eventProgressQuery = `
       SELECT e.title, 
@@ -357,7 +391,7 @@ const getWorkStats = async (req, res) => {
 const createAllocation = async (req, res) => {
   const client = await pool.connect();
   try {
-    const { event_id, work_type, description, due_date, assigned_user_ids } = req.body;
+    const { event_id, work_type, description, due_date, assigned_user_id, assigned_user_ids } = req.body;
     if (!event_id || !work_type) return res.status(400).json(formatResponse(false, 'Event ID and Work Type are required.'));
 
     await client.query('BEGIN');
@@ -377,10 +411,12 @@ const createAllocation = async (req, res) => {
     );
 
     const allocationId = result.rows[0].id;
-    if (assigned_user_ids && Array.isArray(assigned_user_ids)) {
-      for (const userId of assigned_user_ids) {
-        await client.query(`INSERT INTO work_allocation_users (work_allocation_id, user_id) VALUES ($1, $2)`, [allocationId, userId]);
-      }
+    let assigneeId = assigned_user_id;
+    if (!assigneeId && assigned_user_ids && Array.isArray(assigned_user_ids)) {
+      assigneeId = assigned_user_ids[0];
+    }
+    if (assigneeId) {
+      await client.query(`INSERT INTO work_allocation_users (work_allocation_id, user_id) VALUES ($1, $2)`, [allocationId, assigneeId]);
     }
 
     await client.query('COMMIT');
@@ -406,7 +442,7 @@ const createAllocation = async (req, res) => {
 const updateAllocation = async (req, res) => {
   const client = await pool.connect();
   try {
-    const { status, description, due_date, assigned_user_ids } = req.body;
+    const { status, description, due_date, assigned_user_id, assigned_user_ids } = req.body;
     const { id } = req.params;
     await client.query('BEGIN');
 
@@ -426,10 +462,14 @@ const updateAllocation = async (req, res) => {
        WHERE id = $4 AND organization_id = $5 RETURNING *`,
       [status, description, due_date, id, req.tenant]
     );
-    if (assigned_user_ids && Array.isArray(assigned_user_ids)) {
+    if (assigned_user_id !== undefined || (assigned_user_ids && Array.isArray(assigned_user_ids))) {
       await client.query('DELETE FROM work_allocation_users WHERE work_allocation_id = $1', [id]);
-      for (const userId of assigned_user_ids) {
-        await client.query(`INSERT INTO work_allocation_users (work_allocation_id, user_id) VALUES ($1, $2)`, [id, userId]);
+      let assigneeId = assigned_user_id;
+      if (!assigneeId && assigned_user_ids && Array.isArray(assigned_user_ids)) {
+        assigneeId = assigned_user_ids[0];
+      }
+      if (assigneeId) {
+        await client.query(`INSERT INTO work_allocation_users (work_allocation_id, user_id) VALUES ($1, $2)`, [id, assigneeId]);
       }
     }
     await client.query('COMMIT');

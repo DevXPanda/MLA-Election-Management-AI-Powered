@@ -49,7 +49,7 @@ export default function WorkAllocationPage() {
     description: '',
     due_date: '',
     assigned_user_ids: [] as number[],
-    status: 'pending' as any
+    status: 'assigned' as any
   });
 
   const [execForm, setExecForm] = useState({
@@ -141,7 +141,7 @@ export default function WorkAllocationPage() {
       description: '',
       due_date: '',
       assigned_user_ids: [],
-      status: 'pending'
+      status: 'assigned'
     });
     setShowModal(true);
   };
@@ -164,7 +164,7 @@ export default function WorkAllocationPage() {
     setExecForm({
       status: alloc.status,
       not_completed_reason: alloc.not_completed_reason || '',
-      proofType: alloc.status === 'pending' ? 'before' : 'after',
+      proofType: (alloc.status === 'assigned') ? 'before' : 'after',
       isUploading: false
     });
     setShowExecutionModal(true);
@@ -334,8 +334,6 @@ export default function WorkAllocationPage() {
     }
   };
 
-  // Removed handleCapture to enforce strict camera-only usage via startTacticalCamera
-
   const handleDelete = async (id: number) => {
     if (!confirm(t('wa.confirm.delete', 'Are you sure you want to delete this work allocation?'))) return;
     try {
@@ -358,11 +356,12 @@ export default function WorkAllocationPage() {
 
   const statusBadge = (s: string) => {
     switch (s) {
-      case 'pending': return 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20';
-      case 'processing': return 'bg-blue-500/10 text-blue-500 border-blue-500/20';
+      case 'assigned': return 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20';
+      case 'in_progress': return 'bg-blue-500/10 text-blue-500 border-blue-500/20';
       case 'completed': return 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20';
       case 'cancelled': return 'bg-red-500/10 text-red-500 border-red-500/20';
       case 'not_completed': return 'bg-orange-500/10 text-orange-500 border-orange-500/20';
+      case 'overdue': return 'bg-red-500/20 text-red-500 border-red-500/30 font-black animate-pulse';
       default: return 'bg-dark-500/10 text-dark-500 border-dark-500/20';
     }
   };
@@ -405,11 +404,12 @@ export default function WorkAllocationPage() {
               className="form-input !pl-10 h-11 bg-white dark:bg-dark-900 border-dark-200 dark:border-white/10"
             >
               <option value="">{WA.filterStatusAll}</option>
-              <option value="pending">{t('label.pending', 'Pending')}</option>
-              <option value="processing">{t('label.processing', 'In Progress')}</option>
-              <option value="completed">{t('label.completed', 'Completed')}</option>
-              <option value="not_completed">{t('label.not_completed_status', 'Not Completed')}</option>
-              <option value="cancelled">{t('label.cancelled', 'Cancelled')}</option>
+              <option value="assigned">Assigned</option>
+              <option value="in_progress">In Progress</option>
+              <option value="completed">Completed</option>
+              <option value="overdue">Overdue</option>
+              <option value="not_completed">Not Completed</option>
+              <option value="cancelled">Cancelled</option>
             </select>
           </div>
 
@@ -484,14 +484,18 @@ export default function WorkAllocationPage() {
                   </div>
 
                   <div className="mt-6 pt-6 border-t border-dark-100 dark:border-white/5">
-                    <p className="text-[10px] font-black text-dark-400 uppercase tracking-widest mb-3">{WA.assignedTeamLabel}</p>
+                    <p className="text-[10px] font-black text-dark-400 uppercase tracking-widest mb-3">Assigned Member</p>
                     <div className="flex flex-wrap gap-2">
-                      {alloc.assigned_users?.map(u => (
-                        <div key={u.id} className="flex items-center gap-1.5 px-2 py-1 bg-dark-50 dark:bg-white/5 rounded border border-dark-200 dark:border-white/10">
-                          <div className="w-4 h-4 rounded-full bg-dark-200 dark:bg-white/10 flex items-center justify-center text-[8px] font-black">{u.name.charAt(0)}</div>
-                          <span className="text-[10px] font-bold text-dark-700 dark:text-dark-400 uppercase tracking-tighter">{u.name}</span>
-                        </div>
-                      ))}
+                      {alloc.assigned_users && alloc.assigned_users.length > 0 ? (
+                        alloc.assigned_users.map(u => (
+                          <div key={u.id} className="flex items-center gap-1.5 px-2.5 py-1 bg-saffron-500/10 dark:bg-saffron-500/5 rounded-lg border border-saffron-500/20">
+                            <div className="w-4 h-4 rounded-full bg-saffron-500 text-dark-950 flex items-center justify-center text-[8px] font-black">{u.name.charAt(0)}</div>
+                            <span className="text-[10px] font-bold text-saffron-650 dark:text-saffron-400 uppercase tracking-tighter">{u.name}</span>
+                          </div>
+                        ))
+                      ) : (
+                        <span className="text-xs text-dark-500 italic">Unassigned</span>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -644,7 +648,7 @@ export default function WorkAllocationPage() {
                         </div>
                       </>
                     ) : (
-                      <button onClick={() => startTacticalCamera('after')} className="flex flex-col items-center gap-2 p-4 text-center disabled:opacity-50" disabled={executingAllocation.status === 'pending'}>
+                      <button onClick={() => startTacticalCamera('after')} className="flex flex-col items-center gap-2 p-4 text-center disabled:opacity-50" disabled={executingAllocation.status === 'assigned'}>
                         <Camera className="w-8 h-8 text-dark-400 group-hover:text-emerald-500 transition-colors" />
                         <span className="text-[10px] font-black text-dark-500 uppercase tracking-widest">{t('label.completion', 'Completion')}</span>
                       </button>
@@ -732,7 +736,7 @@ export default function WorkAllocationPage() {
               <div className="space-y-3">
                 <label className="block text-[10px] font-black text-dark-400 uppercase tracking-widest">{WA.statusActionsLabel}</label>
                 <div className="grid grid-cols-1 gap-2.5">
-                  <button onClick={() => handleStatusUpdate('processing')} className="w-full btn-secondary py-3 sm:py-4 flex items-center justify-between px-4 sm:px-6 rounded-xl sm:rounded-2xl group border border-dark-200 dark:border-white/10 hover:border-saffron-500/30">
+                  <button onClick={() => handleStatusUpdate('in_progress')} className="w-full btn-secondary py-3 sm:py-4 flex items-center justify-between px-4 sm:px-6 rounded-xl sm:rounded-2xl group border border-dark-200 dark:border-white/10 hover:border-saffron-500/30">
                     <div className="flex items-center gap-3 text-left min-w-0">
                       <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-saffron-500/10 flex items-center justify-center text-saffron-500 flex-shrink-0">
                         <Activity className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -804,7 +808,7 @@ export default function WorkAllocationPage() {
               <label className="block text-xs font-black text-dark-400 uppercase tracking-[0.2em] px-1">{WA.formEventLabel}</label>
               <select value={form.event_id} onChange={e => setForm({ ...form, event_id: e.target.value })} className="form-input" required disabled={!!editingAllocation}>
                 <option value="">{WA.formSelectEvent}</option>
-                {events.map(e => <option key={e.id} value={e.id}>{e.title}</option>)}
+                {events.filter(e => e.status === 'upcoming' || e.status === 'in_progress').map(e => <option key={e.id} value={e.id}>{e.title}</option>)}
               </select>
             </div>
             <div className="space-y-2">
@@ -821,32 +825,31 @@ export default function WorkAllocationPage() {
             <div className="space-y-2">
               <label className="block text-xs font-black text-dark-400 uppercase tracking-[0.2em] px-1">{WA.formStatusLabel}</label>
               <select value={form.status} onChange={e => setForm({ ...form, status: e.target.value })} className="form-input">
-                <option value="pending">{WA.formStatusPending}</option>
-                <option value="processing">{WA.formStatusProcessing}</option>
-                <option value="completed">{WA.formStatusCompleted}</option>
-                <option value="cancelled">{WA.formStatusCancelled}</option>
-                <option value="not_completed">{WA.formStatusNotCompleted}</option>
+                <option value="assigned">Assigned</option>
+                <option value="in_progress">In Progress</option>
+                <option value="completed">Completed</option>
+                <option value="cancelled">Cancelled</option>
+                <option value="not_completed">Not Completed</option>
               </select>
             </div>
           </div>
 
           <div className="grid grid-cols-1 xl:grid-cols-12 gap-4 sm:gap-6 items-start">
             <div className="xl:col-span-6 space-y-3 sm:space-y-4">
-              <label className="block text-xs font-black text-dark-400 uppercase tracking-[0.2em] px-1">{WA.formAssignLabel}</label>
-              <div className="max-h-[240px] sm:max-h-[300px] lg:max-h-[340px] overflow-y-auto pr-1 sm:pr-2 grid grid-cols-1 gap-2.5 sm:gap-3 custom-scrollbar">
+              <label className="block text-xs font-black text-dark-400 uppercase tracking-[0.2em] px-1">Assign Member *</label>
+              <select
+                value={form.assigned_user_ids[0] || ''}
+                onChange={e => setForm({ ...form, assigned_user_ids: e.target.value ? [parseInt(e.target.value)] : [] })}
+                className="form-input"
+                required
+              >
+                <option value="">Select a team member...</option>
                 {teamMembers.map(member => (
-                  <label key={member.id} className={`flex items-center justify-between p-2.5 sm:p-3 rounded-xl sm:rounded-2xl border-2 transition-all cursor-pointer ${form.assigned_user_ids.includes(member.id) ? 'border-saffron-500 bg-saffron-500/5 shadow-inner' : 'border-dark-100 dark:border-white/5 hover:border-saffron-500/30'}`}>
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-saffron-500/10 flex items-center justify-center text-[10px] font-black text-saffron-600 uppercase">{member.name.charAt(0)}</div>
-                      <div className="min-w-0">
-                        <p className="text-[11px] sm:text-xs font-black text-dark-900 dark:text-white uppercase leading-none truncate">{member.name}</p>
-                        <p className="text-[8px] sm:text-[9px] text-dark-500 uppercase font-black mt-1 tracking-tighter truncate">{member.role_display_name}</p>
-                      </div>
-                    </div>
-                    <input type="checkbox" checked={form.assigned_user_ids.includes(member.id)} onChange={() => toggleUserAssignment(member.id)} className="w-5 h-5 rounded-lg border-2 border-dark-300 text-saffron-600 focus:ring-saffron-500" />
-                  </label>
+                  <option key={member.id} value={member.id}>
+                    {member.name} ({member.role_display_name || member.role_name})
+                  </option>
                 ))}
-              </div>
+              </select>
             </div>
 
             <div className="xl:col-span-6 space-y-3 sm:space-y-4">

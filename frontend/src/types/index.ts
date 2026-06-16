@@ -241,6 +241,16 @@ export interface AppEvent {
   created_by_name?: string;
   participant_count?: number;
   attended_count?: number;
+  feedback?: {
+    outcome: string;
+    key_observations: string;
+    public_response: string;
+    challenges: string;
+    achievements: string;
+    attendance_summary: string;
+    follow_up: string;
+    remarks: string;
+  } | null;
   created_at: string;
 }
 
@@ -249,7 +259,7 @@ export interface WorkAllocation {
   event_id: number;
   work_type: string;
   description: string;
-  status: 'pending' | 'processing' | 'completed' | 'cancelled' | 'not_completed';
+  status: 'assigned' | 'in_progress' | 'completed' | 'cancelled' | 'not_completed' | 'overdue';
   not_completed_reason?: string;
   due_date: string;
   started_at?: string;
@@ -371,5 +381,6 @@ export interface DashboardStats {
     // New Role Specific Lists
     booth_progress?: Array<{ id: number; name: string; voter_count: number; survey_count: number; coverage: string }>;
     tasks?: Task[];
+    work_allocations?: WorkAllocation[];
   };
 }
