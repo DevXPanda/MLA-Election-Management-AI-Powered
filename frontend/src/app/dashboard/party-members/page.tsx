@@ -52,6 +52,7 @@ export interface PartyMember {
   ward_name?: string;
   booth_name?: string;
   constituency_name?: string;
+  help_preference?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -71,6 +72,7 @@ function PartyMembersContent() {
   const [wardFilter, setWardFilter] = useState('');
   const [supportFilter, setSupportFilter] = useState('');
   const [creatorRoleFilter, setCreatorRoleFilter] = useState('');
+  const [helpFilter, setHelpFilter] = useState('');
   const [meta, setMeta] = useState({ total: 0, page: 1, totalPages: 1 });
   
   // Form options list
@@ -91,7 +93,10 @@ function PartyMembersContent() {
     gender: '',
     support_preference: 'Neutral',
     photo_url: '',
+    help_preference: '',
   });
+
+  const [customHelpDetails, setCustomHelpDetails] = useState('');
 
   // Analytics States
   const [activeTab, setActiveTab] = useState<'list' | 'analytics'>('list');
@@ -172,6 +177,7 @@ function PartyMembersContent() {
       if (wardFilter) params.ward_id = wardFilter;
       if (supportFilter) params.support_preference = supportFilter;
       if (creatorRoleFilter) params.creator_role = creatorRoleFilter;
+      if (helpFilter) params.help_preference = helpFilter;
 
       const res = await partyMembersAPI.getAll(params);
       setMembers(res.data.data || []);
@@ -182,7 +188,7 @@ function PartyMembersContent() {
     } finally {
       setLoading(false);
     }
-  }, [search, wardFilter, supportFilter, creatorRoleFilter, isAllowed]);
+  }, [search, wardFilter, supportFilter, creatorRoleFilter, helpFilter, isAllowed]);
 
   // Load wards initially
   useEffect(() => {
@@ -228,12 +234,30 @@ function PartyMembersContent() {
       gender: '',
       support_preference: 'Neutral',
       photo_url: '',
+      help_preference: '',
     });
+    setCustomHelpDetails('');
     setShowModal(true);
   };
 
   const openEdit = (member: PartyMember) => {
     setEditingMember(member);
+    const savedHelp = member.help_preference || '';
+    const predefinedList = [
+      'Door-to-Door Campaigning',
+      'Booth Management',
+      'Social Media Promotion',
+      'Event Management',
+      'Volunteer Coordination',
+      'Fundraising',
+      'Data Collection',
+      'Voter Outreach',
+      'Other'
+    ];
+    const parts = savedHelp.split(',').map((s: string) => s.trim()).filter(Boolean);
+    const selectedPredefined = parts.filter((p: string) => predefinedList.includes(p));
+    const selectedCustom = parts.filter((p: string) => !predefinedList.includes(p));
+
     setForm({
       full_name: member.full_name,
       phone: member.phone,
@@ -247,7 +271,9 @@ function PartyMembersContent() {
       gender: member.gender || '',
       support_preference: member.support_preference || 'Neutral',
       photo_url: member.photo_url || '',
+      help_preference: selectedPredefined.join(', '),
     });
+    setCustomHelpDetails(selectedCustom.join(', '));
     setShowModal(true);
   };
 
@@ -284,6 +310,16 @@ function PartyMembersContent() {
     }
 
     try {
+      let combinedHelpPreference = form.help_preference || '';
+      if (customHelpDetails.trim()) {
+        const cleanedCustom = customHelpDetails.trim();
+        if (combinedHelpPreference) {
+          combinedHelpPreference = `${combinedHelpPreference}, ${cleanedCustom}`;
+        } else {
+          combinedHelpPreference = cleanedCustom;
+        }
+      }
+
       const payload = {
         full_name: form.full_name,
         phone: form.phone,
@@ -297,6 +333,7 @@ function PartyMembersContent() {
         gender: form.gender || null,
         support_preference: form.support_preference || 'Neutral',
         photo_url: form.photo_url || null,
+        help_preference: combinedHelpPreference || null,
       };
 
       if (editingMember) {
@@ -668,7 +705,7 @@ function PartyMembersContent() {
               </div>
 
               {/* Row 2 Charts */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div className="glass-card p-6 border border-dark-100/50 dark:border-white/5 shadow-xl">
                   <h3 className="text-base font-medium text-dark-900 dark:text-white mb-6 flex items-center gap-2">
                     <MapPin className="w-5 h-5 text-indigo-500" /> {t('pm.ward_counts')}
@@ -691,6 +728,36 @@ function PartyMembersContent() {
                   ) : (
                     <div className="h-[220px]">
                       <Bar data={creatorChartData} options={chartDefaults} />
+                    </div>
+                  )}
+                </div>
+
+                <div className="glass-card p-6 border border-dark-100/50 dark:border-white/5 shadow-xl">
+                  <h3 className="text-base font-medium text-dark-900 dark:text-white mb-6 flex items-center gap-2">
+                    <Award className="w-5 h-5 text-saffron-500" /> {t('pm.help_capabilities_breakdown', 'Capability & Skills Breakdown')}
+                  </h3>
+                  {(!summaryData?.charts?.help_distribution || summaryData.charts.help_distribution.length === 0) ? (
+                    <EmptyState message={t('pm.no_capabilities_data', 'No capabilities data recorded')} />
+                  ) : (
+                    <div className="space-y-4 max-h-[220px] overflow-y-auto pr-2 custom-scrollbar">
+                      {summaryData.charts.help_distribution.map((h: any, idx: number) => {
+                        const total = summaryData.total_members || 1;
+                        const percentage = Math.round((h.count / total) * 100);
+                        return (
+                          <div key={idx} className="space-y-1">
+                            <div className="flex justify-between text-xs font-semibold">
+                              <span className="text-dark-700 dark:text-dark-300">{h.area}</span>
+                              <span className="text-dark-900 dark:text-dark-100">{h.count} ({percentage}%)</span>
+                            </div>
+                            <div className="h-1.5 bg-dark-100 dark:bg-dark-800 rounded-full overflow-hidden">
+                              <div
+                                className="h-full bg-gradient-to-r from-saffron-500 to-amber-500 rounded-full"
+                                style={{ width: `${percentage}%` }}
+                              />
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
                 </div>
@@ -861,10 +928,28 @@ function PartyMembersContent() {
                   <option value="ward_head">{t('role.ward_head')}</option>
                 </select>
 
+                {/* Capability Selector Dropdown */}
+                <select
+                  value={helpFilter}
+                  onChange={(e) => { setHelpFilter(e.target.value); setMeta(prev => ({ ...prev, page: 1 })); }}
+                  className="form-input max-w-[200px]"
+                >
+                  <option value="">{t('pm.list.all_capabilities', 'All Capabilities')}</option>
+                  <option value="Door-to-Door Campaigning">Door-to-Door Campaigning</option>
+                  <option value="Booth Management">Booth Management</option>
+                  <option value="Social Media Promotion">Social Media Promotion</option>
+                  <option value="Event Management">Event Management</option>
+                  <option value="Volunteer Coordination">Volunteer Coordination</option>
+                  <option value="Fundraising">Fundraising</option>
+                  <option value="Data Collection">Data Collection</option>
+                  <option value="Voter Outreach">Voter Outreach</option>
+                  <option value="Other">Other / Custom</option>
+                </select>
+
                 {/* Reset Filters Option */}
-                {(search || wardFilter || supportFilter || creatorRoleFilter) && (
+                {(search || wardFilter || supportFilter || creatorRoleFilter || helpFilter) && (
                   <button 
-                    onClick={() => { setSearch(''); setWardFilter(''); setSupportFilter(''); setCreatorRoleFilter(''); setMeta(prev => ({ ...prev, page: 1 })); }}
+                    onClick={() => { setSearch(''); setWardFilter(''); setSupportFilter(''); setCreatorRoleFilter(''); setHelpFilter(''); setMeta(prev => ({ ...prev, page: 1 })); }}
                     className="px-4 py-2 text-xs font-semibold text-red-500 hover:bg-red-500/10 rounded-lg transition-colors border border-red-500/20"
                   >
                     {t('pm.list.clear_filters')}
@@ -1237,6 +1322,69 @@ function PartyMembersContent() {
             </div>
           </div>
 
+          {/* How Can This Person Help the Party? (Contribution Capabilities) */}
+          <div className="space-y-3 border-t border-dark-100 dark:border-white/5 pt-6">
+            <label className="block text-[10px] font-black text-dark-400 uppercase tracking-[0.2em] px-1">
+              {t('pm.form.help_preference', 'How Can This Person Help the Party?')}
+            </label>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              {[
+                'Door-to-Door Campaigning',
+                'Booth Management',
+                'Social Media Promotion',
+                'Event Management',
+                'Volunteer Coordination',
+                'Fundraising',
+                'Data Collection',
+                'Voter Outreach',
+                'Other'
+              ].map((opt) => {
+                const selections = form.help_preference ? form.help_preference.split(', ').map(s => s.trim()) : [];
+                const isSelected = selections.includes(opt);
+                
+                const handleToggle = () => {
+                  let nextSelections;
+                  if (isSelected) {
+                    nextSelections = selections.filter(s => s !== opt);
+                  } else {
+                    nextSelections = [...selections, opt];
+                  }
+                  setForm(prev => ({
+                    ...prev,
+                    help_preference: nextSelections.join(', ')
+                  }));
+                };
+                
+                return (
+                  <button
+                    key={opt}
+                    type="button"
+                    onClick={handleToggle}
+                    className={`px-3 py-2 rounded-xl text-xs font-semibold border transition-all text-center truncate ${
+                      isSelected
+                        ? 'bg-saffron-500/10 border-saffron-500 text-saffron-600 dark:text-saffron-400 shadow-md shadow-saffron-500/5'
+                        : 'border-dark-200 dark:border-white/10 text-dark-700 dark:text-dark-300 hover:bg-dark-50 dark:hover:bg-white/[0.02]'
+                    }`}
+                  >
+                    {opt}
+                  </button>
+                );
+              })}
+            </div>
+            
+            <div className="space-y-2 mt-3">
+              <label className="block text-[10px] font-semibold text-dark-500 uppercase tracking-wider px-1">
+                {t('pm.form.custom_help_details', 'Skills, Interests, & Availability Notes')}
+              </label>
+              <textarea
+                value={customHelpDetails}
+                onChange={e => setCustomHelpDetails(e.target.value)}
+                className="form-input h-20 resize-none"
+                placeholder={t('pm.form.help_placeholder', 'Specify other skills, availability, or contribution details...')}
+              />
+            </div>
+          </div>
+
         </form>
       </Modal>
 
@@ -1335,6 +1483,21 @@ function PartyMembersContent() {
                 <p className="text-[10px] uppercase tracking-widest text-dark-500 mb-1">{t('pm.details.registered_date')}</p>
                 <div className="text-sm font-semibold text-dark-900 dark:text-dark-100">
                   {selectedMember.created_at ? new Date(selectedMember.created_at).toLocaleString() : '—'}
+                </div>
+              </div>
+
+              <div className="col-span-1 sm:col-span-2 rounded-lg border border-dark-100 dark:border-white/10 bg-dark-50/20 dark:bg-white/[0.01] p-3">
+                <p className="text-[10px] uppercase tracking-widest text-dark-500 mb-1">{t('pm.details.help_preference', 'How Can This Person Help?')}</p>
+                <div className="text-sm font-semibold text-dark-900 dark:text-dark-100 mt-1 flex flex-wrap gap-1.5">
+                  {selectedMember.help_preference ? (
+                    selectedMember.help_preference.split(', ').map((pref: string, idx: number) => (
+                      <span key={idx} className="px-2 py-1 bg-saffron-500/10 text-saffron-600 dark:text-saffron-400 border border-saffron-500/20 rounded-md text-xs font-bold">
+                        {pref}
+                      </span>
+                    ))
+                  ) : (
+                    <span className="text-dark-400 font-normal">No skills or preference recorded</span>
+                  )}
                 </div>
               </div>
 

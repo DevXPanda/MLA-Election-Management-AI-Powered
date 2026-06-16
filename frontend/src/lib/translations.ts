@@ -508,6 +508,12 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
 
     // Party Members Page
     'pm.access_restricted': 'Access Restricted',
+    'pm.form.help_preference': 'How Can This Person Help the Party?',
+    'pm.form.help_placeholder': 'Specify other skills, availability, or contribution details...',
+    'pm.details.help_preference': 'How Can This Person Help?',
+    'pm.list.all_capabilities': 'All Capabilities',
+    'pm.help_capabilities_breakdown': 'Capability & Skills Breakdown',
+    'pm.no_capabilities_data': 'No capabilities data recorded',
     'pm.field_ops_restricted': 'Field Operations Restriction',
     'pm.permission_required': 'Permission Required',
     'pm.restricted_desc': 'Your role ({role}) is not authorized to manage or view Party Supporter records. Please contact your Campaign Manager if you require access.',
@@ -574,6 +580,7 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     'pm.form.create_title': 'Register Party Member',
     'pm.form.edit_subtitle': 'Update party supporter details and preference',
     'pm.form.create_subtitle': 'Fill in the details to register a new supporter or party worker',
+    'pm.form.register_btn': 'Register Member',
     'pm.form.photo_label': 'Profile Photo (Max 5MB)',
     'pm.form.photo_choose': 'Choose Image File',
     'pm.form.photo_hint': 'Accepts PNG, JPG, GIF up to 5MB. Photo is optional.',
@@ -1430,6 +1437,12 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
 
     // Party Members Page
     'pm.access_restricted': 'पहुंच प्रतिबंधित',
+    'pm.form.help_preference': 'यह व्यक्ति पार्टी की मदद कैसे कर सकता है?',
+    'pm.form.help_placeholder': 'अन्य कौशल, उपलब्धता, या योगदान विवरण निर्दिष्ट करें...',
+    'pm.details.help_preference': 'यह व्यक्ति कैसे मदद कर सकता है?',
+    'pm.list.all_capabilities': 'सभी क्षमताएं',
+    'pm.help_capabilities_breakdown': 'क्षमता और कौशल विश्लेषण',
+    'pm.no_capabilities_data': 'कोई क्षमता डेटा रिकॉर्ड नहीं किया गया',
     'pm.field_ops_restricted': 'क्षेत्रीय संचालन प्रतिबंध',
     'pm.permission_required': 'अनुमति आवश्यक',
     'pm.restricted_desc': 'आपकी भूमिका ({role}) पार्टी समर्थक रिकॉर्ड प्रबंधित करने या देखने के लिए अधिकृत नहीं है। यदि आपको पहुंच की आवश्यकता है तो कृपया अपने अभियान प्रबंधक से संपर्क करें।',
@@ -1496,6 +1509,7 @@ export const TRANSLATIONS: Record<Language, Record<string, string>> = {
     'pm.form.create_title': 'दल के सदस्य को पंजीकृत करें',
     'pm.form.edit_subtitle': 'समर्थक के विवरण और प्राथमिकता को अद्यतन करें',
     'pm.form.create_subtitle': 'एक नए समर्थक या पार्टी कार्यकर्ता को पंजीकृत करने के लिए विवरण भरें',
+    'pm.form.register_btn': 'पंजीकृत करें',
     'pm.form.photo_label': 'प्रोफ़ाइल फ़ोटो (अधिकतम 5MB)',
     'pm.form.photo_choose': 'छवि फ़ाइल चुनें',
     'pm.form.photo_hint': 'PNG, JPG, GIF स्वीकार्य, अधिकतम 5MB. फ़ोटो वैकल्पिक है।',

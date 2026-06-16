@@ -473,6 +473,11 @@ const createTables = async () => {
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='activity_logs' AND column_name='event_id') THEN
             ALTER TABLE activity_logs ADD COLUMN event_id INTEGER REFERENCES events(id);
         END IF;
+
+        -- How Can This Person Help the Party column to Party Members
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='party_members' AND column_name='help_preference') THEN
+            ALTER TABLE party_members ADD COLUMN help_preference TEXT;
+        END IF;
     END $$;
 
     -- AI Chat Sessions
@@ -552,6 +557,7 @@ const createTables = async () => {
       booth_id INTEGER REFERENCES booths(id) ON DELETE SET NULL,
       constituency_id INTEGER REFERENCES constituencies(id) ON DELETE SET NULL,
       organization_id INTEGER REFERENCES organizations(id) DEFAULT 1,
+      help_preference TEXT,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );

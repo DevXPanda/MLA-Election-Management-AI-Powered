@@ -24,7 +24,8 @@ const createMember = async (req, res) => {
   try {
     const {
       full_name, phone, email, address, ward_id, booth_id,
-      qualification, profession, age, gender, support_preference, photo_url
+      qualification, profession, age, gender, support_preference, photo_url,
+      help_preference
     } = req.body;
 
     if (!full_name || !phone) {
@@ -73,15 +74,17 @@ const createMember = async (req, res) => {
       `INSERT INTO party_members (
         full_name, phone, email, address, ward_number, booth_number,
         qualification, profession, age, gender, support_preference, photo_url,
-        created_by_user_id, created_by_role, created_by_name, ward_id, booth_id, constituency_id, organization_id
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
+        created_by_user_id, created_by_role, created_by_name, ward_id, booth_id, constituency_id, organization_id,
+        help_preference
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
       RETURNING *`,
       [
         full_name, phone, email || null, address || null, ward_number, booth_number,
         qualification || null, profession || null, age ? parseInt(age) : null, gender || null,
         support_preference || 'Neutral', photo_url || null,
         req.user.id, created_by_role, created_by_name,
-        ward_id || null, booth_id || null, constituency_id || null, req.tenant || 1
+        ward_id || null, booth_id || null, constituency_id || null, req.tenant || 1,
+        help_preference || null
       ]
     );
 
@@ -98,7 +101,7 @@ const createMember = async (req, res) => {
 // Get list of Party Members with filters & visibility rules
 const getMembers = async (req, res) => {
   try {
-    const { page = 1, limit = 20, search, ward_id, support_preference, creator_role } = req.query;
+    const { page = 1, limit = 20, search, ward_id, support_preference, creator_role, help_preference } = req.query;
 
     const allowedRoles = ['super_admin', 'mla', 'campaign_manager', 'ward_head'];
     if (!allowedRoles.includes(req.userRole)) {
@@ -161,7 +164,7 @@ const getMembers = async (req, res) => {
     // Apply listing search & filters
     if (search) {
       paramCount++;
-      query += ` AND (pm.full_name ILIKE $${paramCount} OR pm.phone ILIKE $${paramCount})`;
+      query += ` AND (pm.full_name ILIKE $${paramCount} OR pm.phone ILIKE $${paramCount} OR pm.help_preference ILIKE $${paramCount})`;
       params.push(`%${search}%`);
     }
 
@@ -181,6 +184,12 @@ const getMembers = async (req, res) => {
       paramCount++;
       query += ` AND pm.created_by_role = $${paramCount}`;
       params.push(creator_role);
+    }
+
+    if (help_preference) {
+      paramCount++;
+      query += ` AND pm.help_preference ILIKE $${paramCount}`;
+      params.push(`%${help_preference}%`);
     }
 
     // Pagination
@@ -277,7 +286,8 @@ const updateMember = async (req, res) => {
     const { id } = req.params;
     const {
       full_name, phone, email, address, ward_id, booth_id,
-      qualification, profession, age, gender, support_preference, photo_url
+      qualification, profession, age, gender, support_preference, photo_url,
+      help_preference
     } = req.body;
 
     const allowedRoles = ['super_admin', 'mla', 'campaign_manager', 'ward_head'];
@@ -369,13 +379,14 @@ const updateMember = async (req, res) => {
            ward_id = COALESCE($13, ward_id),
            booth_id = COALESCE($14, booth_id),
            constituency_id = COALESCE($15, constituency_id),
+           help_preference = COALESCE($16, help_preference),
            updated_at = CURRENT_TIMESTAMP
-       WHERE id = $16
+       WHERE id = $17
        RETURNING *`,
       [
         full_name, phone, email, address, ward_number, booth_number,
         qualification, profession, age ? parseInt(age) : null, gender, support_preference, photo_url,
-        ward_id || null, booth_id || null, constituency_id || null, id
+        ward_id || null, booth_id || null, constituency_id || null, help_preference, id
       ]
     );
 
@@ -593,6 +604,23 @@ const getSummary = async (req, res) => {
     `;
     const monthlyGrowthResult = await pool.query(monthlyGrowthQuery, params);
 
+    // Help capability preferences breakdown for Analytics
+    const helpPrefsResult = await pool.query(
+      `SELECT help_preference FROM party_members pm WHERE 1=1 ${clause} AND help_preference IS NOT NULL`,
+      params
+    );
+    const helpPreferencesBreakdown = {};
+    helpPrefsResult.rows.forEach(r => {
+      const parts = r.help_preference.split(',').map(s => s.trim()).filter(Boolean);
+      parts.forEach(part => {
+        helpPreferencesBreakdown[part] = (helpPreferencesBreakdown[part] || 0) + 1;
+      });
+    });
+    const help_breakdown = Object.entries(helpPreferencesBreakdown).map(([area, count]) => ({
+      area,
+      count
+    })).sort((a, b) => b.count - a.count);
+
     const data = {
       total_members: parseInt(summaryResult.rows[0].total_members || 0),
       bjp_supporters: parseInt(summaryResult.rows[0].bjp_supporters || 0),
@@ -608,7 +636,8 @@ const getSummary = async (req, res) => {
         monthly_growth: monthlyGrowthResult.rows.map(r => ({
           month: r.month,
           count: parseInt(r.count)
-        }))
+        })),
+        help_distribution: help_breakdown
       }
     };
 
