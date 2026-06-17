@@ -384,3 +384,40 @@ export interface DashboardStats {
     work_allocations?: WorkAllocation[];
   };
 }
+
+// ─── Meeting ───
+export interface Meeting {
+  id: number;
+  title: string;
+  description: string;
+  meeting_type: 'instant' | 'scheduled';
+  meeting_date: string;
+  duration: number;
+  zoom_meeting_id: string | null;
+  zoom_join_url: string | null;
+  zoom_start_url: string | null;
+  zoom_passcode: string | null;
+  status: 'scheduled' | 'in_progress' | 'completed' | 'cancelled';
+  constituency_id: number | null;
+  constituency_name?: string;
+  created_by: number;
+  created_by_name?: string;
+  participant_count?: number;
+  participants?: MeetingParticipant[];
+  organization_id: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface MeetingParticipant {
+  meeting_id: number;
+  user_id: number;
+  status: 'invited' | 'accepted' | 'declined' | 'attended';
+  joined_at: string | null;
+  left_at: string | null;
+  name?: string;
+  phone?: string;
+  email?: string;
+  role_name?: string;
+  created_at: string;
+}

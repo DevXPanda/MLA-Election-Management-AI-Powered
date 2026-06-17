@@ -8,7 +8,7 @@ import {
   LayoutDashboard, Users, MapPin, UsersRound, ListTodo,
   ClipboardList, Calendar, Vote, BarChart3, MessageSquare,
   Image, LogOut, Shield, ChevronLeft, ChevronRight, Menu, X,
-  Zap, Bot
+  Zap, Bot, Video
 } from 'lucide-react';
 import { useState, useMemo, createContext, useContext, useEffect } from 'react';
 import { NAV_SECTIONS, SIDEBAR } from '@/lib/ui-labels';
@@ -141,6 +141,12 @@ const NAV_CONFIG = [
         href: '/dashboard/whatsapp',
         get label() { return SIDEBAR.whatsapp; },
         icon: MessageSquare,
+        roles: ['super_admin', 'mla']
+      },
+      {
+        href: '/dashboard/meetings',
+        get label() { return SIDEBAR.meetings; },
+        icon: Video,
         roles: ['super_admin', 'mla']
       },
       {

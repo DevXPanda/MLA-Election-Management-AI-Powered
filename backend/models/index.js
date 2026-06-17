@@ -648,6 +648,42 @@ const createTables = async () => {
     CREATE INDEX IF NOT EXISTS idx_whatsapp_campaigns_org ON whatsapp_campaigns(organization_id);
     CREATE INDEX IF NOT EXISTS idx_whatsapp_messages_campaign ON whatsapp_messages(campaign_id);
     CREATE INDEX IF NOT EXISTS idx_whatsapp_messages_org ON whatsapp_messages(organization_id);
+
+    -- Meetings table (Zoom Integration)
+    CREATE TABLE IF NOT EXISTS meetings (
+      id SERIAL PRIMARY KEY,
+      title VARCHAR(200) NOT NULL,
+      description TEXT,
+      meeting_type VARCHAR(20) DEFAULT 'scheduled',
+      meeting_date TIMESTAMP NOT NULL,
+      duration INTEGER DEFAULT 60,
+      zoom_meeting_id VARCHAR(50),
+      zoom_join_url TEXT,
+      zoom_start_url TEXT,
+      zoom_passcode VARCHAR(20),
+      status VARCHAR(20) DEFAULT 'scheduled',
+      constituency_id INTEGER REFERENCES constituencies(id) ON DELETE SET NULL,
+      created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      organization_id INTEGER REFERENCES organizations(id) DEFAULT 1,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+
+    -- Meeting Participants table
+    CREATE TABLE IF NOT EXISTS meeting_participants (
+      meeting_id INTEGER REFERENCES meetings(id) ON DELETE CASCADE,
+      user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+      status VARCHAR(20) DEFAULT 'invited',
+      joined_at TIMESTAMP,
+      left_at TIMESTAMP,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (meeting_id, user_id)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_meetings_org ON meetings(organization_id);
+    CREATE INDEX IF NOT EXISTS idx_meetings_date ON meetings(meeting_date);
+    CREATE INDEX IF NOT EXISTS idx_meetings_status ON meetings(status);
+    CREATE INDEX IF NOT EXISTS idx_meeting_participants_meeting ON meeting_participants(meeting_id);
   `;
 
   try {

@@ -31,6 +31,7 @@ const workAllocationRoutes = require('./routes/work-allocation.routes');
 const aiRoutes = require('./routes/ai.routes');
 const partyMembersRoutes = require('./routes/party-members.routes');
 const whatsappRoutes = require('./routes/whatsapp.routes');
+const meetingsRoutes = require('./routes/meetings.routes');
 
 const app = express();
 const server = http.createServer(app);
@@ -111,6 +112,7 @@ app.use('/api/work-allocation', workAllocationRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/party-members', partyMembersRoutes);
 app.use('/api/whatsapp', whatsappRoutes);
+app.use('/api/meetings', meetingsRoutes);
 
 
 // ── Health check ────────────────────────────────────────────────────

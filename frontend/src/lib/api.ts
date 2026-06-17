@@ -258,3 +258,20 @@ export const partyMembersAPI = {
   getWards: () => api.get('/party-members/analytics/wards'),
   getCreatorDetails: (id: number) => api.get(`/party-members/analytics/creator/${id}`),
 };
+
+// ─── Meetings API ───
+export const meetingsAPI = {
+  getAll: (params?: Record<string, string | number>) =>
+    api.get('/meetings', { params }),
+  getStats: () => api.get('/meetings/stats'),
+  getOne: (id: number) => api.get(`/meetings/${id}`),
+  create: (data: Record<string, unknown>) => api.post('/meetings', data),
+  update: (id: number, data: Record<string, unknown>) => api.put(`/meetings/${id}`, data),
+  delete: (id: number) => api.delete(`/meetings/${id}`),
+  addParticipants: (id: number, data: Record<string, unknown>) =>
+    api.post(`/meetings/${id}/participants`, data),
+  removeParticipant: (id: number, userId: number) =>
+    api.delete(`/meetings/${id}/participants/${userId}`),
+  sendInvites: (id: number, data?: Record<string, unknown>) =>
+    api.post(`/meetings/${id}/send-invites`, data || {}),
+};

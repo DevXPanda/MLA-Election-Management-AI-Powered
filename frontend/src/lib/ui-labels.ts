@@ -30,6 +30,7 @@ export const SIDEBAR = {
   get aiAssistant() { return getTranslation('sidebar.aiAssistant', 'AI Assistant'); },
   get partyMembers() { return getTranslation('sidebar.partyMembers', 'Party Members'); },
   get whatsapp() { return getTranslation('sidebar.whatsapp', 'WhatsApp Campaigns'); },
+  get meetings() { return getTranslation('sidebar.meetings', 'Meetings'); },
 };
 
 
@@ -135,6 +136,12 @@ export const MODULE_HEADER = {
     return {
       title: getTranslation('sidebar.partyMembers', 'Party Members'),
       subtitle: getTranslation('partyMembers.subtitle', 'Party member database, demographics, and support tracking')
+    };
+  },
+  get meetings() {
+    return {
+      title: getTranslation('sidebar.meetings', 'Meetings'),
+      subtitle: getTranslation('meetings.subtitle', 'Schedule and manage Zoom meetings')
     };
   },
 };
