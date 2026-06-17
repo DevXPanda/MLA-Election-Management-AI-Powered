@@ -83,35 +83,50 @@ const getRecipients = async (req, res) => {
     const mlaConstituencyId = req.scope?.constituency_id;
 
     let params = [orgId];
+    let mlaConstituencyIdIdx = -1;
+    let searchIdx = -1;
+    let wardIdIdx = -1;
+    let boothIdIdx = -1;
     let paramCount = 1;
 
-    let constituencyFilter = '';
     if (isMLA && mlaConstituencyId) {
       paramCount++;
-      constituencyFilter = ` AND constituency_id = $${paramCount}`;
       params.push(mlaConstituencyId);
+      mlaConstituencyIdIdx = paramCount;
     }
-
-    let searchFilter = '';
     if (search) {
       paramCount++;
-      searchFilter = ` AND (name ILIKE $${paramCount} OR phone ILIKE $${paramCount})`;
       params.push(`%${search}%`);
+      searchIdx = paramCount;
     }
-
-    let wardFilter = '';
     if (ward_id) {
       paramCount++;
-      wardFilter = ` AND ward_id = $${paramCount}`;
       params.push(ward_id);
+      wardIdIdx = paramCount;
     }
-
-    let boothFilter = '';
     if (booth_id) {
       paramCount++;
-      boothFilter = ` AND booth_id = $${paramCount}`;
       params.push(booth_id);
+      boothIdIdx = paramCount;
     }
+
+    // Voters filters
+    const vConstituencyFilter = mlaConstituencyIdIdx !== -1 ? ` AND v.constituency_id = $${mlaConstituencyIdIdx}` : '';
+    const vSearchFilter = searchIdx !== -1 ? ` AND (v.name ILIKE $${searchIdx} OR v.phone ILIKE $${searchIdx})` : '';
+    const vWardFilter = wardIdIdx !== -1 ? ` AND v.ward_id = $${wardIdIdx}` : '';
+    const vBoothFilter = boothIdIdx !== -1 ? ` AND v.booth_id = $${boothIdIdx}` : '';
+
+    // Party members filters
+    const pmConstituencyFilter = mlaConstituencyIdIdx !== -1 ? ` AND pm.constituency_id = $${mlaConstituencyIdIdx}` : '';
+    const pmSearchFilter = searchIdx !== -1 ? ` AND (pm.full_name ILIKE $${searchIdx} OR pm.phone ILIKE $${searchIdx})` : '';
+    const pmWardFilter = wardIdIdx !== -1 ? ` AND pm.ward_id = $${wardIdIdx}` : '';
+    const pmBoothFilter = boothIdIdx !== -1 ? ` AND pm.booth_id = $${boothIdIdx}` : '';
+
+    // Workers/Users filters
+    const uConstituencyFilter = mlaConstituencyIdIdx !== -1 ? ` AND u.constituency_id = $${mlaConstituencyIdIdx}` : '';
+    const uSearchFilter = searchIdx !== -1 ? ` AND (u.name ILIKE $${searchIdx} OR u.phone ILIKE $${searchIdx})` : '';
+    const uWardFilter = wardIdIdx !== -1 ? ` AND u.ward_id = $${wardIdIdx}` : '';
+    const uBoothFilter = boothIdIdx !== -1 ? ` AND u.booth_id = $${boothIdIdx}` : '';
 
     let votersQuery = `
       SELECT v.id, v.name, v.phone, 'voter' as type,
@@ -122,14 +137,9 @@ const getRecipients = async (req, res) => {
       LEFT JOIN wards w ON v.ward_id = w.id
       LEFT JOIN booths b ON v.booth_id = b.id
       WHERE v.organization_id = $1 AND v.phone IS NOT NULL AND v.phone != ''
-      ${constituencyFilter} ${searchFilter} ${wardFilter} ${boothFilter}
+      ${vConstituencyFilter} ${vSearchFilter} ${vWardFilter} ${vBoothFilter}
     `;
 
-    // Party members: column full_name instead of name
-    let pmSearchFilter = '';
-    if (search) {
-      pmSearchFilter = ` AND (full_name ILIKE $${params.indexOf(`%${search}%`) + 1} OR phone ILIKE $${params.indexOf(`%${search}%`) + 1})`;
-    }
     let partyMembersQuery = `
       SELECT pm.id, pm.full_name as name, pm.phone, 'party_member' as type,
              c.name as constituency_name, w.name as ward_name, b.name as booth_name,
@@ -139,10 +149,9 @@ const getRecipients = async (req, res) => {
       LEFT JOIN wards w ON pm.ward_id = w.id
       LEFT JOIN booths b ON pm.booth_id = b.id
       WHERE pm.organization_id = $1 AND pm.phone IS NOT NULL AND pm.phone != ''
-      ${constituencyFilter} ${pmSearchFilter} ${wardFilter} ${boothFilter}
+      ${pmConstituencyFilter} ${pmSearchFilter} ${pmWardFilter} ${pmBoothFilter}
     `;
 
-    // Workers: users with roles campaign_manager, ward_head, booth_worker
     let workersQuery = `
       SELECT u.id, u.name, u.phone, 'worker' as type,
              c.name as constituency_name, w.name as ward_name, b.name as booth_name,
@@ -154,7 +163,7 @@ const getRecipients = async (req, res) => {
       LEFT JOIN booths b ON u.booth_id = b.id
       WHERE u.organization_id = $1 AND u.phone IS NOT NULL AND u.phone != ''
         AND r.name IN ('campaign_manager', 'ward_head', 'booth_worker')
-      ${constituencyFilter} ${searchFilter} ${wardFilter} ${boothFilter}
+      ${uConstituencyFilter} ${uSearchFilter} ${uWardFilter} ${uBoothFilter}
     `;
 
     let finalQuery = '';

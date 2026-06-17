@@ -220,9 +220,9 @@ const getMeetings = async (req, res) => {
     }
 
     if (tab === 'upcoming') {
-      query += ` AND m.meeting_date >= NOW() AND m.status IN ('scheduled')`;
+      query += ` AND (m.meeting_date + (m.duration * INTERVAL '1 minute') >= NOW()) AND m.status IN ('scheduled', 'in_progress')`;
     } else if (tab === 'past') {
-      query += ` AND (m.meeting_date < NOW() OR m.status IN ('completed', 'cancelled'))`;
+      query += ` AND (m.meeting_date + (m.duration * INTERVAL '1 minute') < NOW() OR m.status IN ('completed', 'cancelled'))`;
     }
 
     const countResult = await pool.query(`SELECT COUNT(*) FROM (${query}) as cq`, params);
@@ -257,8 +257,8 @@ const getMeetingStats = async (req, res) => {
     const statsQuery = `
       SELECT 
         COUNT(*) as total_meetings,
-        COUNT(*) FILTER (WHERE m.status = 'scheduled' AND m.meeting_date >= NOW()) as upcoming_meetings,
-        COUNT(*) FILTER (WHERE m.status = 'completed') as completed_meetings,
+        COUNT(*) FILTER (WHERE m.status IN ('scheduled', 'in_progress') AND m.meeting_date + (m.duration * INTERVAL '1 minute') >= NOW()) as upcoming_meetings,
+        COUNT(*) FILTER (WHERE m.status = 'completed' OR (m.status IN ('scheduled', 'in_progress') AND m.meeting_date + (m.duration * INTERVAL '1 minute') < NOW())) as completed_meetings,
         COUNT(*) FILTER (WHERE m.status = 'cancelled') as cancelled_meetings,
         (SELECT COUNT(*) FROM meeting_participants mp 
          INNER JOIN meetings m2 ON mp.meeting_id = m2.id 

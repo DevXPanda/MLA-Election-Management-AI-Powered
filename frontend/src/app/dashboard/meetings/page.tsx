@@ -130,7 +130,9 @@ export default function MeetingsPage() {
         title: form.title.trim(),
         description: form.description.trim() || undefined,
         meeting_type: form.meeting_type,
-        meeting_date: new Date(form.meeting_date).toISOString(),
+        meeting_date: form.meeting_type === 'instant'
+          ? new Date().toISOString()
+          : new Date(form.meeting_date).toISOString(),
         duration: parseInt(form.duration) || 60,
         participant_ids: selectedParticipants.length > 0 ? selectedParticipants : undefined,
         send_whatsapp: form.send_whatsapp,
@@ -230,7 +232,10 @@ export default function MeetingsPage() {
   };
 
   const isUpcoming = (meeting: Meeting) => {
-    return meeting.status === 'scheduled' && new Date(meeting.meeting_date) >= new Date();
+    if (meeting.status === 'completed' || meeting.status === 'cancelled') return false;
+    const startDate = new Date(meeting.meeting_date);
+    const endDate = new Date(startDate.getTime() + (meeting.duration || 60) * 60 * 1000);
+    return new Date() <= endDate;
   };
 
   return (
@@ -355,9 +360,9 @@ export default function MeetingsPage() {
 
                   <div className="flex items-center gap-2 flex-shrink-0">
                     {/* Join button */}
-                    {meeting.zoom_join_url && isUpcoming(meeting) && (
+                    {(meeting.zoom_join_url || meeting.zoom_start_url) && isUpcoming(meeting) && (
                       <a
-                        href={meeting.zoom_join_url}
+                        href={meeting.created_by === user?.id && meeting.zoom_start_url ? meeting.zoom_start_url : meeting.zoom_join_url}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-blue-500 to-cyan-500 text-white rounded-xl text-xs font-semibold hover:shadow-lg hover:shadow-blue-500/25 transition-all duration-300"
@@ -743,7 +748,7 @@ export default function MeetingsPage() {
                         )}
                         <div className="flex gap-2 mt-3">
                           <a
-                            href={selectedMeeting.zoom_join_url}
+                            href={selectedMeeting.created_by === user?.id && selectedMeeting.zoom_start_url ? selectedMeeting.zoom_start_url : selectedMeeting.zoom_join_url}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-gradient-to-r from-blue-500 to-cyan-500 text-white rounded-xl text-sm font-semibold hover:shadow-lg transition-all"
