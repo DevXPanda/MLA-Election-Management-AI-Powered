@@ -636,11 +636,27 @@ const getWhatsAppSettings = async (req, res) => {
       [orgId]
     );
     if (result.rows.length === 0) {
+      if (process.env.WHATSAPP_ACCESS_TOKEN && process.env.WHATSAPP_ACCESS_TOKEN !== 'your_meta_access_token_here') {
+        return res.json(formatResponse(true, 'Settings fetched successfully.', {
+          access_token: process.env.WHATSAPP_ACCESS_TOKEN || '',
+          phone_number_id: process.env.WHATSAPP_PHONE_NUMBER_ID || '',
+          business_account_id: process.env.WHATSAPP_BUSINESS_ACCOUNT_ID || '',
+          webhook_verify_token: process.env.WHATSAPP_WEBHOOK_VERIFY_TOKEN || ''
+        }));
+      }
+      if (process.env.WHATSAPP_API_URL && process.env.WHATSAPP_API_TOKEN) {
+        return res.json(formatResponse(true, 'Settings fetched successfully.', {
+          access_token: process.env.WHATSAPP_API_TOKEN || '',
+          phone_number_id: process.env.WHATSAPP_INSTANCE_ID || '',
+          business_account_id: process.env.WHATSAPP_API_URL || '',
+          webhook_verify_token: 'rest'
+        }));
+      }
       return res.json(formatResponse(true, 'Settings fetched successfully.', {
-        access_token: process.env.WHATSAPP_ACCESS_TOKEN && process.env.WHATSAPP_ACCESS_TOKEN !== 'your_meta_access_token_here' ? process.env.WHATSAPP_ACCESS_TOKEN : '',
-        phone_number_id: process.env.WHATSAPP_PHONE_NUMBER_ID && process.env.WHATSAPP_PHONE_NUMBER_ID !== 'your_phone_number_id_here' ? process.env.WHATSAPP_PHONE_NUMBER_ID : '',
-        business_account_id: process.env.WHATSAPP_BUSINESS_ACCOUNT_ID && process.env.WHATSAPP_BUSINESS_ACCOUNT_ID !== 'your_business_account_id_here' ? process.env.WHATSAPP_BUSINESS_ACCOUNT_ID : '',
-        webhook_verify_token: process.env.WHATSAPP_WEBHOOK_VERIFY_TOKEN && process.env.WHATSAPP_WEBHOOK_VERIFY_TOKEN !== 'your_webhook_verify_token_here' ? process.env.WHATSAPP_WEBHOOK_VERIFY_TOKEN : ''
+        access_token: '',
+        phone_number_id: '',
+        business_account_id: '',
+        webhook_verify_token: ''
       }));
     }
     res.json(formatResponse(true, 'Settings fetched successfully.', result.rows[0]));
