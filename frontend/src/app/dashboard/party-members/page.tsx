@@ -17,6 +17,7 @@ import DetailsModal from '@/components/DetailsModal';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
 import { useLanguage } from '@/context/LanguageContext';
+import SpeechToTextButton from '@/components/SpeechToTextButton';
 import { format } from 'date-fns';
 import { Pie, Bar, Line } from 'react-chartjs-2';
 import {
@@ -875,15 +876,18 @@ function PartyMembersContent() {
               <div className="flex flex-wrap gap-3">
                 
                 {/* Search Input */}
-                <div className="relative flex-1 min-w-[280px]">
-                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-dark-500 pointer-events-none" />
-                  <input
-                    type="text"
-                    value={search}
-                    onChange={(e) => { setSearch(e.target.value); setMeta(prev => ({ ...prev, page: 1 })); }}
-                    placeholder={t('pm.list.search_placeholder')}
-                    className="form-input pl-10"
-                  />
+                <div className="flex gap-2 items-center flex-1 min-w-[280px]">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-dark-500 pointer-events-none" />
+                    <input
+                      type="text"
+                      value={search}
+                      onChange={(e) => { setSearch(e.target.value); setMeta(prev => ({ ...prev, page: 1 })); }}
+                      placeholder={t('pm.list.search_placeholder')}
+                      className="form-input pl-10"
+                    />
+                  </div>
+                  <SpeechToTextButton currentValue={search} onTranscript={(text) => setSearch(text)} />
                 </div>
 
                 {/* Ward Selector Dropdown */}
@@ -1376,12 +1380,15 @@ function PartyMembersContent() {
               <label className="block text-[10px] font-semibold text-dark-500 uppercase tracking-wider px-1">
                 {t('pm.form.custom_help_details', 'Skills, Interests, & Availability Notes')}
               </label>
-              <textarea
-                value={customHelpDetails}
-                onChange={e => setCustomHelpDetails(e.target.value)}
-                className="form-input h-20 resize-none"
-                placeholder={t('pm.form.help_placeholder', 'Specify other skills, availability, or contribution details...')}
-              />
+              <div className="flex gap-2 items-start">
+                <textarea
+                  value={customHelpDetails}
+                  onChange={e => setCustomHelpDetails(e.target.value)}
+                  className="form-input h-20 resize-none flex-1"
+                  placeholder={t('pm.form.help_placeholder', 'Specify other skills, availability, or contribution details...')}
+                />
+                <SpeechToTextButton currentValue={customHelpDetails} onTranscript={(text) => setCustomHelpDetails(text)} />
+              </div>
             </div>
           </div>
 

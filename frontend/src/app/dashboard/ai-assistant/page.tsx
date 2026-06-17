@@ -8,6 +8,7 @@ import { aiAPI } from '@/lib/api';
 import Header from '@/components/Header';
 import { MODULE_HEADER } from '@/lib/ui-labels';
 import { useLanguage } from '@/context/LanguageContext';
+import SpeechToTextButton from '@/components/SpeechToTextButton';
 import {
   Bot, Send, Plus, Trash2, Copy, Check, Loader2, Sparkles,
   MessageSquare, ArrowDown, User, Clock, ChevronLeft,
@@ -986,6 +987,7 @@ export default function AIAssistantPage() {
                     className="flex-1 bg-transparent resize-none outline-none text-[13.5px] text-dark-900 dark:text-dark-100 placeholder-dark-400 dark:placeholder-dark-500 max-h-[140px] custom-scrollbar leading-relaxed py-0.5"
                     id="ai-chat-input"
                   />
+                  <SpeechToTextButton currentValue={input} onTranscript={(text) => setInput(text)} className="!p-1.5 border-0 hover:bg-transparent bg-transparent dark:bg-transparent" />
                   <button
                     onClick={() => sendMessage()}
                     disabled={!input.trim() || isLoading}

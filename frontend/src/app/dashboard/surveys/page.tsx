@@ -18,6 +18,7 @@ import StatsSummary from '@/components/dashboard/StatsSummary';
 import { Doughnut } from 'react-chartjs-2';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
 import DetailsModal from '@/components/DetailsModal';
+import SpeechToTextButton from '@/components/SpeechToTextButton';
 
 ChartJS.register(ArcElement, Tooltip, Legend);
 
@@ -627,14 +628,17 @@ export default function SurveysPage() {
                     </div>
                   )}
                   {q.answer_type === 'text' && (
-                    <input
-                      type="text"
-                      value={customAnswers[q.id] || ''}
-                      onChange={e => setCustomAnswers({ ...customAnswers, [q.id]: e.target.value })}
-                      className="form-input"
-                      placeholder={t('surveys.type_answer', 'Type your response here...')}
-                      required
-                    />
+                    <div className="flex gap-2 items-center">
+                      <input
+                        type="text"
+                        value={customAnswers[q.id] || ''}
+                        onChange={e => setCustomAnswers({ ...customAnswers, [q.id]: e.target.value })}
+                        className="form-input flex-1"
+                        placeholder={t('surveys.type_answer', 'Type your response here...')}
+                        required
+                      />
+                      <SpeechToTextButton currentValue={customAnswers[q.id] || ''} onTranscript={(text) => setCustomAnswers(prev => ({ ...prev, [q.id]: text }))} />
+                    </div>
                   )}
                   {q.answer_type === 'multiple_choice' && (
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-1">
@@ -669,7 +673,10 @@ export default function SurveysPage() {
 
               <div className="space-y-2 border-t border-dark-100 dark:border-white/5 pt-4">
                 <label className="block text-xs font-black text-dark-400 uppercase tracking-[0.2em] px-1">{SHARED_UI.surveyObservations}</label>
-                <textarea value={form.remarks} onChange={e => setForm({ ...form, remarks: e.target.value })} className="form-input h-36 resize-none" placeholder={t('surveys.observations_placeholder', 'Provide detailed field observations, voter concerns, or strategic insights...')} />
+                <div className="flex gap-2 items-start">
+                  <textarea value={form.remarks} onChange={e => setForm({ ...form, remarks: e.target.value })} className="form-input h-36 resize-none flex-1" placeholder={t('surveys.observations_placeholder', 'Provide detailed field observations, voter concerns, or strategic insights...')} />
+                  <SpeechToTextButton currentValue={form.remarks} onTranscript={(text) => setForm(prev => ({ ...prev, remarks: text }))} />
+                </div>
               </div>
             </div>
           </div>

@@ -18,6 +18,7 @@ import StatsSummary from '@/components/dashboard/StatsSummary';
 import DetailsModal from '@/components/DetailsModal';
 import { MODULE_HEADER, SHARED_UI } from '@/lib/ui-labels';
 import { useLanguage } from '@/context/LanguageContext';
+import SpeechToTextButton from '@/components/SpeechToTextButton';
 
 function VotersContent() {
   const { t } = useLanguage();
@@ -261,9 +262,12 @@ function VotersContent() {
 
         {/* Filters */}
         <div className="flex flex-wrap gap-3 mb-6">
-          <div className="relative flex-1 min-w-[280px]">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-dark-500" />
-            <input value={search} onChange={e => setSearch(e.target.value)} placeholder={t('voters.search_placeholder', 'Search voters...')} className="form-input pl-10" />
+          <div className="flex gap-2 items-center flex-1 min-w-[280px]">
+            <div className="relative flex-1">
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-dark-500" />
+              <input value={search} onChange={e => setSearch(e.target.value)} placeholder={t('voters.search_placeholder', 'Search voters...')} className="form-input pl-10" />
+            </div>
+            <SpeechToTextButton currentValue={search} onTranscript={(text) => setSearch(text)} />
           </div>
           {['', 'supporter', 'neutral', 'opponent', 'unknown'].map(s => (
             <button key={s} onClick={() => { setSupportFilter(s); setMeta(prev => ({ ...prev, page: 1 })); }}
@@ -520,7 +524,10 @@ function VotersContent() {
 
           <div className="space-y-2">
             <label className="block text-[10px] font-medium text-dark-400 uppercase tracking-widest px-1">{SHARED_UI.voterRemarks}</label>
-            <textarea value={form.remarks} onChange={e => setForm({...form, remarks: e.target.value})} className="form-input h-24 resize-none" placeholder={t('voters.remarks_placeholder', 'Add observations...')} />
+            <div className="flex gap-2 items-start">
+              <textarea value={form.remarks} onChange={e => setForm({...form, remarks: e.target.value})} className="form-input h-24 resize-none flex-1" placeholder={t('voters.remarks_placeholder', 'Add observations...')} />
+              <SpeechToTextButton currentValue={form.remarks} onTranscript={(text) => setForm(prev => ({ ...prev, remarks: text }))} />
+            </div>
           </div>
         </form>
       </Modal>

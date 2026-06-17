@@ -12,6 +12,7 @@ import { format } from 'date-fns';
 import DetailsModal from '@/components/DetailsModal';
 import { MODULE_HEADER, EVENTS_UI, EVENT_TYPE_OPTIONS, eventTypeLabel, eventStatusLabel } from '@/lib/ui-labels';
 import { useLanguage } from '@/context/LanguageContext';
+import SpeechToTextButton from '@/components/SpeechToTextButton';
 import { Bar } from 'react-chartjs-2';
 import {
   Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend
@@ -171,8 +172,8 @@ export default function EventsPage() {
       else { await eventsAPI.create(data); }
       setShowModal(false);
       loadEvents();
-    } catch (err: any) { 
-      showToast.error(err.response?.data?.message || t('event.error.save', 'Error saving event')); 
+    } catch (err: any) {
+      showToast.error(err.response?.data?.message || t('event.error.save', 'Error saving event'));
     }
   };
 
@@ -181,9 +182,9 @@ export default function EventsPage() {
       t('event.delete_title', 'Delete Event'),
       t('event.delete_confirm', 'Are you sure you want to cancel and delete this event? This will remove all associated data.'),
       async () => {
-        try { 
-          await eventsAPI.delete(id); 
-          loadEvents(); 
+        try {
+          await eventsAPI.delete(id);
+          loadEvents();
           toast.success(t('event.success.delete', 'Event deleted successfully'));
         } catch (err) {
           showToast.error(t('event.error.delete', 'Failed to delete event'));
@@ -194,7 +195,7 @@ export default function EventsPage() {
   };
 
   const statusBadge = (s: string) => {
-    switch(s) { case 'upcoming': return 'badge-info'; case 'in_progress': return 'badge-warning'; case 'completed': return 'badge-success'; case 'cancelled': return 'badge-danger'; default: return 'badge-neutral'; }
+    switch (s) { case 'upcoming': return 'badge-info'; case 'in_progress': return 'badge-warning'; case 'completed': return 'badge-success'; case 'cancelled': return 'badge-danger'; default: return 'badge-neutral'; }
   };
 
   const displayedEvents = events.filter(evt => {
@@ -210,26 +211,24 @@ export default function EventsPage() {
     <>
       <Header title={MODULE_HEADER.events.title} subtitle={MODULE_HEADER.events.subtitle} />
       <div className="p-8">
-        
+
         {/* Tab Switcher */}
         <div className="flex border-b border-dark-100 dark:border-white/5 mb-6">
           <button
             onClick={() => { setActiveTab('schedule'); setStatusFilter(''); }}
-            className={`px-6 py-3 text-sm font-semibold transition-all border-b-2 -mb-[2px] ${
-              activeTab === 'schedule'
-                ? 'border-saffron-500 text-saffron-500 font-bold'
-                : 'border-transparent text-dark-500 hover:text-dark-700 dark:hover:text-dark-300'
-            }`}
+            className={`px-6 py-3 text-sm font-semibold transition-all border-b-2 -mb-[2px] ${activeTab === 'schedule'
+              ? 'border-saffron-500 text-saffron-500 font-bold'
+              : 'border-transparent text-dark-500 hover:text-dark-700 dark:hover:text-dark-300'
+              }`}
           >
             Active Schedule
           </button>
           <button
             onClick={() => { setActiveTab('history'); setStatusFilter(''); }}
-            className={`px-6 py-3 text-sm font-semibold transition-all border-b-2 -mb-[2px] ${
-              activeTab === 'history'
-                ? 'border-saffron-500 text-saffron-500 font-bold'
-                : 'border-transparent text-dark-500 hover:text-dark-700 dark:hover:text-dark-300'
-            }`}
+            className={`px-6 py-3 text-sm font-semibold transition-all border-b-2 -mb-[2px] ${activeTab === 'history'
+              ? 'border-saffron-500 text-saffron-500 font-bold'
+              : 'border-transparent text-dark-500 hover:text-dark-700 dark:hover:text-dark-300'
+              }`}
           >
             Event History & Analytics
           </button>
@@ -412,11 +411,11 @@ export default function EventsPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
               <label className="block text-xs font-black text-dark-400 uppercase tracking-widest px-1">{t('event.title_label', 'Event Title *')}</label>
-              <input value={form.title} onChange={e => setForm({...form, title: e.target.value})} className="form-input" placeholder={t('event.title_placeholder', 'e.g. Mega Rally 2024')} required />
+              <input value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} className="form-input" placeholder={t('event.title_placeholder', 'e.g. Mega Rally 2024')} required />
             </div>
             <div className="space-y-2">
               <label className="block text-xs font-black text-dark-400 uppercase tracking-widest px-1">{t('label.category', 'Event Category')}</label>
-              <select value={form.type} onChange={e => setForm({...form, type: e.target.value})} className="form-input">
+              <select value={form.type} onChange={e => setForm({ ...form, type: e.target.value })} className="form-input">
                 {EVENT_TYPE_OPTIONS.map(tOption => <option key={tOption.value} value={tOption.value}>{tOption.label}</option>)}
               </select>
             </div>
@@ -425,28 +424,31 @@ export default function EventsPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
               <label className="block text-xs font-black text-dark-400 uppercase tracking-widest px-1">{t('label.date_time', 'Date & Time *')}</label>
-              <input type="datetime-local" value={form.event_date} onChange={e => setForm({...form, event_date: e.target.value})} className="form-input" required />
+              <input type="datetime-local" value={form.event_date} onChange={e => setForm({ ...form, event_date: e.target.value })} className="form-input" required />
             </div>
             <div className="space-y-2">
               <label className="block text-xs font-black text-dark-400 uppercase tracking-widest px-1">{EVENTS_UI.locationLabel}</label>
-              <input value={form.location} onChange={e => setForm({...form, location: e.target.value})} className="form-input" placeholder={t('label.venue_placeholder', 'Venue or landmark...')} />
+              <input value={form.location} onChange={e => setForm({ ...form, location: e.target.value })} className="form-input" placeholder={t('label.venue_placeholder', 'Venue or landmark...')} />
             </div>
           </div>
 
           <div className="space-y-2">
             <label className="block text-xs font-black text-dark-400 uppercase tracking-widest px-1">{t('event.description_label', 'Event Description & Strategy')}</label>
-            <textarea value={form.description} onChange={e => setForm({...form, description: e.target.value})} className="form-input h-24 resize-none" placeholder={t('label.plan_placeholder', 'Provide detailed plan for the event...')} />
+            <div className="flex gap-2 items-start">
+              <textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} className="form-input h-24 resize-none flex-1" placeholder={t('label.plan_placeholder', 'Provide detailed plan for the event...')} />
+              <SpeechToTextButton currentValue={form.description} onTranscript={(text) => setForm(prev => ({ ...prev, description: text }))} />
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
               <label className="block text-xs font-black text-dark-400 uppercase tracking-widest px-1">{t('label.expected_attendance', 'Expected Attendance')}</label>
-              <input type="number" value={form.expected_attendance} onChange={e => setForm({...form, expected_attendance: e.target.value})} className="form-input" placeholder="0" />
+              <input type="number" value={form.expected_attendance} onChange={e => setForm({ ...form, expected_attendance: e.target.value })} className="form-input" placeholder="0" />
             </div>
             {editingEvent && (
               <div className="space-y-2">
                 <label className="block text-xs font-black text-dark-400 uppercase tracking-widest px-1">{EVENTS_UI.statusLabel}</label>
-                <select value={form.status} onChange={e => setForm({...form, status: e.target.value})} className="form-input">
+                <select value={form.status} onChange={e => setForm({ ...form, status: e.target.value })} className="form-input">
                   <option value="upcoming">{t('label.upcoming', 'Upcoming')}</option>
                   <option value="in_progress">{t('label.processing', 'In Progress')}</option>
                   <option value="completed">{t('label.completed', 'Completed')}</option>
@@ -460,7 +462,7 @@ export default function EventsPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
                 <label className="block text-xs font-black text-dark-400 uppercase tracking-widest px-1">Actual Attendance *</label>
-                <input type="number" value={form.actual_attendance} onChange={e => setForm({...form, actual_attendance: e.target.value})} className="form-input" placeholder="0" required />
+                <input type="number" value={form.actual_attendance} onChange={e => setForm({ ...form, actual_attendance: e.target.value })} className="form-input" placeholder="0" required />
               </div>
             </div>
           )}
@@ -474,35 +476,59 @@ export default function EventsPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <label className="block text-xs font-black text-dark-400 uppercase tracking-widest px-1">Event Outcome *</label>
-                  <textarea value={feedbackForm.outcome} onChange={e => setFeedbackForm({...feedbackForm, outcome: e.target.value})} className="form-input h-20 resize-none" placeholder="Summary of what was achieved..." required />
+                  <div className="flex gap-2 items-start">
+                    <textarea value={feedbackForm.outcome} onChange={e => setFeedbackForm({ ...feedbackForm, outcome: e.target.value })} className="form-input h-20 resize-none flex-1" placeholder="Summary of what was achieved..." required />
+                    <SpeechToTextButton currentValue={feedbackForm.outcome} onTranscript={(text) => setFeedbackForm(prev => ({ ...prev, outcome: text }))} />
+                  </div>
                 </div>
                 <div className="space-y-2">
                   <label className="block text-xs font-black text-dark-400 uppercase tracking-widest px-1">Key Observations *</label>
-                  <textarea value={feedbackForm.key_observations} onChange={e => setFeedbackForm({...feedbackForm, key_observations: e.target.value})} className="form-input h-20 resize-none" placeholder="Important takeaways or voter remarks..." required />
+                  <div className="flex gap-2 items-start">
+                    <textarea value={feedbackForm.key_observations} onChange={e => setFeedbackForm({ ...feedbackForm, key_observations: e.target.value })} className="form-input h-20 resize-none flex-1" placeholder="Important takeaways or voter remarks..." required />
+                    <SpeechToTextButton currentValue={feedbackForm.key_observations} onTranscript={(text) => setFeedbackForm(prev => ({ ...prev, key_observations: text }))} />
+                  </div>
                 </div>
                 <div className="space-y-2">
                   <label className="block text-xs font-black text-dark-400 uppercase tracking-widest px-1">Public Response *</label>
-                  <textarea value={feedbackForm.public_response} onChange={e => setFeedbackForm({...feedbackForm, public_response: e.target.value})} className="form-input h-20 resize-none" placeholder="Sentiment of the audience..." required />
+                  <div className="flex gap-2 items-start">
+                    <textarea value={feedbackForm.public_response} onChange={e => setFeedbackForm({ ...feedbackForm, public_response: e.target.value })} className="form-input h-20 resize-none flex-1" placeholder="Sentiment of the audience..." required />
+                    <SpeechToTextButton currentValue={feedbackForm.public_response} onTranscript={(text) => setFeedbackForm(prev => ({ ...prev, public_response: text }))} />
+                  </div>
                 </div>
                 <div className="space-y-2">
                   <label className="block text-xs font-black text-dark-400 uppercase tracking-widest px-1">Challenges Faced *</label>
-                  <textarea value={feedbackForm.challenges} onChange={e => setFeedbackForm({...feedbackForm, challenges: e.target.value})} className="form-input h-20 resize-none" placeholder="Any issues, delays, or logistical blocks..." required />
+                  <div className="flex gap-2 items-start">
+                    <textarea value={feedbackForm.challenges} onChange={e => setFeedbackForm({ ...feedbackForm, challenges: e.target.value })} className="form-input h-20 resize-none flex-1" placeholder="Any issues, delays, or logistical blocks..." required />
+                    <SpeechToTextButton currentValue={feedbackForm.challenges} onTranscript={(text) => setFeedbackForm(prev => ({ ...prev, challenges: text }))} />
+                  </div>
                 </div>
                 <div className="space-y-2">
                   <label className="block text-xs font-black text-dark-400 uppercase tracking-widest px-1">Achievements *</label>
-                  <textarea value={feedbackForm.achievements} onChange={e => setFeedbackForm({...feedbackForm, achievements: e.target.value})} className="form-input h-20 resize-none" placeholder="Highlights and successes..." required />
+                  <div className="flex gap-2 items-start">
+                    <textarea value={feedbackForm.achievements} onChange={e => setFeedbackForm({ ...feedbackForm, achievements: e.target.value })} className="form-input h-20 resize-none flex-1" placeholder="Highlights and successes..." required />
+                    <SpeechToTextButton currentValue={feedbackForm.achievements} onTranscript={(text) => setFeedbackForm(prev => ({ ...prev, achievements: text }))} />
+                  </div>
                 </div>
                 <div className="space-y-2">
                   <label className="block text-xs font-black text-dark-400 uppercase tracking-widest px-1">Attendance Summary *</label>
-                  <textarea value={feedbackForm.attendance_summary} onChange={e => setFeedbackForm({...feedbackForm, attendance_summary: e.target.value})} className="form-input h-20 resize-none" placeholder="Crowd composition and mobilization details..." required />
+                  <div className="flex gap-2 items-start">
+                    <textarea value={feedbackForm.attendance_summary} onChange={e => setFeedbackForm({ ...feedbackForm, attendance_summary: e.target.value })} className="form-input h-20 resize-none flex-1" placeholder="Crowd composition and mobilization details..." required />
+                    <SpeechToTextButton currentValue={feedbackForm.attendance_summary} onTranscript={(text) => setFeedbackForm(prev => ({ ...prev, attendance_summary: text }))} />
+                  </div>
                 </div>
                 <div className="space-y-2">
                   <label className="block text-xs font-black text-dark-400 uppercase tracking-widest px-1">Follow-up Actions *</label>
-                  <textarea value={feedbackForm.follow_up} onChange={e => setFeedbackForm({...feedbackForm, follow_up: e.target.value})} className="form-input h-20 resize-none" placeholder="Actions to take post-event..." required />
+                  <div className="flex gap-2 items-start">
+                    <textarea value={feedbackForm.follow_up} onChange={e => setFeedbackForm({ ...feedbackForm, follow_up: e.target.value })} className="form-input h-20 resize-none flex-1" placeholder="Actions to take post-event..." required />
+                    <SpeechToTextButton currentValue={feedbackForm.follow_up} onTranscript={(text) => setFeedbackForm(prev => ({ ...prev, follow_up: text }))} />
+                  </div>
                 </div>
                 <div className="space-y-2">
                   <label className="block text-xs font-black text-dark-400 uppercase tracking-widest px-1">Additional Remarks *</label>
-                  <textarea value={feedbackForm.remarks} onChange={e => setFeedbackForm({...feedbackForm, remarks: e.target.value})} className="form-input h-20 resize-none" placeholder="Any other notes..." required />
+                  <div className="flex gap-2 items-start">
+                    <textarea value={feedbackForm.remarks} onChange={e => setFeedbackForm({ ...feedbackForm, remarks: e.target.value })} className="form-input h-20 resize-none flex-1" placeholder="Any other notes..." required />
+                    <SpeechToTextButton currentValue={feedbackForm.remarks} onTranscript={(text) => setFeedbackForm(prev => ({ ...prev, remarks: text }))} />
+                  </div>
                 </div>
               </div>
             </div>
@@ -534,8 +560,8 @@ export default function EventsPage() {
             {(() => {
               const fb = selectedEvent?.feedback
                 ? (typeof selectedEvent.feedback === 'string'
-                    ? JSON.parse(selectedEvent.feedback)
-                    : selectedEvent.feedback)
+                  ? JSON.parse(selectedEvent.feedback)
+                  : selectedEvent.feedback)
                 : null;
               if (selectedEvent?.status !== 'completed' || !fb) return null;
               return (
@@ -608,14 +634,13 @@ export default function EventsPage() {
                           <div>
                             <div className="flex justify-between items-start mb-1.5">
                               <span className="text-[9px] font-black text-saffron-600 dark:text-saffron-500 uppercase tracking-wider">{alloc.work_type}</span>
-                              <span className={`px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider border ${
-                                alloc.status === 'completed' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' :
+                              <span className={`px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider border ${alloc.status === 'completed' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' :
                                 alloc.status === 'in_progress' ? 'bg-blue-500/10 text-blue-500 border-blue-500/20' :
-                                alloc.status === 'overdue' ? 'bg-red-500/20 text-red-500 border-red-500/30 font-bold animate-pulse' :
-                                alloc.status === 'assigned' ? 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20' :
-                                alloc.status === 'cancelled' ? 'bg-red-500/10 text-red-500 border-red-500/20' :
-                                'bg-dark-500/10 text-dark-500 border-dark-500/20'
-                              }`}>
+                                  alloc.status === 'overdue' ? 'bg-red-500/20 text-red-500 border-red-500/30 font-bold animate-pulse' :
+                                    alloc.status === 'assigned' ? 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20' :
+                                      alloc.status === 'cancelled' ? 'bg-red-500/10 text-red-500 border-red-500/20' :
+                                        'bg-dark-500/10 text-dark-500 border-dark-500/20'
+                                }`}>
                                 {t(`label.${alloc.status}`, alloc.status)}
                               </span>
                             </div>

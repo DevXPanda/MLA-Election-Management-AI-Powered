@@ -14,6 +14,7 @@ import { useCallback } from 'react';
 import DetailsModal from '@/components/DetailsModal';
 import { MODULE_HEADER, TASKS_UI, TASK_TYPE_OPTIONS, taskTypeLabel } from '@/lib/ui-labels';
 import { useLanguage } from '@/context/LanguageContext';
+import SpeechToTextButton from '@/components/SpeechToTextButton';
 
 export default function TasksPage() {
   const { user } = useAuth();
@@ -361,12 +362,15 @@ export default function TasksPage() {
               </div>
               <div className="space-y-2">
                 <label className="block text-xs font-black text-dark-400 uppercase tracking-widest px-1">{t('tasks.assignee_remarks', 'Your remarks')}</label>
-                <textarea
-                  value={form.assignee_remark_chunk}
-                  onChange={(e) => setForm({ ...form, assignee_remark_chunk: e.target.value })}
-                  className="form-input h-24 resize-none"
-                  placeholder={t('tasks.remarks_placeholder', 'Notes or comments for this task...')}
-                />
+                <div className="flex gap-2 items-start">
+                  <textarea
+                    value={form.assignee_remark_chunk}
+                    onChange={(e) => setForm({ ...form, assignee_remark_chunk: e.target.value })}
+                    className="form-input h-24 resize-none flex-1"
+                    placeholder={t('tasks.remarks_placeholder', 'Notes or comments for this task...')}
+                  />
+                  <SpeechToTextButton currentValue={form.assignee_remark_chunk} onTranscript={(text) => setForm(prev => ({ ...prev, assignee_remark_chunk: text }))} />
+                </div>
               </div>
             </>
           ) : (
@@ -390,7 +394,10 @@ export default function TasksPage() {
 
               <div className="space-y-2">
                 <label className="block text-xs font-black text-dark-400 uppercase tracking-widest px-1">{t('tasks.task_description', 'Task Description')}</label>
-                <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className="form-input h-24 resize-none" placeholder={t('tasks.description_placeholder', 'Provide detailed instructions for the assignee...')} />
+                <div className="flex gap-2 items-start">
+                  <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className="form-input h-24 resize-none flex-1" placeholder={t('tasks.description_placeholder', 'Provide detailed instructions for the assignee...')} />
+                  <SpeechToTextButton currentValue={form.description} onTranscript={(text) => setForm(prev => ({ ...prev, description: text }))} />
+                </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -443,12 +450,15 @@ export default function TasksPage() {
 
               <div className="space-y-2">
                 <label className="block text-xs font-black text-dark-400 uppercase tracking-widest px-1">{t('tasks.assigner_remarks', 'Assigner remarks / notes')}</label>
-                <textarea
-                  value={form.assigner_remarks}
-                  onChange={(e) => setForm({ ...form, assigner_remarks: e.target.value })}
-                  className="form-input h-20 resize-none"
-                  placeholder={t('tasks.assigner_remarks_placeholder', 'Instructions or context for assignees...')}
-                />
+                <div className="flex gap-2 items-start">
+                  <textarea
+                    value={form.assigner_remarks}
+                    onChange={(e) => setForm({ ...form, assigner_remarks: e.target.value })}
+                    className="form-input h-20 resize-none flex-1"
+                    placeholder={t('tasks.assigner_remarks_placeholder', 'Instructions or context for assignees...')}
+                  />
+                  <SpeechToTextButton currentValue={form.assigner_remarks} onTranscript={(text) => setForm(prev => ({ ...prev, assigner_remarks: text }))} />
+                </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
