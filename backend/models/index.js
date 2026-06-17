@@ -489,6 +489,15 @@ const createTables = async () => {
         ALTER TABLE work_allocations ALTER COLUMN status SET DEFAULT 'assigned';
         UPDATE work_allocations SET status = 'assigned' WHERE status = 'pending';
         UPDATE work_allocations SET status = 'in_progress' WHERE status = 'processing';
+
+        -- WhatsApp Messages Meta Integration columns
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='whatsapp_messages' AND column_name='whatsapp_message_id') THEN
+            ALTER TABLE whatsapp_messages ADD COLUMN whatsapp_message_id VARCHAR(255);
+        END IF;
+
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='whatsapp_messages' AND column_name='retry_count') THEN
+            ALTER TABLE whatsapp_messages ADD COLUMN retry_count INTEGER DEFAULT 0;
+        END IF;
     END $$;
 
     -- AI Chat Sessions
@@ -576,15 +585,143 @@ const createTables = async () => {
     CREATE INDEX IF NOT EXISTS idx_party_members_org ON party_members(organization_id);
     CREATE INDEX IF NOT EXISTS idx_party_members_ward ON party_members(ward_id);
     CREATE INDEX IF NOT EXISTS idx_party_members_creator ON party_members(created_by_user_id);
+
+    -- WhatsApp Settings table
+    CREATE TABLE IF NOT EXISTS whatsapp_settings (
+      id SERIAL PRIMARY KEY,
+      organization_id INTEGER REFERENCES organizations(id) ON DELETE CASCADE UNIQUE,
+      access_token TEXT NOT NULL,
+      phone_number_id VARCHAR(100) NOT NULL,
+      business_account_id VARCHAR(100) NOT NULL,
+      webhook_verify_token VARCHAR(100) NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+
+    -- WhatsApp Templates table
+    CREATE TABLE IF NOT EXISTS whatsapp_templates (
+      id SERIAL PRIMARY KEY,
+      name VARCHAR(100) NOT NULL,
+      category VARCHAR(50) DEFAULT 'utility',
+      language VARCHAR(10) DEFAULT 'en',
+      body_text TEXT NOT NULL,
+      status VARCHAR(20) DEFAULT 'approved',
+      organization_id INTEGER REFERENCES organizations(id) DEFAULT 1,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(name, organization_id)
+    );
+
+    -- WhatsApp Campaigns table
+    CREATE TABLE IF NOT EXISTS whatsapp_campaigns (
+      id SERIAL PRIMARY KEY,
+      name VARCHAR(200) NOT NULL,
+      sent_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      template_name VARCHAR(100),
+      message_text TEXT,
+      recipient_count INTEGER DEFAULT 0,
+      constituency_id INTEGER REFERENCES constituencies(id) ON DELETE SET NULL,
+      organization_id INTEGER REFERENCES organizations(id) DEFAULT 1,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+
+    -- WhatsApp Messages table
+    CREATE TABLE IF NOT EXISTS whatsapp_messages (
+      id SERIAL PRIMARY KEY,
+      campaign_id INTEGER REFERENCES whatsapp_campaigns(id) ON DELETE CASCADE,
+      sender_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      recipient_type VARCHAR(50) NOT NULL, -- 'voter', 'party_member', 'team_member', 'worker', 'custom'
+      recipient_id INTEGER, -- NULL if custom/not in DB
+      recipient_name VARCHAR(150) NOT NULL,
+      recipient_phone VARCHAR(15) NOT NULL,
+      message_text TEXT NOT NULL,
+      status VARCHAR(20) DEFAULT 'sent', -- 'sent', 'delivered', 'read', 'failed'
+      whatsapp_message_id VARCHAR(255),
+      retry_count INTEGER DEFAULT 0,
+      error_message TEXT,
+      constituency_id INTEGER REFERENCES constituencies(id) ON DELETE SET NULL,
+      organization_id INTEGER REFERENCES organizations(id) DEFAULT 1,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_whatsapp_templates_org ON whatsapp_templates(organization_id);
+    CREATE INDEX IF NOT EXISTS idx_whatsapp_campaigns_org ON whatsapp_campaigns(organization_id);
+    CREATE INDEX IF NOT EXISTS idx_whatsapp_messages_campaign ON whatsapp_messages(campaign_id);
+    CREATE INDEX IF NOT EXISTS idx_whatsapp_messages_org ON whatsapp_messages(organization_id);
   `;
 
   try {
     await pool.query(queries);
     console.log('✅ All tables created successfully');
+    await seedWhatsAppTemplates();
   } catch (error) {
     console.error('❌ Error creating tables:', error.message);
     throw error;
   }
 };
 
+const seedWhatsAppTemplates = async () => {
+  const templates = [
+    {
+      name: 'Voter Slip Reminder',
+      category: 'marketing',
+      language: 'en',
+      body_text: 'Hello {{Name}}, this is a friendly reminder to cast your vote on election day! Your assigned booth is {{Booth}} in {{Ward}} of {{Constituency}} constituency. Let\'s build a better future together.'
+    },
+    {
+      name: 'Voter Slip Reminder (Hindi)',
+      category: 'marketing',
+      language: 'hi',
+      body_text: 'नमस्ते {{Name}}, चुनाव के दिन अपना वोट डालने के लिए यह एक अनुस्मारक है! आपका बूथ {{Booth}}, वार्ड {{Ward}}, निर्वाचन क्षेत्र {{Constituency}} है। आइए मिलकर एक बेहतर भविष्य का निर्माण करें।'
+    },
+    {
+      name: 'Event Invitation',
+      category: 'utility',
+      language: 'en',
+      body_text: 'Hello {{Name}}, we invite you to attend our upcoming event "{{Event}}" in {{Ward}} of {{Constituency}}. We look forward to your valuable support!'
+    },
+    {
+      name: 'Event Invitation (Hindi)',
+      category: 'utility',
+      language: 'hi',
+      body_text: 'नमस्ते {{Name}}, हम आपको {{Constituency}} के {{Ward}} में हमारे आगामी कार्यक्रम "{{Event}}" में शामिल होने के लिए आमंत्रित करते हैं। हम आपके बहुमूल्य समर्थन की प्रतीक्षा कर रहे हैं!'
+    },
+    {
+      name: 'Voter Outreach Inquiry',
+      category: 'utility',
+      language: 'en',
+      body_text: 'Hello {{Name}}, as a respected resident of {{Ward}}, your opinions matter. Please reply to this message with any local concerns or issues in your neighborhood.'
+    },
+    {
+      name: 'Voter Outreach Inquiry (Hindi)',
+      category: 'utility',
+      language: 'hi',
+      body_text: 'नमस्ते {{Name}}, {{Ward}} के एक सम्मानित निवासी के रूप में, आपकी राय हमारे लिए महत्वपूर्ण है। कृपया अपने क्षेत्र की समस्याओं या चिंताओं के साथ इस संदेश का उत्तर दें।'
+    }
+  ];
+
+  try {
+    const orgRes = await pool.query('SELECT id FROM organizations LIMIT 1');
+    const defaultOrgId = orgRes.rows.length > 0 ? orgRes.rows[0].id : null;
+    if (!defaultOrgId) {
+      console.log('⚠️ No organization found to seed templates.');
+      return;
+    }
+
+    for (const t of templates) {
+      await pool.query(
+        `INSERT INTO whatsapp_templates (name, category, language, body_text, organization_id)
+         VALUES ($1, $2, $3, $4, $5)
+         ON CONFLICT (name, organization_id) DO NOTHING`,
+        [t.name, t.category, t.language, t.body_text, defaultOrgId]
+      );
+    }
+    console.log('✅ Default WhatsApp templates seeded');
+  } catch (error) {
+    console.error('❌ Error seeding WhatsApp templates:', error.message);
+  }
+};
+
 module.exports = { createTables };
+
+

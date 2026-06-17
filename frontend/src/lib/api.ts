@@ -179,6 +179,21 @@ export const messagesAPI = {
   delete: (id: number) => api.delete(`/messages/${id}`),
 };
 
+// ─── WhatsApp API ───
+export const whatsappAPI = {
+  getTemplates: () => api.get('/whatsapp/templates'),
+  createTemplate: (data: Record<string, unknown>) => api.post('/whatsapp/templates', data),
+  deleteTemplate: (id: number) => api.delete(`/whatsapp/templates/${id}`),
+  getRecipients: (params?: Record<string, string | number>) => api.get('/whatsapp/recipients', { params }),
+  send: (data: Record<string, unknown>) => api.post('/whatsapp/send', data),
+  getCampaigns: () => api.get('/whatsapp/campaigns'),
+  getCampaignMessages: (campaignId: number) => api.get(`/whatsapp/campaigns/${campaignId}/messages`),
+  getAnalytics: () => api.get('/whatsapp/analytics'),
+  getSettings: () => api.get('/whatsapp/settings'),
+  saveSettings: (data: Record<string, unknown>) => api.post('/whatsapp/settings', data),
+};
+
+
 export const mediaAPI = {
   getAll: (params?: Record<string, string | number>) =>
     api.get('/media', { params }),

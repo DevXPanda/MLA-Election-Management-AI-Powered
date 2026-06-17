@@ -138,11 +138,18 @@ const NAV_CONFIG = [
         roles: ['super_admin', 'mla']
       },
       {
+        href: '/dashboard/whatsapp',
+        get label() { return SIDEBAR.whatsapp; },
+        icon: MessageSquare,
+        roles: ['super_admin', 'mla']
+      },
+      {
         href: '/dashboard/media',
         get label() { return SIDEBAR.mediaLibrary; },
         icon: Image,
         roles: ['super_admin', 'mla']
       },
+
     ],
   },
   {

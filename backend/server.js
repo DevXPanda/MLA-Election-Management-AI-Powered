@@ -30,10 +30,12 @@ const notificationsRoutes = require('./routes/notifications.routes');
 const workAllocationRoutes = require('./routes/work-allocation.routes');
 const aiRoutes = require('./routes/ai.routes');
 const partyMembersRoutes = require('./routes/party-members.routes');
+const whatsappRoutes = require('./routes/whatsapp.routes');
 
 const app = express();
 const server = http.createServer(app);
 const PORT = process.env.PORT || 5000;
+
 
 // ── Allowed Origins ──────────────────────────────────────────────────
 const allowedOrigins = [
@@ -108,6 +110,8 @@ app.use('/api/notifications', notificationsRoutes);
 app.use('/api/work-allocation', workAllocationRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/party-members', partyMembersRoutes);
+app.use('/api/whatsapp', whatsappRoutes);
+
 
 // ── Health check ────────────────────────────────────────────────────
 app.get('/api/health', (req, res) => {

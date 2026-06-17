@@ -29,7 +29,9 @@ export const SIDEBAR = {
   get mediaLibrary() { return getTranslation('sidebar.mediaLibrary', 'Media Library'); },
   get aiAssistant() { return getTranslation('sidebar.aiAssistant', 'AI Assistant'); },
   get partyMembers() { return getTranslation('sidebar.partyMembers', 'Party Members'); },
+  get whatsapp() { return getTranslation('sidebar.whatsapp', 'WhatsApp Campaigns'); },
 };
+
 
 export const MODULE_HEADER = {
   get dashboard() {
@@ -98,7 +100,14 @@ export const MODULE_HEADER = {
       subtitle: getTranslation('messages.subtitle', 'Communication center')
     };
   },
+  get whatsapp() {
+    return {
+      title: getTranslation('sidebar.whatsapp', 'WhatsApp Campaigns'),
+      subtitle: getTranslation('whatsapp.subtitle', 'Bulk & individual WhatsApp campaign management')
+    };
+  },
   get media() {
+
     return {
       title: getTranslation('sidebar.mediaLibrary', 'Media Library'),
       subtitle: getTranslation('media.subtitle', 'Campaign media assets and documents')
